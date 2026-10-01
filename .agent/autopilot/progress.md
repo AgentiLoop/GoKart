@@ -226,3 +226,19 @@ Cycle 4: added a minimap and committed it. The unit suite passes (1310 checks, 0
 ## Cycle 5 — red shell + star
 - Items: RED_SHELL (homing: follows road centerline, locks on nearest non-star kart ahead within 28 m, turn-rate limited) and STAR (7 s invincible, 1.2x speed ignoring off-road, bowls over touched karts). star.gdshader rainbow material_overlay + glitter GPUParticles3D, HUD "STAR!", AI use rules. 1556 checks pass, smoke 3/3, windowed render of star shader had no errors.
 - Remaining: proper kart model, triple shells / lightning / blue shell, item-vs-AI tuning.
+## Cycle 5 — 2026-10-01 13:52
+Cycle 5: added two new items, the homing red shell and the star, and committed. The unit suite passes (1556 checks, 0 failures) and the headless startup run printed no errors. The smoke run (`tools/smoke.gd`) ended with all 3 AI karts racing. All runs were behind perl alarm limits.
+
+- **Red shell:** `make_red_shell` in `item_projectile.gd` follows the road centerline. It locks onto the nearest kart ahead once within 28 m, with a limited turn rate. Karts with a star are never targeted, so shells don't circle them.
+- **Star:** `kart_physics.gd` gives 7 s of invincibility and 1.2× top speed that ignores off-road. A kart with a star spins out any kart it touches (`item_manager.gd`). Visuals: a rainbow overlay shader (`shaders/star.gdshader`) on the kart body plus a GPUParticles3D glitter burst. The HUD shows "STAR!".
+- **Item roll and AI:** the roll weights now cover five items and the roulette cycles through all of them. The AI uses a red shell when a rival is within 80 m ahead, and uses a star immediately.
+- **Tests:** about 245 new checks across `test_items.gd`, `test_ai.gd` and `test_effects.gd`. The existing roll test was updated for the new weights.
+- **Extra rendering check:** I ran the game once in a real window with a star active and a red shell fired. The star glitter was emitting and there were no shader errors.
+- **Assumptions:** I haven't seen the star overlay or glitter on screen, only checked that they run without errors. No parity folders were given.
+- **Remaining:** a proper kart model, triple shells, lightning, a blue shell, and tuning how items hit the AI karts.
+- **Blockers:** none.
+
+
+## Cycle 6 — kart model
+- scripts/kart_model.gd: procedural kart (chassis, nose cone, wings, side pods, spoiler, exhausts, seat, steering wheel, driver w/ helmet, 4 cylinder wheels w/ hubs). Wheels spin with speed, front wheels + steering wheel + head turn with steer. kart.gd uses it; star overlay now recurses over all meshes. tests/test_kart_model.gd. 1574 checks pass, smoke 3/3, screenshot tool ran (not visually inspected).
+- Remaining: triple shells / lightning / blue shell, item-vs-AI tuning.

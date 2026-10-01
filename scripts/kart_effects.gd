@@ -84,9 +84,8 @@ func setup(physics_model, wheel_offsets: Array) -> void:
 func setup_star(body: Node3D) -> void:
 	star_overlay = ShaderMaterial.new()
 	star_overlay.shader = load("res://shaders/star.gdshader") as Shader
-	for c in body.get_children():
-		if c is MeshInstance3D:
-			star_meshes.append(c)
+	for c in body.find_children("*", "MeshInstance3D", true, false):
+		star_meshes.append(c)
 
 func _make_glitter() -> GPUParticles3D:
 	var p := GPUParticles3D.new()
