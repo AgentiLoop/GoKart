@@ -90,6 +90,12 @@ func use_item(id := 0) -> int:
 			_strike(id)
 	return t
 
+func _no_finish_times() -> Array:
+	var out: Array = []
+	out.resize(karts.size())
+	out.fill(-1.0)
+	return out
+
 ## Race progress of every kart (laps, track sample, fraction), as used for the standings.
 func _progresses() -> Array:
 	var out: Array = []
@@ -237,7 +243,7 @@ func _physics_process(delta: float) -> void:
 		b.tick(delta)
 		for id in karts.size():
 			if b.try_take(positions[id]):
-				holders[id].pickup()
+				holders[id].pickup(RaceRanking.rank_of(id, _progresses(), _no_finish_times()), karts.size())
 	if Input.is_action_just_pressed("use_item") and not karts[0].frozen:
 		use_item(0)
 	for id in range(1, karts.size()):

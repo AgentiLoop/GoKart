@@ -583,3 +583,58 @@ func test_blue_blast_grows_and_fades() -> void:
 	runner.check(b.tick(0.1) and b.material.albedo_color.a < 0.9, "fading")
 	runner.check(not b.tick(1.0), "finished")
 	b.free()
+
+func test_rank_weights_unadjusted_without_rank() -> void:
+	runner.check(Items.weights_for() == Items.WEIGHTS)
+	runner.check(Items.weights_for(2, 1) == Items.WEIGHTS, "field of one")
+	runner.check(Items.roll(0.3) == Items.roll(0.3, 0, 4))
+
+func test_leader_never_rolls_blue_shell_or_lightning() -> void:
+	var w := Items.weights_for(1, 4)
+	runner.check(w[Items.Type.BLUE_SHELL] == 0.0 and w[Items.Type.LIGHTNING] == 0.0)
+	for i in 1000:
+		var it := Items.roll(i / 1000.0, 1, 4)
+		runner.check(it != Items.Type.BLUE_SHELL and it != Items.Type.LIGHTNING, "leader rolled %d" % it)
+
+func test_last_place_favours_power_items() -> void:
+	var lead := Items.weights_for(1, 4)
+	var last := Items.weights_for(4, 4)
+	runner.check(last[Items.Type.STAR] > lead[Items.Type.STAR])
+	runner.check(last[Items.Type.BLUE_SHELL] > 0.0 and last[Items.Type.LIGHTNING] > 0.0)
+	runner.check(last[Items.Type.BANANA] < lead[Items.Type.BANANA])
+	var stars_last := 0
+	var stars_lead := 0
+	for i in 1000:
+		if Items.roll(i / 1000.0, 4, 4) == Items.Type.STAR:
+			stars_last += 1
+		if Items.roll(i / 1000.0, 1, 4) == Items.Type.STAR:
+			stars_lead += 1
+	runner.check(stars_last > stars_lead * 3, "stars last=%d lead=%d" % [stars_last, stars_lead])
+
+func test_rank_roll_covers_valid_items_and_mid_rank_is_between() -> void:
+	var seen := {}
+	for i in 400:
+		seen[Items.roll(i / 400.0, 4, 4)] = true
+	runner.check(seen.size() == Items.count(), "last place can roll everything, seen=%d" % seen.size())
+	var mid := Items.weights_for(2, 3)
+	runner.check(mid[Items.Type.BLUE_SHELL] > 0.0 and mid[Items.Type.BLUE_SHELL] < Items.weights_for(3, 3)[Items.Type.BLUE_SHELL])
+
+func test_holder_uses_rank_for_roll() -> void:
+	for seed_value in range(1, 150):
+		var h := ItemHolder.new(seed_value)
+		h.pickup(1, 4)
+		h.update(h.roulette_duration + 0.1)
+		runner.check(h.held != Items.Type.BLUE_SHELL and h.held != Items.Type.LIGHTNING, "leader seed %d got %d" % [seed_value, h.held])
+	var h2 := ItemHolder.new(7)
+	runner.check(h2.pickup(3, 4) and h2.rank == 3 and h2.racers == 4)
+
+func test_manager_passes_rank_to_holder() -> void:
+	var r := _make_manager(3)
+	_place(r, 0, 5)
+	_place(r, 1, 30)
+	_place(r, 2, 20)
+	var b = r[0].boxes[0]
+	b.position = r[1][0].global_position
+	r[0]._physics_process(DT)
+	runner.check(r[0].holders[0].rank == 3, "last kart rank=%d" % r[0].holders[0].rank)
+	_free_manager(r)

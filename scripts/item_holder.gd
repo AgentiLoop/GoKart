@@ -9,6 +9,8 @@ signal roulette_finished(item: int)
 var held := Items.Type.NONE
 var roulette_time := 0.0
 var roulette_duration := 1.5
+var rank := 0      # race position when the box was hit (0 = unknown), biases the roll
+var racers := 0
 var charges := 0   # uses left of a multi-use item (triple shells)
 var rng := RandomNumberGenerator.new()
 
@@ -22,9 +24,11 @@ func is_rolling() -> bool:
 	return roulette_time > 0.0
 
 ## Item box touched. Ignored while holding or rolling. Returns true if a roulette started.
-func pickup() -> bool:
+func pickup(at_rank := 0, field_size := 0) -> bool:
 	if held != Items.Type.NONE or is_rolling():
 		return false
+	rank = at_rank
+	racers = field_size
 	roulette_time = roulette_duration
 	return true
 
@@ -33,7 +37,7 @@ func update(delta: float) -> void:
 		roulette_time -= delta
 		if roulette_time <= 0.0:
 			roulette_time = 0.0
-			held = Items.roll(rng.randf())
+			held = Items.roll(rng.randf(), rank, racers)
 			charges = Items.TRIPLE_CHARGES if held == Items.Type.TRIPLE_SHELL else 0
 			roulette_finished.emit(held)
 
