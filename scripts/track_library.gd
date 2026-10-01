@@ -38,6 +38,23 @@ const TRACKS := [
 		"sky_top": Color(0.35, 0.3, 0.6),
 		"sky_horizon": Color(1.0, 0.62, 0.35),
 	},
+	{
+		"name": "Frosty Peaks",
+		"blurb": "Tight snowy esses and a long sweeper",
+		"control": [
+			Vector2(0, 60), Vector2(0, -50), Vector2(-20, -95), Vector2(-60, -115),
+			Vector2(-100, -90), Vector2(-90, -45), Vector2(-120, -10), Vector2(-170, -15),
+			Vector2(-200, 25), Vector2(-175, 70), Vector2(-130, 60), Vector2(-100, 95),
+			Vector2(-115, 145), Vector2(-70, 175), Vector2(-25, 150), Vector2(-5, 110),
+		],
+		"width": 16.0,
+		"pads": [[0.12, 0.0], [0.36, -3.0], [0.6, 3.0], [0.83, 0.0]],
+		"box_rows": [0.06, 0.28, 0.5, 0.74],
+		"hazards": [[0.2, 2.5], [0.45, -2.0], [0.68, 0.0]],
+		"ground": Color(0.9, 0.93, 0.98),
+		"sky_top": Color(0.12, 0.15, 0.32),
+		"sky_horizon": Color(0.6, 0.72, 0.9),
+	},
 ]
 
 static func count() -> int:

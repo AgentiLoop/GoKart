@@ -365,3 +365,16 @@ Cycle 12: added a title menu with track selection and a second track, "Sunset Sp
 - **Remaining:** item-vs-AI tuning, positional audio for AI karts, a lap-count option and more tracks, and a visual review of the screenshots.
 - **Blockers:** none.
 
+## Cycle 13 — 2026-10-01 14:08
+Cycle 13: added a lap-count option to the title menu. I did not run the game windowed or look at how the new menu line renders.
+
+- **Menu:** W/S or Up/Down cycles the lap count through 1, 2, 3, 5 and 7, with a "Laps: N" line under the track counter. I moved the minimap preview down and shrank it to make room.
+- **Race:** the choice is stored in `TrackLibrary.laps` and passed to every lap tracker in `main.gd`, for the player and the AI karts. It survives going back to the menu with Esc.
+- **Tests:** the unit suite passes (2094 checks, 0 failures). The new tests cover the lap key mapping, wrap-around, unknown values and a full cycle. I also freed the controls that test creates, so it no longer leaks them.
+- **Menu check:** `tools/menu_check.gd` now presses W, confirms 5 laps in the race, and confirms the menu remembers 5 laps after Esc. It passes headless.
+- **Docs and commit:** README updated and committed as c1f78ac. I tried to add a Cycle 13 note to `progress.md` at the project root, but no such file exists, so that note was not written.
+- **Time limits:** every shell run was under a perl `alarm` limit. There was no `timeout` binary.
+- **Assumptions:** the lap options are 1, 2, 3, 5 and 7, and the default stays at 3. There were no parity folders, so nothing was mirrored.
+- **Remaining:** item-vs-AI tuning, positional audio for AI karts, more tracks, and a visual review of the screenshots. I can't view images with my tools, so that review needs a person.
+- **Blockers:** none.
+
