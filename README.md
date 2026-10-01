@@ -5,7 +5,8 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 ## Features
 
 - **Arcade kart physics** with drifting and mini-turbo boosts (release a drift to boost), off-road slowdown and wall collisions (`scripts/kart_physics.gd`)
-- **Procedural closed-circuit track** with meshes, walls and animated boost pads (`scripts/track_data.gd`, `scripts/track.gd`)
+- **Procedural closed-circuit tracks** with meshes, walls and animated boost pads; two tracks (Green Hills, Sunset Speedway) with their own layout, item boxes, hazards and sky/ground colours (`scripts/track_data.gd`, `scripts/track.gd`, `scripts/track_library.gd`)
+- **Title menu** to pick the track (A / D or arrows, Enter to race); Esc in a race returns to it (`scripts/menu.gd`)
 - **3-lap races** with ordered checkpoints and live race ranking (`scripts/lap_tracker.gd`, `scripts/race_ranking.gd`)
 - **Start countdown** (3-2-1-GO) with a rocket-start boost for well-timed throttle (`scripts/race_start.gd`)
 - **AI opponents** using pure-pursuit steering, corner speed limiting, stuck recovery and item use (`scripts/ai_driver.gd`)
@@ -24,28 +25,30 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 | A / D | Steer |
 | Space | Drift (release for mini-turbo) |
 | E | Use item |
-| Enter | Race again (on the results screen) |
+| Enter | Race again (on the results screen) / start race (menu) |
+| Esc | Back to the track menu |
 
 ## Running
 
 Requires [Godot 4.4+](https://godotengine.org/).
 
 ```sh
-godot --path .          # run the game (main scene: scenes/main.tscn)
+godot --path .          # run the game (opens the title menu: scenes/menu.tscn)
 ```
 
 ## Testing
 
 ```sh
 ./run_tests.sh                                  # headless unit tests (tests/)
-godot --headless --path . -s tools/smoke.gd     # headless race smoke test with AI karts
+godot --headless --path . -s tools/smoke.gd -- 1  # headless race smoke test with AI karts (arg = track index)
+godot --headless --path . -s tools/menu_check.gd  # menu -> race -> Esc flow check
 godot --path . -s tools/screenshot.gd           # visual check, writes /tmp/gokart_*.png
 ```
 
 ## Project layout
 
 ```
-scenes/   main scene
+scenes/   menu and race scenes
 scripts/  game logic (physics, track, AI, items, HUD, effects)
 shaders/  boost pad, item box, shell, star and speed-fx shaders
 tests/    unit tests and test runner

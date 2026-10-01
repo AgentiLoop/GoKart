@@ -24,13 +24,20 @@ var points := PackedVector3Array()
 var tangents := PackedVector3Array()
 var count := 0
 var length := 0.0
+var pad_specs: Array = DEFAULT_PADS
+var box_rows: Array = DEFAULT_BOX_ROWS
+var hazard_specs: Array = DEFAULT_HAZARDS
 var pads: Array = []
 var item_box_positions: Array[Vector3] = []
 var hazard_positions: Array[Vector3] = []
 
-func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0) -> void:
+## layout (optional) may override "pads", "box_rows" and "hazards" (same formats as the DEFAULT_ constants).
+func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout := {}) -> void:
 	control = ctrl
 	width = road_width
+	pad_specs = layout.get("pads", DEFAULT_PADS)
+	box_rows = layout.get("box_rows", DEFAULT_BOX_ROWS)
+	hazard_specs = layout.get("hazards", DEFAULT_HAZARDS)
 	_build()
 
 static func _catmull(p0: Vector2, p1: Vector2, p2: Vector2, p3: Vector2, t: float) -> Vector2:
@@ -65,7 +72,7 @@ func _build() -> void:
 	for k in count:
 		tangents[k] = (points[(k + 1) % count] - points[(k - 1 + count) % count]).normalized()
 	pads.clear()
-	for spec in DEFAULT_PADS:
+	for spec in pad_specs:
 		var idx: int = int(spec[0] * count) % count
 		var pad := BoostPad.new()
 		pad.forward = tangents[idx]
@@ -73,12 +80,12 @@ func _build() -> void:
 		pad.index = idx
 		pads.append(pad)
 	item_box_positions.clear()
-	for f in DEFAULT_BOX_ROWS:
+	for f in box_rows:
 		var bi: int = int(f * count) % count
 		for off in ITEM_BOX_OFFSETS:
 			item_box_positions.append(points[bi] + right_of(bi) * off)
 	hazard_positions.clear()
-	for spec in DEFAULT_HAZARDS:
+	for spec in hazard_specs:
 		var hi: int = int(spec[0] * count) % count
 		hazard_positions.append(points[hi] + right_of(hi) * spec[1])
 

@@ -14,6 +14,7 @@ const RaceRanking := preload("res://scripts/race_ranking.gd")
 const RaceStart := preload("res://scripts/race_start.gd")
 const RaceResults := preload("res://scripts/race_results.gd")
 const GameAudio := preload("res://scripts/game_audio.gd")
+const TrackLibrary := preload("res://scripts/track_library.gd")
 
 ## Seconds after the player crosses the line before the results panel appears.
 const RESULTS_DELAY := 2.0
@@ -50,7 +51,12 @@ func _ready() -> void:
 	var e := Environment.new()
 	e.background_mode = Environment.BG_SKY
 	e.sky = Sky.new()
-	e.sky.sky_material = ProceduralSkyMaterial.new()
+	var sky_mat := ProceduralSkyMaterial.new()
+	var theme := TrackLibrary.info(TrackLibrary.selected)
+	sky_mat.sky_top_color = theme.sky_top
+	sky_mat.sky_horizon_color = theme.sky_horizon
+	sky_mat.ground_horizon_color = theme.sky_horizon
+	e.sky.sky_material = sky_mat
 	e.glow_enabled = true
 	e.glow_hdr_threshold = 1.0
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
@@ -72,13 +78,13 @@ func _ready() -> void:
 	plane.size = Vector3(800, 1, 800)
 	gmesh.mesh = plane
 	var gmat := StandardMaterial3D.new()
-	gmat.albedo_color = Color(0.25, 0.6, 0.25)
+	gmat.albedo_color = theme.ground
 	gmesh.material_override = gmat
 	ground.add_child(gmesh)
 	ground.position = Vector3(60, -0.5, 20)
 	add_child(ground)
 
-	track = Track.new()
+	track = Track.new(TrackLibrary.make_data(TrackLibrary.selected))
 	add_child(track)
 	var data: TrackData = track.data
 	tracker = LapTracker.new(data.count, 8, 3)
@@ -150,6 +156,9 @@ func _on_go() -> void:
 			karts[i].model.apply_boost(ab, 1)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_ESCAPE:
+		get_tree().change_scene_to_file("res://scenes/menu.tscn")
+		return
 	if results_shown and event is InputEventKey and event.pressed and not event.echo \
 			and (event.physical_keycode == KEY_ENTER or event.physical_keycode == KEY_KP_ENTER):
 		get_tree().reload_current_scene()

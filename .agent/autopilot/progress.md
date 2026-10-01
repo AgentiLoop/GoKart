@@ -333,3 +333,20 @@ Cycle 10: added a race results screen and a restart, and committed it. The unit 
 ## Cycle 11 — procedural audio
 - scripts/sound_synth.gd (pure sample synthesis: tones, sweeps, noise, seamless engine/screech loops, countdown logic, effect library) + scripts/game_audio.gd (engine pitch by speed, screech while drifting, one-shots for countdown/boost/drift/pickup/hit/explosion/lightning/star/throw/finish); wired in main.gd. tests/test_audio.gd. 1957 checks pass; headless scene check confirmed events fire (beeps, go, boost, hit, pickup, star).
 - Remaining: item-vs-AI tuning, visual inspection of screenshots, title menu / more tracks, positional audio for AI karts.
+## Cycle 11 — 2026-10-01 14:02
+Cycle 11: added procedural audio and committed it. The unit suite passes (1957 checks, 0 failures). I haven't heard the sounds, and I didn't run the smoke race or the screenshot tool.
+
+- **Sound generation:** `scripts/sound_synth.gd` builds every sound from code, with no audio files. It covers tones, sweeps, noise bursts, seamless engine and tire-screech loops, countdown timing and 13 one-shot effects.
+- **Playback:** `scripts/game_audio.gd` plays the sounds in the race. The engine pitch follows speed and rises during a boost, and a screech loop plays while drifting. Other sounds are the countdown beeps, boost, mini-turbo, item pickup and item ready, throw, hit, star, lightning, blue-shell explosion and a finish jingle. It is wired into `main.gd`.
+- **Tests:** `tests/test_audio.gd` has 62 checks covering sample counts, envelope, loop seams, pitch mapping, countdown ticks, WAV encoding and the effect library. One test failed at first because the screech loop clipped above 1.0, and I lowered its gain.
+- **Scene check:** A headless run of the real scene, time-limited with a perl alarm, logged beep ×3, boost, hit, pickup, star and go. The engine loop was playing. "go" was logged after the later events, which is probably headless frames running faster than the physics clock, but I didn't investigate.
+- **Assumptions:** The volumes, pitch range and effect designs are my own choices. Only the player's kart has an engine sound. AI projectile throws play at reduced volume, and the throw sound plays for any thrown projectile, including the AI's. No parity folders were given, so nothing was mirrored.
+- **Docs:** The README and `progress.md` are updated.
+- **Remaining:** item-vs-AI tuning, a look at the screenshots, a title menu and more tracks, and positional audio for AI karts.
+- **Blockers:** none.
+
+
+## Cycle 12 — title menu + second track
+- scripts/track_library.gd (track definitions + static `selected`), TrackData takes an optional layout (pads/box rows/hazards), new "Sunset Speedway" track (longer, hairpin/chicane, sandy ground, sunset sky). scripts/menu.gd + scenes/menu.tscn is now the main scene; Esc in a race returns to it. main.gd reads the selected track.
+- tests/test_tracks.gd (per-track geometry, straight start, items on road, AI + naive bot finish, menu key logic): 2078 checks pass. tools/menu_check.gd (headless menu->race->Esc flow, passes), tools/menu_shot.gd, tools/smoke.gd takes a track index arg (both tracks: 3/3 AI racing).
+- Remaining: item-vs-AI tuning, positional audio for AI karts, more tracks / lap count option, visual review of screenshots.

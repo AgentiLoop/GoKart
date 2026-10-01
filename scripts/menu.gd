@@ -1,0 +1,87 @@
+extends Control
+## Title screen: pick a track with Left/Right (A/D) and press Enter/Space to race.
+## Selection is stored in TrackLibrary.selected; Esc during a race comes back here.
+
+const TrackLibrary := preload("res://scripts/track_library.gd")
+const Minimap := preload("res://scripts/minimap.gd")
+const RACE_SCENE := "res://scenes/main.tscn"
+
+var selected := 0
+var name_label: Label
+var blurb_label: Label
+var index_label: Label
+var preview: Minimap
+var bg: ColorRect
+
+## Key -> step direction (-1 / +1) or 0 when the key does not change the track.
+static func direction_for_key(keycode: int) -> int:
+	match keycode:
+		KEY_LEFT, KEY_A:
+			return -1
+		KEY_RIGHT, KEY_D:
+			return 1
+	return 0
+
+static func is_confirm_key(keycode: int) -> bool:
+	return keycode == KEY_ENTER or keycode == KEY_KP_ENTER or keycode == KEY_SPACE
+
+static func counter_text(i: int, total: int) -> String:
+	return "< %d / %d >" % [i + 1, total]
+
+func _ready() -> void:
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	selected = TrackLibrary.selected
+	bg = ColorRect.new()
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(bg)
+	var title := _label(Vector2(240, 50), 120, 800, Color(1.0, 0.85, 0.15))
+	title.text = "GOKART"
+	var sub := _label(Vector2(240, 190), 26, 800, Color(1, 1, 1))
+	sub.text = "Select a track"
+	name_label = _label(Vector2(240, 250), 56, 800, Color(1, 1, 1))
+	blurb_label = _label(Vector2(240, 322), 24, 800, Color(0.9, 0.9, 0.9))
+	index_label = _label(Vector2(240, 360), 30, 800, Color(1, 1, 1))
+	preview = Minimap.new()
+	preview.position = Vector2(500, 410)
+	add_child(preview)
+	var hint := _label(Vector2(240, 660), 22, 800, Color(1, 1, 1))
+	hint.text = "A / D or arrows: choose      Enter / Space: race"
+	_refresh()
+
+func _label(pos: Vector2, font_size: int, w: float, col: Color) -> Label:
+	var l := Label.new()
+	l.position = pos
+	l.size = Vector2(w, font_size * 1.4)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.add_theme_font_size_override("font_size", font_size)
+	l.add_theme_color_override("font_color", col)
+	l.add_theme_color_override("font_outline_color", Color.BLACK)
+	l.add_theme_constant_override("outline_size", 8)
+	add_child(l)
+	return l
+
+func _refresh() -> void:
+	var info := TrackLibrary.info(selected)
+	name_label.text = info.name
+	blurb_label.text = info.blurb
+	index_label.text = counter_text(selected, TrackLibrary.count())
+	bg.color = info.sky_top.darkened(0.45)
+	preview.setup(TrackLibrary.make_data(selected).points, Vector2(280, 240))
+
+## Change the highlighted track (wraps around).
+func move(dir: int) -> void:
+	selected = TrackLibrary.step(selected, dir)
+	_refresh()
+
+func start_race() -> void:
+	TrackLibrary.selected = selected
+	get_tree().change_scene_to_file(RACE_SCENE)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventKey and event.pressed and not event.echo):
+		return
+	var d := direction_for_key(event.physical_keycode)
+	if d != 0:
+		move(d)
+	elif is_confirm_key(event.physical_keycode):
+		start_race()

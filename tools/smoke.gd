@@ -8,6 +8,10 @@ var last_report := 0
 const FRAMES := 3600
 
 func _initialize() -> void:
+	# optional user arg: track index (godot ... -s tools/smoke.gd -- 1)
+	var args := OS.get_cmdline_user_args()
+	if args.size() > 0:
+		load("res://scripts/track_library.gd").selected = int(args[0])
 	main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(main)
 	Input.action_press("accelerate")
