@@ -11,6 +11,7 @@ var state_label: Label
 var banner_label: Label
 var item_label: Label
 var place_label: Label
+var countdown_label: Label
 
 static func format_time(t: float) -> String:
 	var total_ms := int(round(t * 1000.0))
@@ -35,6 +36,8 @@ func _ready() -> void:
 	item_label.size = Vector2(400, 40)
 	place_label = _make_label(Vector2(1000, 16), 48, HORIZONTAL_ALIGNMENT_RIGHT)
 	place_label.custom_minimum_size = Vector2(256, 0)
+	countdown_label = _make_label(Vector2(440, 150), 160, HORIZONTAL_ALIGNMENT_CENTER)
+	countdown_label.size = Vector2(400, 200)
 	banner_label = _make_label(Vector2(340, 280), 72, HORIZONTAL_ALIGNMENT_CENTER)
 	banner_label.size = Vector2(600, 100)
 
@@ -47,6 +50,10 @@ func _make_label(pos: Vector2, font_size: int, align: HorizontalAlignment) -> La
 	l.add_theme_constant_override("outline_size", 8)
 	add_child(l)
 	return l
+
+## Big centre text for the start countdown ("3", "2", "1", "GO!"); empty hides it.
+func show_countdown(text: String) -> void:
+	countdown_label.text = text
 
 func update_hud(tracker, speed: float, boosting: bool, drift_level: int, item := 0, place := "") -> void:
 	place_label.text = place

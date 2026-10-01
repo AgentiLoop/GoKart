@@ -15,6 +15,7 @@ var driver = null        # AiDriver for computer karts; null = keyboard player
 var kart_id := 0
 var track_index := 0
 var tracker = null       # LapTracker
+var frozen := false      # true during the start countdown: no input, no driving
 
 func _ready() -> void:
 	var col := CollisionShape3D.new()
@@ -50,12 +51,17 @@ func _physics_process(delta: float) -> void:
 	var brake := Input.get_action_strength("brake")
 	var steer := Input.get_action_strength("steer_right") - Input.get_action_strength("steer_left")
 	var drift_held := Input.is_action_pressed("drift")
-	if driver != null:
+	if driver != null and not frozen:
 		var d: Dictionary = driver.decide(delta, global_position, heading, model.speed, not model.is_spinning())
 		throttle = d.throttle
 		brake = d.brake
 		steer = d.steer
 		drift_held = d.drift
+	if frozen:
+		throttle = 0.0
+		brake = 0.0
+		steer = 0.0
+		drift_held = false
 	heading += model.step(delta, throttle, brake, steer, drift_held)
 	var target_slide := -model.drift_direction * 0.45 if model.drifting else 0.0
 	drift_slide = lerpf(drift_slide, target_slide, clampf(10.0 * delta, 0.0, 1.0))

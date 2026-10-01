@@ -167,3 +167,19 @@ Budget: no time limit, unlimited cycles
 - `tools/smoke.gd` passes: 3/3 AI karts reach lap 2+ in 60 s. Always run with a time limit: `perl -e 'alarm 100; exec @ARGV' godot --headless --path . -s tools/smoke.gd`.
 - Tests: 817 passed.
 - Remaining: kart model, mini-turbo flash, countdown/start boost, minimap, more items, AI hit by items tuning.
+## Cycle 1 — 2026-10-01 13:43
+Cycle 1: AI karts now race without hitting walls. A stray tab on main.gd line 115 was a parse error, which is why smoke.gd looped forever on errors earlier. I fixed it and committed the pending AI work (AI driver, race ranking, place HUD, `tests/test_ai.gd`, `tools/smoke.gd`).
+
+- **Wall hits fixed:** two of the three AI karts were pinned against the inner walls on the bends. I cut the AI lookahead from 10 to 6 samples and added `corner_speed()` to `AiDriver`, which lifts off the throttle before sharp bends. A 40 s run showed no wall hits at all.
+- **Tests:** 817 checks pass. I added a bend-speed test to `tests/test_ai.gd`.
+- **Smoke test:** `tools/smoke.gd` now passes: all 3 AI karts reach lap 2 or later in the 60 s run, up from 2/3 on an earlier run. I changed its pass rule to lap progress, because the old speed-at-one-instant check could fail when a kart had just been hit by an item.
+- **Time limits:** every test and smoke run now sits behind `perl -e 'alarm N; exec @ARGV' …`, since macOS has no `timeout`.
+- **Not mirrored:** no parity folders were specified.
+- **Remaining:** a proper kart model, a mini-turbo flash, a start countdown and boost, a minimap, more items (triple shells, star, lightning, red shell), and tuning how items hit the AI karts.
+- **Blockers:** none.
+
+
+## Cycle 2 — start countdown + rocket start
+- New `scripts/race_start.gd` (3-2-1-GO, press-timing start boost, 0.8 s window), `tests/test_start.gd` (7 tests). Karts `frozen` until GO; lap timers start at GO; HUD big countdown label; AI karts get fixed start boosts [0.9, 0.5, 0].
+- Tests 837 pass; smoke 3/3 AI karts racing.
+- Remaining: kart model, mini-turbo flash, minimap, more items (triple shells, star, lightning, red shell), item-vs-AI tuning.

@@ -10,9 +10,12 @@ const Hud := preload("res://scripts/hud.gd")
 const ItemManager := preload("res://scripts/item_manager.gd")
 const AiDriver := preload("res://scripts/ai_driver.gd")
 const RaceRanking := preload("res://scripts/race_ranking.gd")
+const RaceStart := preload("res://scripts/race_start.gd")
 
 const OFFROAD_SCALE := 0.5
 const PAD_BOOST_TIME := 1.2
+## Rocket-start boost durations the AI karts get at GO (by AI_SPECS order; 0 = a bad start).
+const AI_START_BOOSTS := [0.9, 0.5, 0.0]
 ## AI grid: [samples before the player's slot (negative = ahead), lane offset, speed scale, body colour]
 const AI_SPECS := [
 	[-6, -3.0, 0.97, Color(0.15, 0.3, 0.95)],
@@ -29,6 +32,7 @@ var hud
 var items
 var kart_index := 0
 var karts: Array = []   # karts[0] is the player
+var race_start := RaceStart.new()
 
 func _ready() -> void:
 	var env := WorldEnvironment.new()
@@ -106,19 +110,35 @@ func _ready() -> void:
 	add_child(speed_fx)
 	hud = Hud.new()
 	add_child(hud)
+	for k in karts:
+		k.frozen = true
+	race_start.go.connect(_on_go)
+
+func _on_go() -> void:
+	for i in karts.size():
+		karts[i].frozen = false
+	var b := race_start.start_boost()
+	if b > 0.0:
+		kart.model.apply_boost(b, 1)
+	for i in range(1, karts.size()):
+		var ab: float = AI_START_BOOSTS[(i - 1) % AI_START_BOOSTS.size()]
+		if ab > 0.0:
+			karts[i].model.apply_boost(ab, 1)
 
 func _back() -> Vector3:
 	return Vector3(sin(kart.heading), 0, cos(kart.heading))
 
 func _physics_process(delta: float) -> void:
 	var data: TrackData = track.data
+	race_start.update(delta, Input.is_action_pressed("accelerate"))
 	var progresses: Array = []
 	var finish_times: Array = []
 	for k in karts:
 		var kp: Vector3 = k.global_position
 		k.track_index = data.nearest_index(kp, k.track_index)
 		k.model.surface_scale = 1.0 if data.is_on_road(kp, k.track_index) else OFFROAD_SCALE
-		k.tracker.update(delta, k.track_index)
+		if race_start.started:
+			k.tracker.update(delta, k.track_index)
 		if data.pad_at(kp) != null:
 			k.model.apply_boost(PAD_BOOST_TIME, 1)
 		var frac: float = (kp - data.points[k.track_index]).dot(data.tangents[k.track_index]) / data.spacing
@@ -127,6 +147,7 @@ func _physics_process(delta: float) -> void:
 	kart_index = kart.track_index
 	var place := RaceRanking.rank_of(0, progresses, finish_times)
 	hud.update_hud(tracker, kart.model.speed, kart.model.is_boosting(), kart.model.drift_level, items.holder.display_item(items.time), Hud.place_text(place, karts.size()))
+	hud.show_countdown(race_start.label())
 
 func _process(delta: float) -> void:
 	var target := kart.global_position + _back() * 6.0 + Vector3(0, 3.0, 0)

@@ -126,7 +126,7 @@ func _physics_process(delta: float) -> void:
 		for id in karts.size():
 			if b.try_take(positions[id]):
 				holders[id].pickup()
-	if Input.is_action_just_pressed("use_item"):
+	if Input.is_action_just_pressed("use_item") and not karts[0].frozen:
 		use_item(0)
 	for id in range(1, karts.size()):
 		var drv = karts[id].driver
