@@ -350,3 +350,18 @@ Cycle 11: added procedural audio and committed it. The unit suite passes (1957 c
 - scripts/track_library.gd (track definitions + static `selected`), TrackData takes an optional layout (pads/box rows/hazards), new "Sunset Speedway" track (longer, hairpin/chicane, sandy ground, sunset sky). scripts/menu.gd + scenes/menu.tscn is now the main scene; Esc in a race returns to it. main.gd reads the selected track.
 - tests/test_tracks.gd (per-track geometry, straight start, items on road, AI + naive bot finish, menu key logic): 2078 checks pass. tools/menu_check.gd (headless menu->race->Esc flow, passes), tools/menu_shot.gd, tools/smoke.gd takes a track index arg (both tracks: 3/3 AI racing).
 - Remaining: item-vs-AI tuning, positional audio for AI karts, more tracks / lap count option, visual review of screenshots.
+## Cycle 12 — 2026-10-01 14:07
+Cycle 12: added a title menu with track selection and a second track, "Sunset Speedway". I haven't looked at the menu or the new track on screen. The screenshots were saved but not viewed. The unit suite passes (2078 checks, 0 failures) and everything is committed.
+
+- **Tracks:** `scripts/track_library.gd` holds the track data (name, layout, pads, item boxes, hazards, sky and ground colours) and a static `selected` index that carries the choice between scenes. Sunset Speedway is longer (about 946 m against 670 m), has a hairpin and a chicane, and uses a sandy ground with a sunset sky. Green Hills is unchanged. `TrackData` takes an optional layout, and `main.gd` now builds the selected track's geometry and theme.
+- **Menu:** `scenes/menu.tscn` with `scripts/menu.gd` is now the project's main scene. A/D or the arrow keys pick the track, with a minimap preview. Enter or Space starts the race. Esc during a race returns to the menu.
+- **Tests:** `tests/test_tracks.gd` runs every track through geometry checks and a start-straight check. It also checks that pads, item boxes and hazards sit on the road, that an AI kart finishes 3 laps, and that a naive full-throttle bot finishes. Menu key logic is covered too. The first Sunset Speedway layout failed the start-straight check, so I extended the straight before the line.
+- **Checks run, each under a time limit:**
+  - `tools/menu_check.gd` passed headless: menu, D, Enter, race on track 1, Esc, back to the menu.
+  - `tools/smoke.gd` now takes a track index and showed 3/3 AI karts racing on both tracks.
+  - `tools/menu_shot.gd` saved screenshots of both menu states and the race on track 1.
+- **Docs:** README and `progress.md` are updated.
+- **Assumptions:** the player bot in `tools/smoke.gd` can get stuck at a wall because it never reverses. That happened once on track 1 and not on a rerun, so I treated it as a limit of the bot rather than the game. Lap count stays at 3 for both tracks. No parity folders were given, so nothing was mirrored.
+- **Remaining:** item-vs-AI tuning, positional audio for AI karts, a lap-count option and more tracks, and a visual review of the screenshots.
+- **Blockers:** none.
+

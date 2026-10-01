@@ -37,12 +37,18 @@ func _process(_d: float) -> bool:
 		frames = 0
 	elif stage == 1 and frames > 3:
 		_check(cs.name_label.text == lib.info(1).name, "D selects track 1: " + cs.name_label.text)
+		_key(KEY_W)
+		stage = 15
+		frames = 0
+	elif stage == 15 and frames > 3:
+		_check(lib.step_laps(3, 1) == 5 and cs.laps == 5, "W raises laps to 5: %d" % cs.laps)
 		_key(KEY_ENTER)
 		stage = 2
 		frames = 0
 	elif stage == 2 and frames > 10:
 		_check(cs.name == "Main", "race scene loaded: " + cs.name)
 		_check(lib.selected == 1, "selected track stored")
+		_check(lib.laps == 5 and cs.tracker.total_laps == 5, "race uses 5 laps")
 		_check(cs.track.data.count == lib.make_data(1).count, "race uses track 1 geometry")
 		_key(KEY_ESCAPE)
 		stage = 3
@@ -50,6 +56,7 @@ func _process(_d: float) -> bool:
 	elif stage == 3 and frames > 10:
 		_check(cs.name == "Menu", "Escape returns to menu")
 		_check(cs.name_label.text == lib.info(1).name, "menu remembers track 1")
+		_check(cs.laps == 5, "menu remembers laps")
 		print("MENU CHECK: ", "OK" if ok else "FAILED")
 		quit(0 if ok else 1)
 	return false

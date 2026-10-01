@@ -5,6 +5,10 @@ extends RefCounted
 const TrackData := preload("res://scripts/track_data.gd")
 
 static var selected := 0
+## Laps per race, chosen on the title menu; always one of LAP_OPTIONS.
+static var laps := 3
+
+const LAP_OPTIONS := [1, 2, 3, 5, 7]
 
 const TRACKS := [
 	{
@@ -52,3 +56,10 @@ static func make_data(i: int) -> TrackData:
 ## Wraps around: step(1, +1) == 0 when there are only 2 tracks.
 static func step(i: int, dir: int) -> int:
 	return posmod(i + dir, TRACKS.size())
+
+## Next/previous lap option (wraps around). Unknown values fall back to the default of 3 laps first.
+static func step_laps(current: int, dir: int) -> int:
+	var i := LAP_OPTIONS.find(current)
+	if i < 0:
+		i = LAP_OPTIONS.find(3)
+	return LAP_OPTIONS[posmod(i + dir, LAP_OPTIONS.size())]

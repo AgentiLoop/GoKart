@@ -10,6 +10,8 @@ var selected := 0
 var name_label: Label
 var blurb_label: Label
 var index_label: Label
+var laps_label: Label
+var laps := 3
 var preview: Minimap
 var bg: ColorRect
 
@@ -22,6 +24,18 @@ static func direction_for_key(keycode: int) -> int:
 			return 1
 	return 0
 
+## Key -> lap option step (-1 / +1), 0 for anything else.
+static func lap_direction_for_key(keycode: int) -> int:
+	match keycode:
+		KEY_UP, KEY_W:
+			return 1
+		KEY_DOWN, KEY_S:
+			return -1
+	return 0
+
+static func laps_text(n: int) -> String:
+	return "Laps: %d  (W / S)" % n
+
 static func is_confirm_key(keycode: int) -> bool:
 	return keycode == KEY_ENTER or keycode == KEY_KP_ENTER or keycode == KEY_SPACE
 
@@ -31,6 +45,7 @@ static func counter_text(i: int, total: int) -> String:
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	selected = TrackLibrary.selected
+	laps = TrackLibrary.laps
 	bg = ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
@@ -41,11 +56,12 @@ func _ready() -> void:
 	name_label = _label(Vector2(240, 250), 56, 800, Color(1, 1, 1))
 	blurb_label = _label(Vector2(240, 322), 24, 800, Color(0.9, 0.9, 0.9))
 	index_label = _label(Vector2(240, 360), 30, 800, Color(1, 1, 1))
+	laps_label = _label(Vector2(240, 398), 28, 800, Color(1.0, 0.85, 0.15))
 	preview = Minimap.new()
-	preview.position = Vector2(500, 410)
+	preview.position = Vector2(500, 440)
 	add_child(preview)
 	var hint := _label(Vector2(240, 660), 22, 800, Color(1, 1, 1))
-	hint.text = "A / D or arrows: choose      Enter / Space: race"
+	hint.text = "A / D: track      W / S: laps      Enter / Space: race"
 	_refresh()
 
 func _label(pos: Vector2, font_size: int, w: float, col: Color) -> Label:
@@ -65,23 +81,33 @@ func _refresh() -> void:
 	name_label.text = info.name
 	blurb_label.text = info.blurb
 	index_label.text = counter_text(selected, TrackLibrary.count())
+	laps_label.text = laps_text(laps)
 	bg.color = info.sky_top.darkened(0.45)
-	preview.setup(TrackLibrary.make_data(selected).points, Vector2(280, 240))
+	preview.setup(TrackLibrary.make_data(selected).points, Vector2(280, 205))
 
 ## Change the highlighted track (wraps around).
 func move(dir: int) -> void:
 	selected = TrackLibrary.step(selected, dir)
 	_refresh()
 
+## Change the lap count (wraps around the available options).
+func move_laps(dir: int) -> void:
+	laps = TrackLibrary.step_laps(laps, dir)
+	_refresh()
+
 func start_race() -> void:
 	TrackLibrary.selected = selected
+	TrackLibrary.laps = laps
 	get_tree().change_scene_to_file(RACE_SCENE)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
 	var d := direction_for_key(event.physical_keycode)
+	var ld := lap_direction_for_key(event.physical_keycode)
 	if d != 0:
 		move(d)
+	elif ld != 0:
+		move_laps(ld)
 	elif is_confirm_key(event.physical_keycode):
 		start_race()

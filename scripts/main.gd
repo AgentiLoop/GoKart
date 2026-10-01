@@ -87,7 +87,7 @@ func _ready() -> void:
 	track = Track.new(TrackLibrary.make_data(TrackLibrary.selected))
 	add_child(track)
 	var data: TrackData = track.data
-	tracker = LapTracker.new(data.count, 8, 3)
+	tracker = LapTracker.new(data.count, 8, TrackLibrary.laps)
 
 	kart = Kart.new()
 	# the player starts at the back of the grid, just behind the line, facing along the track
@@ -107,7 +107,7 @@ func _ready() -> void:
 		ai.position = data.points[gi] + data.right_of(gi) * spec[1] + Vector3(0, 0.1, 0)
 		ai.heading = data.heading_at(gi)
 		ai.driver = AiDriver.new(data, spec[1], 1.0 + 0.7 * karts.size())
-		ai.tracker = LapTracker.new(data.count, 8, 3)
+		ai.tracker = LapTracker.new(data.count, 8, TrackLibrary.laps)
 		ai.track_index = gi
 		ai.kart_id = karts.size()
 		add_child(ai)

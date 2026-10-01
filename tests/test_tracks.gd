@@ -109,6 +109,38 @@ func test_menu_keys() -> void:
 	runner.check(Menu.is_confirm_key(KEY_ENTER) and Menu.is_confirm_key(KEY_KP_ENTER) and Menu.is_confirm_key(KEY_SPACE))
 	runner.check(not Menu.is_confirm_key(KEY_A))
 	runner.check(Menu.counter_text(0, 2) == "< 1 / 2 >")
+	runner.check(Menu.lap_direction_for_key(KEY_W) == 1 and Menu.lap_direction_for_key(KEY_UP) == 1)
+	runner.check(Menu.lap_direction_for_key(KEY_S) == -1 and Menu.lap_direction_for_key(KEY_DOWN) == -1)
+	runner.check(Menu.lap_direction_for_key(KEY_A) == 0 and Menu.lap_direction_for_key(KEY_ENTER) == 0)
+	runner.check(Menu.laps_text(5).contains("5"))
+
+func test_lap_options() -> void:
+	var L := TrackLibrary
+	runner.check(L.step_laps(3, 1) == 5 and L.step_laps(3, -1) == 2)
+	runner.check(L.step_laps(7, 1) == 1, "wraps up")
+	runner.check(L.step_laps(1, -1) == 7, "wraps down")
+	runner.check(L.step_laps(99, 1) == 5, "unknown value starts from default")
+	for n in L.LAP_OPTIONS:
+		runner.check(n >= 1)
+	var seen := 3
+	for i in L.LAP_OPTIONS.size():
+		seen = L.step_laps(seen, 1)
+	runner.check(seen == 3, "full cycle returns to start")
+	# the menu applies the chosen count to the race
+	var m = Menu.new()
+	m.laps = 3
+	m.laps_label = Label.new()
+	m.name_label = Label.new()
+	m.blurb_label = Label.new()
+	m.index_label = Label.new()
+	m.bg = ColorRect.new()
+	m.preview = load("res://scripts/minimap.gd").new()
+	m.move_laps(1)
+	runner.check(m.laps == 5 and m.laps_label.text == Menu.laps_text(5))
+	for n in [m.laps_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
+		n.free()
+	var lt = load("res://scripts/lap_tracker.gd").new(200, 8, 2)
+	runner.check(lt.total_laps == 2)
 
 func test_selected_track_survives_as_static() -> void:
 	var old := TrackLibrary.selected
