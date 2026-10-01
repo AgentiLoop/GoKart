@@ -197,3 +197,19 @@ Cycle 2: added the start countdown and rocket-start boost, committed.
 ## Cycle 3 — mini-turbo flash
 - Level-up star pop (one-shot GPUParticles3D) on each drift level, flame tint by mini-turbo level (blue/orange/purple; orange for mushroom/pad), screen-edge colour flash (speed_fx shader uniforms) + kart OmniLight flash on mini-turbo release. `boost_from_drift` flag in KartPhysics. 856 tests pass, smoke 3/3.
 - Remaining: kart model, minimap, more items (triple shells, star, lightning, homing red shell), item-vs-AI tuning.
+## Cycle 3 — 2026-10-01 13:47
+Cycle 3: added the mini-turbo flash, committed. Tests pass (856, 0 failures). The startup run printed no errors or warnings. The smoke run (`tools/smoke.gd`) ended with all 3 AI karts racing. All runs were behind perl alarm limits.
+
+- **Level-up pop:** a one-shot star burst (GPUParticles3D) fires at the rear wheels each time a drift reaches blue, orange or purple, in that level's colour.
+- **Flame tint:** exhaust flames now match the mini-turbo level (blue, orange, purple). Mushroom, pad and start boosts stay orange-red. This uses a new `boost_from_drift` flag in `kart_physics.gd`.
+- **Release flash:** releasing a drift with a level now gives a coloured pulse from the screen edges (new uniforms in `speed_fx.gdshader`) plus a short coloured light on the kart. The player's kart triggers the screen flash from `main.gd`.
+- **Re-boost during a boost:** a drift release while already boosting now re-emits `boost_started`, so the flash still fires.
+- **Tests:** 19 new checks in `tests/test_effects.gd`, covering flame colours, pops, flash and fade, and the screen flash.
+- **Assumptions:** I haven't seen the flash or pops rendered in a window, only checked their state in tests. No parity folders were given.
+- **Remaining:** a proper kart model, a minimap, more items (triple shells, star, lightning, homing red shell), and tuning how items hit the AI karts.
+- **Blockers:** none.
+
+
+## Cycle 4 — minimap
+- scripts/minimap.gd (Control, _draw): top-down track outline + coloured kart dots (player larger w/ ring), HUD bottom-left. Pure fit/to_map statics tested in tests/test_minimap.gd. 1310 checks pass, smoke 3/3.
+- Remaining: kart model, more items (triple shells, star, lightning, homing red shell), item-vs-AI tuning.

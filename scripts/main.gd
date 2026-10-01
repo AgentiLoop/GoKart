@@ -111,6 +111,7 @@ func _ready() -> void:
 	add_child(speed_fx)
 	hud = Hud.new()
 	add_child(hud)
+	hud.setup_minimap(data.points)
 	for k in karts:
 		k.frozen = true
 	race_start.go.connect(_on_go)
@@ -154,6 +155,12 @@ func _physics_process(delta: float) -> void:
 	var place := RaceRanking.rank_of(0, progresses, finish_times)
 	hud.update_hud(tracker, kart.model.speed, kart.model.is_boosting(), kart.model.drift_level, items.holder.display_item(items.time), Hud.place_text(place, karts.size()))
 	hud.show_countdown(race_start.label())
+	var marker_pos: Array = []
+	var marker_col: Array = []
+	for k in karts:
+		marker_pos.append(k.global_position)
+		marker_col.append(k.body_color)
+	hud.update_minimap(marker_pos, marker_col)
 
 func _process(delta: float) -> void:
 	var target := kart.global_position + _back() * 6.0 + Vector3(0, 3.0, 0)

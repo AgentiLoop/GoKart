@@ -3,6 +3,7 @@ extends CanvasLayer
 
 const Items := preload("res://scripts/items.gd")
 const RaceRanking := preload("res://scripts/race_ranking.gd")
+const Minimap := preload("res://scripts/minimap.gd")
 
 var lap_label: Label
 var time_label: Label
@@ -12,6 +13,7 @@ var banner_label: Label
 var item_label: Label
 var place_label: Label
 var countdown_label: Label
+var minimap: Minimap
 
 static func format_time(t: float) -> String:
 	var total_ms := int(round(t * 1000.0))
@@ -50,6 +52,17 @@ func _make_label(pos: Vector2, font_size: int, align: HorizontalAlignment) -> La
 	l.add_theme_constant_override("outline_size", 8)
 	add_child(l)
 	return l
+
+## Corner minimap of the track centerline; call update_minimap each frame with kart positions/colours.
+func setup_minimap(points: PackedVector3Array) -> void:
+	minimap = Minimap.new()
+	minimap.position = Vector2(24, 420)
+	add_child(minimap)
+	minimap.setup(points, Vector2(220, 220))
+
+func update_minimap(positions: Array, colors: Array) -> void:
+	if minimap != null:
+		minimap.set_markers(positions, colors)
 
 ## Big centre text for the start countdown ("3", "2", "1", "GO!"); empty hides it.
 func show_countdown(text: String) -> void:
