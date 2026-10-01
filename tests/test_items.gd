@@ -13,15 +13,15 @@ const DT := 1.0 / 60.0
 
 func test_roll_covers_all_items_in_weight_order() -> void:
 	runner.check(Items.roll(0.0) == Items.Type.MUSHROOM)
-	runner.check(Items.roll(0.999) == Items.Type.TRIPLE_SHELL)
+	runner.check(Items.roll(0.999) == Items.Type.BLUE_SHELL)
 	var seen := {}
 	for i in 100:
 		seen[Items.roll(i / 100.0)] = true
 	runner.check(seen.size() == Items.count(), "seen=%s" % seen)
-	# mushroom has weight 5/18
+	# mushroom has weight 5/19
 	var m := 0
-	for i in 1800:
-		if Items.roll(i / 1800.0) == Items.Type.MUSHROOM:
+	for i in 1900:
+		if Items.roll(i / 1900.0) == Items.Type.MUSHROOM:
 			m += 1
 	runner.check(absi(m - 500) <= 2, "mushroom share=%d" % m)
 
@@ -202,7 +202,7 @@ func test_new_item_names_and_roulette_preview() -> void:
 	runner.check(Items.name_of(Items.Type.RED_SHELL) == "RED SHELL")
 	runner.check(Items.name_of(Items.Type.STAR) == "STAR")
 	runner.check(Items.name_of(Items.Type.LIGHTNING) == "LIGHTNING")
-	runner.check(Items.count() == 7)
+	runner.check(Items.count() == 8)
 	var h := ItemHolder.new(5)
 	h.pickup()
 	var seen := {}
@@ -466,3 +466,120 @@ func test_lightning_strips_triple_shells() -> void:
 	m.use_item(0)
 	runner.check(m.holders[1].held == Items.Type.NONE and m.holders[1].charges == 0)
 	_free_manager(r)
+
+const BlueBlast := preload("res://scripts/blue_blast.gd")
+
+## Put kart i on track sample `idx` (facing along the road).
+func _place(r, i: int, idx: int) -> void:
+	r[1][i].global_position = r[0].track.points[idx] + Vector3(0, 0.1, 0)
+	r[1][i].heading = r[0].track.heading_at(idx)
+
+func test_blue_shell_item_basics() -> void:
+	runner.check(Items.name_of(Items.Type.BLUE_SHELL) == "BLUE SHELL")
+	runner.check(Items.WEIGHTS.has(Items.Type.BLUE_SHELL))
+	runner.check(Hud.item_text(Items.Type.BLUE_SHELL) == "[ BLUE SHELL ]")
+
+func test_pick_leader() -> void:
+	runner.check(ItemProjectile.pick_leader([10.0, 50.0, 30.0], 0) == 1)
+	runner.check(ItemProjectile.pick_leader([10.0, 50.0, 30.0], 1) == 2, "user in front is skipped")
+	runner.check(ItemProjectile.pick_leader([5.0], 0) == -1, "nobody else")
+
+func test_blue_shell_only_hits_its_target() -> void:
+	var p = ItemProjectile.make_blue_shell(Vector3.ZERO, 0.0, 0, 2)
+	runner.check(p.kind == Items.Type.BLUE_SHELL and p.is_shell())
+	runner.check(p.hits(Vector3.ZERO, 1.1, 2), "target")
+	runner.check(not p.hits(Vector3.ZERO, 1.1, 1), "other karts ignored")
+
+func test_blue_shell_follows_road_and_reaches_leader() -> void:
+	var t := TrackData.new()
+	var target_pos: Vector3 = t.points[40] + Vector3(0, 0.1, 0)
+	var p = ItemProjectile.make_blue_shell(t.points[10] + Vector3(0, 1.6, 0), t.heading_at(10), 0, 1)
+	p.target_pos = target_pos
+	var reached := false
+	var max_off := 0.0
+	for i in 600:
+		p.step(DT, t)
+		max_off = maxf(max_off, t.distance_to_center(p.position, p.hint))
+		if p.hits(target_pos, 1.1, 1):
+			reached = true
+			break
+	runner.check(reached, "reached the target, pos=%s" % [p.position])
+	runner.check(max_off < t.width, "stayed near the road, off=%f" % max_off)
+	runner.check(is_equal_approx(p.position.y, ItemProjectile.BLUE_HEIGHT), "hovers")
+	runner.check(p.bounces == 0, "never ricochets")
+
+func test_blue_shell_expires() -> void:
+	var t := TrackData.new()
+	var p = ItemProjectile.make_blue_shell(t.points[10], t.heading_at(10), 0, -1)
+	for i in int(ItemProjectile.BLUE_LIFE / DT) + 5:
+		p.step(DT, t)
+	runner.check(not p.alive)
+
+func test_manager_blue_shell_targets_leader() -> void:
+	var r = _make_manager(4)
+	var m = r[0]
+	_place(r, 0, 5)
+	_place(r, 1, 30)
+	_place(r, 2, 60)   # leader
+	_place(r, 3, 20)
+	m.holders[0].held = Items.Type.BLUE_SHELL
+	var n: int = m.projectiles.size()
+	runner.check(m.use_item(0) == Items.Type.BLUE_SHELL)
+	runner.check(m.projectiles.size() == n + 1)
+	var p = m.projectiles[-1]
+	runner.check(p.kind == Items.Type.BLUE_SHELL and p.target_id == 2, "target=%d" % p.target_id)
+	runner.check(p.owner_id == 0)
+	_free_manager(r)
+
+func test_manager_blue_shell_blast_spins_leader_and_neighbours() -> void:
+	var r = _make_manager(4)
+	var m = r[0]
+	_place(r, 0, 5)
+	_place(r, 1, 30)
+	_place(r, 2, 60)   # leader
+	_place(r, 3, 62)   # right behind the leader, inside the blast
+	var ks: Array = r[1]
+	m.holders[0].held = Items.Type.BLUE_SHELL
+	m.use_item(0)
+	var hits := []
+	m.kart_hit.connect(func(kind, id): hits.append([kind, id]))
+	var done_ := false
+	for i in 900:
+		m._physics_process(DT)
+		if not hits.is_empty():
+			done_ = true
+			break
+	runner.check(done_, "shell reached the leader")
+	runner.check(ks[2].model.is_spinning(), "leader spun out")
+	runner.check(ks[3].model.is_spinning(), "neighbour caught in blast")
+	runner.check(not ks[1].model.is_spinning() and not ks[0].model.is_spinning(), "far karts unaffected")
+	runner.check(m.blasts.size() == 1, "blast visual")
+	runner.check(hits == [[Items.Type.BLUE_SHELL, 2], [Items.Type.BLUE_SHELL, 3]], "hits=%s" % [hits])
+	runner.check(m.projectiles.filter(func(p): return p.kind == Items.Type.BLUE_SHELL).is_empty(), "shell consumed")
+	_free_manager(r)
+
+func test_blue_shell_blocked_by_star_leader() -> void:
+	var r = _make_manager(3)
+	var m = r[0]
+	_place(r, 0, 5)
+	_place(r, 1, 40)
+	_place(r, 2, 20)
+	r[1][1].model.apply_star()
+	m.holders[0].held = Items.Type.BLUE_SHELL
+	m.use_item(0)
+	for i in 900:
+		m._physics_process(DT)
+	runner.check(not r[1][1].model.is_spinning(), "star leader immune")
+	runner.check(m.projectiles.filter(func(p): return p.kind == Items.Type.BLUE_SHELL).is_empty(), "shell spent")
+	_free_manager(r)
+
+func test_blue_blast_grows_and_fades() -> void:
+	runner.check(is_equal_approx(BlueBlast.radius_at(0.0, 7.0), BlueBlast.START_RADIUS))
+	runner.check(is_equal_approx(BlueBlast.radius_at(BlueBlast.LIFETIME, 7.0), 7.0))
+	runner.check(BlueBlast.radius_at(0.2, 7.0) < BlueBlast.radius_at(0.4, 7.0), "monotonic")
+	var b := BlueBlast.new()
+	b.build(Vector3(1, 2, 3), 7.0)
+	runner.check(b.position == Vector3(1, 2, 3))
+	runner.check(b.tick(0.1) and b.material.albedo_color.a < 0.9, "fading")
+	runner.check(not b.tick(1.0), "finished")
+	b.free()

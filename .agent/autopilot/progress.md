@@ -274,3 +274,22 @@ Cycle 7: added a lightning item and committed it. The unit suite passes (1616 ch
 ## Cycle 8 — triple shells
 - Items.Type.TRIPLE_SHELL (weight 2.0): holder keeps `charges` (3); each use fires a green shell; shells orbit the kart (item_manager `_update_orbits`) and shrink with charges. Lightning clears charges via holder.clear(). AI treats it like a green shell. 1844 checks pass; headless scene check confirmed 3 orbiting, 2 after a shot.
 - Remaining: blue (spiny) shell, item-vs-AI tuning, visual inspection of screenshots.
+## Cycle 8 — 2026-10-01 13:57
+Cycle 8: added a triple shells item and committed it. The unit suite passes (1844 checks, 0 failures), and the headless startup run printed no errors. I haven't seen the orbiting shells on screen, and I didn't run the full smoke race or take screenshots. All runs were behind perl alarm limits.
+
+- **Item:** TRIPLE_SHELL has weight 2.0 (`items.gd`). One pickup gives 3 charges and each use fires a green shell. `item_holder.gd` tracks `charges`, and a new `clear()` drops the held item. Lightning now calls `clear()`, so a struck kart loses its triple shells.
+- **Visuals:** while a kart holds triple shells, small green shells orbit it, one per remaining charge (`_update_orbits` in `item_manager.gd`). I moved the shell mesh code into a shared `_make_shell_mesh`.
+- **AI:** AI karts use triple shells with the same policy as a single green shell.
+- **Tests:** 7 new tests cover charges, the roulette, `clear()`, the manager firing three shells then emptying, the orbit count following charges, lightning stripping the item, and AI use. Two existing item-roll tests were updated for the new weights.
+- **Scene check:** a throwaway headless script on the real scene showed 3 orbiting shells, and 2 after one shot.
+- **Assumptions:**
+  - The orbit radius and shell size are my own choices.
+  - The HUD still shows "[ TRIPLE SHELLS ]" without a remaining count; the orbiting shells show the count.
+  - No parity folders were given, so nothing was mirrored.
+- **Remaining:** blue (spiny) shell, item-vs-AI tuning, and a look at the screenshots.
+- **Blockers:** none.
+
+
+## Cycle 9 — blue (spiny) shell
+- Items.Type.BLUE_SHELL (weight 1.0): fired at the race leader (excluding the user) via ItemProjectile.pick_leader; flies at 75 u/s hovering at y=1.6 along the track centre line, ignores walls, locks on within 40 m. Only the target can trigger it; explosion (BLUE_BLAST_RADIUS 7) spins out all non-star karts nearby; blue_blast.gd is the expanding-sphere visual. AI uses it after the delay. 1879 checks pass; headless scene check showed fire -> blast -> 2 karts spinning.
+- Remaining: item-vs-AI tuning, visual inspection of screenshots.

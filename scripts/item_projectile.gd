@@ -12,6 +12,13 @@ const RED_SHELL_SPEED := 50.0
 const RED_TURN_RATE := 3.5        # rad/s the homing shell can turn
 const RED_LOCK_RANGE := 28.0      # closer than this it aims straight at its target, else it follows the road
 const RED_LOOKAHEAD := 5          # track samples ahead it aims for while following the road
+const BLUE_SPEED := 75.0
+const BLUE_LIFE := 30.0
+const BLUE_TURN_RATE := 6.0       # rad/s; sharp enough to hug the road at speed
+const BLUE_LOCK_RANGE := 40.0     # closer than this it dives straight at the leader
+const BLUE_LOOKAHEAD := 8
+const BLUE_BLAST_RADIUS := 7.0    # karts this close to the impact are also spun out
+const BLUE_HEIGHT := 1.6          # it hovers above the road
 const OWNER_GRACE := 0.6   # seconds before the thrower can be hit by their own item
 
 var kind := Items.Type.BANANA
@@ -23,6 +30,7 @@ var owner_id := -1
 var bounces := 0
 var alive := true
 var hint := -1   # track index hint
+var target_id := -1   # kart a blue shell is locked on to (the race leader when fired)
 var target_pos = null   # Vector3 of the kart a red shell homes on (set by the item manager), or null
 
 static func make_shell(pos: Vector3, heading: float, owner := -1) -> Object:
@@ -41,8 +49,25 @@ static func make_red_shell(pos: Vector3, heading: float, owner := -1) -> Object:
 	p.owner_id = owner
 	return p
 
+static func make_blue_shell(pos: Vector3, heading: float, owner := -1, target := -1) -> Object:
+	var p = load("res://scripts/item_projectile.gd").new()
+	p.kind = Items.Type.BLUE_SHELL
+	p.position = pos
+	p.velocity = Vector3(-sin(heading), 0, -cos(heading)) * BLUE_SPEED
+	p.owner_id = owner
+	p.target_id = target
+	return p
+
 func is_shell() -> bool:
-	return kind == Items.Type.SHELL or kind == Items.Type.RED_SHELL
+	return kind == Items.Type.SHELL or kind == Items.Type.RED_SHELL or kind == Items.Type.BLUE_SHELL
+
+## The race leader other than `exclude`, or -1. Higher progress = further ahead.
+static func pick_leader(progresses: Array, exclude := -1) -> int:
+	var best := -1
+	for j in progresses.size():
+		if j != exclude and (best < 0 or progresses[j] > progresses[best]):
+			best = j
+	return best
 
 ## Nearest candidate roughly ahead of `from` along `dir`; returns its index or -1.
 ## Candidates flagged false in `valid` (e.g. invincible karts) and `skip` are ignored.
@@ -61,18 +86,18 @@ static func pick_target(from: Vector3, dir: Vector3, positions: Array, skip: int
 	return best
 
 ## Turn the velocity toward the desired point, limited by RED_TURN_RATE.
-func _home(delta: float, track) -> void:
+func _home(delta: float, track, turn_rate := RED_TURN_RATE, lock_range := RED_LOCK_RANGE, lookahead := RED_LOOKAHEAD) -> void:
 	hint = track.nearest_index(position, hint)
-	var aim: Vector3 = track.points[(hint + RED_LOOKAHEAD) % track.count]
+	var aim: Vector3 = track.points[(hint + lookahead) % track.count]
 	if target_pos != null:
 		var to_t: Vector3 = target_pos - position
-		if Vector2(to_t.x, to_t.z).length() < RED_LOCK_RANGE:
+		if Vector2(to_t.x, to_t.z).length() < lock_range:
 			aim = target_pos
 	var cur := Vector2(velocity.x, velocity.z)
 	var want := Vector2(aim.x - position.x, aim.z - position.z)
 	if want.length_squared() < 0.0001:
 		return
-	var ang := clampf(cur.angle_to(want), -RED_TURN_RATE * delta, RED_TURN_RATE * delta)
+	var ang := clampf(cur.angle_to(want), -turn_rate * delta, turn_rate * delta)
 	var nv := cur.rotated(ang)
 	velocity = Vector3(nv.x, 0.0, nv.y)
 
@@ -90,6 +115,13 @@ func step(delta: float, track) -> void:
 	age += delta
 	if not is_shell():
 		return
+	if kind == Items.Type.BLUE_SHELL:
+		_home(delta, track, BLUE_TURN_RATE, BLUE_LOCK_RANGE, BLUE_LOOKAHEAD)
+		position += velocity * delta
+		position.y = BLUE_HEIGHT
+		if age >= BLUE_LIFE:
+			alive = false
+		return   # flies over the walls: no ricochets
 	if kind == Items.Type.RED_SHELL:
 		_home(delta, track)
 	position += velocity * delta
@@ -112,6 +144,8 @@ func step(delta: float, track) -> void:
 func hits(pos: Vector3, kart_radius: float, kart_id: int) -> bool:
 	if not alive:
 		return false
+	if kind == Items.Type.BLUE_SHELL and kart_id != target_id:
+		return false   # a blue shell only has eyes for the leader
 	if kart_id == owner_id and age < OWNER_GRACE:
 		return false
 	return Vector2(pos.x - position.x, pos.z - position.z).length() <= radius + kart_radius

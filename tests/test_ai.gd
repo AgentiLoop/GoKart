@@ -209,3 +209,8 @@ func test_ai_uses_triple_shell_like_shell() -> void:
 	var d := AiDriver.new(null, 0.0, 1.0)
 	runner.check(not d.wants_use(1.5, Items.Type.TRIPLE_SHELL, INF, INF))
 	runner.check(d.wants_use(DT, Items.Type.TRIPLE_SHELL, 30.0, INF))
+
+func test_ai_uses_blue_shell_after_delay() -> void:
+	var d := AiDriver.new(null, 0.0, 1.0)
+	runner.check(not d.wants_use(0.5, Items.Type.BLUE_SHELL, INF, INF), "before delay")
+	runner.check(d.wants_use(0.6, Items.Type.BLUE_SHELL, INF, INF), "blue shell after delay")

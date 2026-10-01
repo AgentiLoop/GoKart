@@ -7,6 +7,8 @@ const ItemHolder := preload("res://scripts/item_holder.gd")
 const ItemProjectile := preload("res://scripts/item_projectile.gd")
 const ItemBox := preload("res://scripts/item_box.gd")
 const LightningBolt := preload("res://scripts/lightning_bolt.gd")
+const BlueBlast := preload("res://scripts/blue_blast.gd")
+const RaceRanking := preload("res://scripts/race_ranking.gd")
 
 const MUSHROOM_BOOST_TIME := 1.5
 const KART_RADIUS := 1.1
@@ -25,6 +27,7 @@ var projectiles: Array = []
 var nodes := {}   # projectile -> Node3D
 var orbits := {}   # kart id -> Node3D holding the orbiting triple-shell visuals
 var bolts: Array = []   # live lightning bolt visuals
+var blasts: Array = []   # live blue shell explosion visuals
 var time := 0.0
 
 func setup(track_data, all_karts, seed_value := 0) -> void:
@@ -78,11 +81,34 @@ func use_item(id := 0) -> int:
 			_add_projectile(ItemProjectile.make_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), k.heading, id))
 		Items.Type.RED_SHELL:
 			_add_projectile(ItemProjectile.make_red_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), k.heading, id))
+		Items.Type.BLUE_SHELL:
+			var lead := ItemProjectile.pick_leader(_progresses(), id)
+			_add_projectile(ItemProjectile.make_blue_shell(pos + fwd * 2.4 + Vector3(0, ItemProjectile.BLUE_HEIGHT, 0), k.heading, id, lead))
 		Items.Type.STAR:
 			k.model.apply_star()
 		Items.Type.LIGHTNING:
 			_strike(id)
 	return t
+
+## Race progress of every kart (laps, track sample, fraction), as used for the standings.
+func _progresses() -> Array:
+	var out: Array = []
+	for k in karts:
+		var idx: int = track.nearest_index(k.global_position)
+		var lap: int = k.tracker.lap if k.get("tracker") != null else 0
+		var frac: float = (k.global_position - track.points[idx]).dot(track.tangents[idx]) / track.spacing
+		out.append(RaceRanking.progress(lap, idx, track.count, frac))
+	return out
+
+## Blue shell impact: spins out every kart (except stars) within the blast radius.
+func _explode(p) -> void:
+	for j in karts.size():
+		if karts[j].global_position.distance_to(p.position) <= ItemProjectile.BLUE_BLAST_RADIUS and karts[j].model.spin_out():
+			kart_hit.emit(Items.Type.BLUE_SHELL, j)
+	var blast := BlueBlast.new()
+	add_child(blast)
+	blast.build(p.position, ItemProjectile.BLUE_BLAST_RADIUS)
+	blasts.append(blast)
 
 ## Lightning: every rival that is not a star kart shrinks, spins out and drops its item.
 func _strike(user: int) -> void:
@@ -112,7 +138,24 @@ func _make_shell_mesh(kind: int, radius: float) -> MeshInstance3D:
 	if kind == Items.Type.RED_SHELL:
 		mat.set_shader_parameter("shell_color", Color(0.95, 0.1, 0.1))
 		mat.set_shader_parameter("rim_color", Color(1.0, 0.9, 0.85))
+	elif kind == Items.Type.BLUE_SHELL:
+		mat.set_shader_parameter("shell_color", Color(0.1, 0.3, 1.0))
+		mat.set_shader_parameter("rim_color", Color(0.85, 0.95, 1.0))
 	mi.material_override = mat
+	if kind == Items.Type.BLUE_SHELL:
+		for i in 8:   # spikes
+			var spike := MeshInstance3D.new()
+			var cm := CylinderMesh.new()
+			cm.top_radius = 0.0
+			cm.bottom_radius = radius * 0.22
+			cm.height = radius * 0.7
+			spike.mesh = cm
+			spike.material_override = mat
+			var a := TAU * i / 8.0
+			var dir := Vector3(cos(a), 0.7, sin(a)).normalized()
+			spike.position = dir * radius * 0.85
+			spike.basis = Basis(Vector3.UP.cross(dir).normalized(), Vector3.UP.angle_to(dir))
+			mi.add_child(spike)
 	return mi
 
 ## Shells orbiting a kart while it holds triple shells: one per remaining charge.
@@ -174,6 +217,10 @@ func _remove_projectile(p) -> void:
 
 func _physics_process(delta: float) -> void:
 	time += delta
+	for b in blasts.duplicate():
+		if not b.tick(delta):
+			blasts.erase(b)
+			b.queue_free()
 	for b in bolts.duplicate():
 		if not b.tick(delta):
 			bolts.erase(b)
@@ -213,9 +260,17 @@ func _physics_process(delta: float) -> void:
 			var dir: Vector3 = p.velocity.normalized()
 			var ti: int = ItemProjectile.pick_target(p.position, dir, positions, p.owner_id, valid)
 			p.target_pos = positions[ti] if ti >= 0 else null
+		if p.kind == Items.Type.BLUE_SHELL:
+			p.target_pos = positions[p.target_id] if p.target_id >= 0 else null
 		p.step(delta, track)
 		for id in karts.size():
-			if p.hits(positions[id], KART_RADIUS, id) and karts[id].model.spin_out():
+			if not p.hits(positions[id], KART_RADIUS, id):
+				continue
+			if p.kind == Items.Type.BLUE_SHELL:   # explodes on the leader even if a star shrugs it off
+				p.alive = false
+				_explode(p)
+				break
+			if karts[id].model.spin_out():
 				p.alive = false
 				kart_hit.emit(p.kind, id)
 				break
