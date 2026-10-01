@@ -18,7 +18,8 @@ var reverse_max_speed := 10.0
 var acceleration := 16.0
 var brake_force := 40.0
 var friction := 8.0
-var turn_rate := 1.9            # rad/s at full steer
+var turn_rate := 2.3            # rad/s at full steer (low speed)
+var high_speed_turn_scale := 0.75   # fraction of turn_rate left at top speed (stability)
 var min_drift_speed := 10.0
 var drift_charge_thresholds := [0.8, 1.6, 2.6]   # seconds for blue / orange / purple
 var boost_durations := [0.6, 1.0, 1.5]
@@ -143,6 +144,16 @@ func _end_drift() -> void:
 		drift_level = 0
 		drift_level_changed.emit(0)
 
+## Eases a digital steering input toward its target (Mario Kart style): ramps up quickly,
+## returns to centre a bit faster, and counter-steering reverses faster still.
+static func smooth_steer(current: float, target: float, delta: float) -> float:
+	var rate := 7.0
+	if absf(target) < 0.01:
+		rate = 10.0
+	elif signf(target) != signf(current) and absf(current) > 0.01:
+		rate = 14.0
+	return move_toward(current, target, rate * delta)
+
 ## Advance one tick. steer: -1 (left) .. +1 (right). Returns yaw change in radians
 ## (positive = turn left / counter-clockwise seen from above).
 func step(delta: float, throttle: float, brake: float, steer: float, drift_held: bool) -> float:
@@ -202,7 +213,7 @@ func step(delta: float, throttle: float, brake: float, steer: float, drift_held:
 
 	# --- steering
 	var yaw := 0.0
-	var speed_factor := clampf(absf(speed) / 6.0, 0.0, 1.0)
+	var speed_factor := clampf(absf(speed) / 4.0, 0.0, 1.0)
 	var dir_sign := signf(speed) if speed != 0.0 else 1.0
 	if drifting:
 		# Steering widens/tightens the arc but cannot reverse the drift direction.
@@ -211,5 +222,6 @@ func step(delta: float, throttle: float, brake: float, steer: float, drift_held:
 		drift_charge += delta * (1.0 + 0.4 * maxf(steer * drift_direction, 0.0))
 		_update_level()
 	else:
-		yaw = -steer * turn_rate * speed_factor * dir_sign * delta
+		var grip := lerpf(1.0, high_speed_turn_scale, clampf(absf(speed) / max_speed, 0.0, 1.0))
+		yaw = -steer * turn_rate * grip * speed_factor * dir_sign * delta
 	return yaw

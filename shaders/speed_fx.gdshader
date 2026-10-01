@@ -17,7 +17,7 @@ void fragment() {
 	vec2 dir = d / max(dist, 0.0001);
 
 	// radial blur, strongest at screen edges
-	float blur = (boost_amount * 0.06 + speed_amount * 0.012) * smoothstep(0.1, 0.8, dist);
+	float blur = boost_amount * 0.035 * smoothstep(0.25, 0.9, dist);   // boost only: normal driving stays sharp
 	vec3 col = vec3(0.0);
 	for (int i = 0; i < blur_samples; i++) {
 		float t = float(i) / float(blur_samples);

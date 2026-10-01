@@ -394,3 +394,42 @@ Cycle 14: added a third track, "Frosty Peaks", with snow ground, a dusk sky and 
 
 ## Cycle 15 — 2026-10-01
 Added positional engine audio for AI karts (`scripts/ai_engine_audio.gd`, AudioStreamPlayer3D per AI kart, pitch follows speed, distance attenuation, shared cached stream). Tests 2156 pass; headless smoke 3/3 AI racing. Not listened to (no audio output verification). Remaining: item-vs-AI tuning, more tracks, visual review.
+## Cycle 15 — 2026-10-01 14:12
+Cycle 15: AI karts now have positional engine sound. I haven't listened to it, so I can't say how it sounds in a real run. The unit suite passes (2156 checks, 0 failures), and a headless smoke run showed 3/3 AI karts racing on the default track.
+
+- **What it does:** each AI kart gets a 3D engine hum from the new `scripts/ai_engine_audio.gd`. Pitch follows the kart's speed and is a bit lower than the player's engine. Volume is quieter during the countdown and fades with distance (60 m maximum). The engine sample is generated once and shared between the AI karts.
+- **Wiring:** `main.gd` adds the hum to each AI kart as it is created.
+- **Tests:** new checks in `tests/test_audio.gd` cover the pitch and volume helpers, the shared stream, and the node following a stand-in kart (`tests/stub_kart.gd`).
+- **Docs and commits:** README and the Cycle 15 note in `.agent/autopilot/progress.md` are updated. Commits are ee69469 and 12de2e1.
+- **Shell time limits:** I ran every shell command under a perl `alarm` limit.
+- **Parity:** no parity folders were given, so nothing was mirrored.
+
+**Remaining:** item-vs-AI tuning, more tracks, and a visual review of screenshots, which needs a person.
+
+**Blockers:** none.
+
+Session ended — Stop All (2026-10-01 14:47)
+
+# Auto-pilot session — 2026-10-01 14:48
+Goal: create a Mario Kart clone called GoKart. mkdir /Users/toddbruss/Documents/GitHub/GoKart with all Mario Kart effects. I believe Godot 4 can do the Mario Kart effects, but I haven't built any of them yet:
+ • **Drift sparks and boost flames:** GPUParticles3D.
+ • **Speed lines and boost blur:** screen-space shaders and the built-in glow and tonemapping.
+ • **Item effects and tire trails:** shaders, plus Trail or ribbon meshes.
+ • **Kart movement:** VehicleBody3D, or custom arcade physics for the Mario Kart handling. write unit tests and test the game frequently. .....******* ANALYZE PROJECT..... YOU GOT STUCK TESTING SMOKE GO **************** DO NOT GET STUCK... PUT A TIME LIMIT ON SHELL. !!!!!!! YOU SEEM TO HAVEW GOTTEN STUCK AGAIN.. DO NOT PUT TOO MUCH TIME ON SHELL SCRIPTS/... ALARM 240 SEEMS WAY TO LONG
+Budget: no time limit, unlimited cycles
+
+## Cycle 1 — 2026-10-01 15:08
+(no summary — cycle ended without task_complete)
+
+Session ended — Stop All (2026-10-01 15:09)
+
+# Auto-pilot session — 2026-10-01 15:11
+Goal: you keep getting stuck. the UI needs to scale with the window. the UI should not be prone to the screen speed effects and blurry. Should be able to use cursor keys. space bar or enter do they unlesh the power up? it's not clear when power ups are released. the tops of the walls flicker and or get blurry. I'd like the walls to stay bright and sharp. Little to hard to stear the kart. Mario kart steering is way better than this. hard to keep up with the computer AI karts. slow them down maybe have AI diffuculy levevls Easy Medium and Hard.
+Budget: no time limit, unlimited cycles
+
+
+## Cycle 1 (session 4) — 2026-10-01
+Window-scaling UI (canvas_items/expand, anchored HUD on layer 10 above the speed fx, blur reduced to boost only), arrow keys + Enter/Ctrl for items + on-screen item hint,
+smoothed Mario-Kart-style steering (KartPhysics.smooth_steer, tighter low-speed turning), wall z-fight fix (stripe segments differ slightly in size), shadow-free glowing walls, MSAA 4x,
+AI difficulty Easy/Medium/Hard (Q/E in menu, speed 0.72/0.85/1.0). Tests: 3344 pass. Fixed pre-existing parse error in tests/test_items.gd.
+Remaining: visual review by a human, steering feel tuning, rubber-banding.

@@ -19,6 +19,7 @@ var kart_id := 0
 var track_index := 0
 var tracker = null       # LapTracker
 var body_scale := 1.0    # visual size: shrinks while hit by lightning
+var steer_input := 0.0   # smoothed steering actually applied (-1..1)
 var frozen := false      # true during the start countdown: no input, no driving
 
 func _ready() -> void:
@@ -53,6 +54,9 @@ func _physics_process(delta: float) -> void:
 		brake = 0.0
 		steer = 0.0
 		drift_held = false
+	if driver == null:
+		steer = KartPhysics.smooth_steer(steer_input, steer, delta)
+	steer_input = steer
 	heading += model.step(delta, throttle, brake, steer, drift_held)
 	var target_slide := -model.drift_direction * 0.45 if model.drifting else 0.0
 	drift_slide = lerpf(drift_slide, target_slide, clampf(10.0 * delta, 0.0, 1.0))

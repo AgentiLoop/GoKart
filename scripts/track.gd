@@ -76,14 +76,24 @@ func _build_walls() -> void:
 	for k in xforms.size():
 		var t := xforms[k]
 		var seg_len := data.spacing + 0.15
-		t.basis = t.basis * Basis.from_scale(Vector3(1, 1, seg_len))
+		# Neighbouring segments overlap slightly, so segments of the two stripe colours get a tiny
+		# size difference: their coplanar faces would otherwise z-fight (the flickering wall tops).
+		var red := (k / 2) % 2 == 0
+		var grow := Vector3(1, 1, 1) if red else Vector3(1.04, 1.03, 1)
+		t.basis = t.basis * Basis.from_scale(Vector3(grow.x, grow.y, seg_len))
 		mm.set_instance_transform(k, t)
-		mm.set_instance_color(k, Color(0.9, 0.1, 0.1) if (k / 2) % 2 == 0 else Color(0.95, 0.95, 0.95))
+		mm.set_instance_color(k, Color(1.0, 0.12, 0.1) if red else Color(1.0, 1.0, 1.0))
 	var mmi := MultiMeshInstance3D.new()
 	mmi.multimesh = mm
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
+	# Bright, steady walls: no shadow flicker/acne on the tops, plus a little self-glow.
+	mat.disable_receive_shadows = true
+	mat.emission_enabled = true
+	mat.emission = Color(0.35, 0.35, 0.35)
+	mat.emission_energy_multiplier = 1.0
 	mmi.material_override = mat
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mmi)
 
 func _build_start_gate() -> void:

@@ -92,3 +92,30 @@ func test_boost_signals() -> void:
 	k.apply_boost(0.1)
 	_run(k, 0.3, 1.0, 0.0, 0.0, false)
 	runner.check(log == ["start", "end"], str(log))
+
+func test_steer_smoothing_ramps_and_recentres() -> void:
+	var s := 0.0
+	s = KartPhysics.smooth_steer(s, 1.0, 1.0 / 60.0)
+	runner.check(s > 0.0 and s < 0.5, "digital input ramps, not instant: %f" % s)
+	for i in 30:
+		s = KartPhysics.smooth_steer(s, 1.0, 1.0 / 60.0)
+	runner.check(is_equal_approx(s, 1.0), "reaches full lock: %f" % s)
+	var before := s
+	s = KartPhysics.smooth_steer(s, 0.0, 1.0 / 60.0)
+	runner.check(s < before and s > 0.0, "recentres gradually")
+	# counter-steer reverses faster than a plain ramp
+	var a := KartPhysics.smooth_steer(1.0, -1.0, 1.0 / 60.0)
+	var b := KartPhysics.smooth_steer(0.0, -1.0, 1.0 / 60.0)
+	runner.check(1.0 - a > 0.0 - b, "counter-steer is quicker")
+	runner.check(KartPhysics.smooth_steer(0.2, 0.2, 0.1) == 0.2, "no change when on target")
+
+func test_turns_tighter_at_low_speed_than_top_speed() -> void:
+	var slow := KartPhysics.new()
+	slow.speed = 8.0
+	var fast := KartPhysics.new()
+	fast.speed = fast.max_speed
+	var ys := absf(slow.step(0.1, 1.0, 0.0, 1.0, false))
+	var yf := absf(fast.step(0.1, 1.0, 0.0, 1.0, false))
+	runner.check(ys > 0.0 and yf > 0.0)
+	runner.check(ys > yf, "more yaw per second at low speed (%f vs %f)" % [ys, yf])
+	runner.check(yf >= slow.turn_rate * slow.high_speed_turn_scale * 0.1 * 0.99, "still turns at top speed")

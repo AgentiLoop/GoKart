@@ -10,6 +10,23 @@ static var laps := 3
 
 const LAP_OPTIONS := [1, 2, 3, 5, 7]
 
+## AI difficulty chosen on the title menu (index into DIFFICULTIES; Medium by default).
+static var difficulty := 1
+
+## speed: multiplier on every AI kart's top speed. start_boost: multiplier on the AI rocket-start boost.
+const DIFFICULTIES := [
+	{"name": "Easy", "speed": 0.72, "start_boost": 0.0},
+	{"name": "Medium", "speed": 0.85, "start_boost": 0.5},
+	{"name": "Hard", "speed": 1.0, "start_boost": 1.0},
+]
+
+static func difficulty_info(i: int) -> Dictionary:
+	return DIFFICULTIES[posmod(i, DIFFICULTIES.size())]
+
+## Next/previous difficulty (wraps around).
+static func step_difficulty(current: int, dir: int) -> int:
+	return posmod(current + dir, DIFFICULTIES.size())
+
 const TRACKS := [
 	{
 		"name": "Green Hills",

@@ -112,7 +112,7 @@ func _ready() -> void:
 		ai.track_index = gi
 		ai.kart_id = karts.size()
 		add_child(ai)
-		ai.model.max_speed *= spec[2]
+		ai.model.max_speed *= spec[2] * TrackLibrary.difficulty_info(TrackLibrary.difficulty).speed
 		var engine_sfx := AiEngineAudio.new()
 		engine_sfx.kart = ai
 		ai.add_child(engine_sfx)
@@ -155,7 +155,7 @@ func _on_go() -> void:
 	if b > 0.0:
 		kart.model.apply_boost(b, 1)
 	for i in range(1, karts.size()):
-		var ab: float = AI_START_BOOSTS[(i - 1) % AI_START_BOOSTS.size()]
+		var ab: float = AI_START_BOOSTS[(i - 1) % AI_START_BOOSTS.size()] * TrackLibrary.difficulty_info(TrackLibrary.difficulty).start_boost
 		if ab > 0.0:
 			karts[i].model.apply_boost(ab, 1)
 

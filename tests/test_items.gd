@@ -629,7 +629,7 @@ func test_holder_uses_rank_for_roll() -> void:
 	runner.check(h2.pickup(3, 4) and h2.rank == 3 and h2.racers == 4)
 
 func test_manager_passes_rank_to_holder() -> void:
-	var r := _make_manager(3)
+	var r = _make_manager(3)
 	_place(r, 0, 5)
 	_place(r, 1, 30)
 	_place(r, 2, 20)
@@ -638,3 +638,23 @@ func test_manager_passes_rank_to_holder() -> void:
 	r[0]._physics_process(DT)
 	runner.check(r[0].holders[0].rank == 3, "last kart rank=%d" % r[0].holders[0].rank)
 	_free_manager(r)
+
+func test_item_hint_text() -> void:
+	runner.check(Hud.item_hint_text(Items.Type.NONE) == "")
+	var h := Hud.item_hint_text(Items.Type.MUSHROOM)
+	runner.check(h.contains("E") and h.contains("Enter"), h)
+
+func test_item_and_arrow_keys_are_bound() -> void:
+	var keys := {}
+	for action in ["accelerate", "brake", "steer_left", "steer_right", "drift", "use_item"]:
+		var codes := []
+		for ev in InputMap.action_get_events(action):
+			if ev is InputEventKey:
+				codes.append(ev.physical_keycode)
+		keys[action] = codes
+	runner.check(KEY_UP in keys["accelerate"] and KEY_W in keys["accelerate"])
+	runner.check(KEY_DOWN in keys["brake"] and KEY_S in keys["brake"])
+	runner.check(KEY_LEFT in keys["steer_left"] and KEY_A in keys["steer_left"])
+	runner.check(KEY_RIGHT in keys["steer_right"] and KEY_D in keys["steer_right"])
+	runner.check(KEY_ENTER in keys["use_item"] and KEY_E in keys["use_item"] and KEY_CTRL in keys["use_item"])
+	runner.check(KEY_SPACE in keys["drift"] and KEY_SHIFT in keys["drift"])

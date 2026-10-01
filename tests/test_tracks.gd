@@ -130,6 +130,7 @@ func test_lap_options() -> void:
 	var m = Menu.new()
 	m.laps = 3
 	m.laps_label = Label.new()
+	m.difficulty_label = Label.new()
 	m.name_label = Label.new()
 	m.blurb_label = Label.new()
 	m.index_label = Label.new()
@@ -137,7 +138,11 @@ func test_lap_options() -> void:
 	m.preview = load("res://scripts/minimap.gd").new()
 	m.move_laps(1)
 	runner.check(m.laps == 5 and m.laps_label.text == Menu.laps_text(5))
-	for n in [m.laps_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
+	m.move_difficulty(1)
+	runner.check(m.difficulty == 2 and m.difficulty_label.text == Menu.difficulty_text(2))
+	m.move_difficulty(1)
+	runner.check(m.difficulty == 0 and m.difficulty_label.text.contains("Easy"), "wraps to Easy")
+	for n in [m.laps_label, m.difficulty_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
 		n.free()
 	var lt = load("res://scripts/lap_tracker.gd").new(200, 8, 2)
 	runner.check(lt.total_laps == 2)
@@ -174,3 +179,16 @@ func test_full_throttle_pursuit_bot_finishes_every_track() -> void:
 		runner.check(lt.is_finished, "track %d: bot did not finish (lap %d)" % [n, lt.lap])
 		runner.check(off < 600, "track %d: bot off-road frames=%d" % [n, off])
 		print("track %d bot: total %s offroad %d" % [n, Hud.format_time(lt.race_time), off])
+
+func test_ai_difficulty_levels() -> void:
+	var L := TrackLibrary
+	runner.check(L.DIFFICULTIES.size() == 3)
+	runner.check(L.difficulty_info(0).name == "Easy" and L.difficulty_info(1).name == "Medium" and L.difficulty_info(2).name == "Hard")
+	runner.check(L.difficulty == 1, "Medium is the default")
+	# harder levels are strictly faster; Easy is clearly slower than the player's 1.0 top speed
+	runner.check(L.difficulty_info(0).speed < L.difficulty_info(1).speed and L.difficulty_info(1).speed < L.difficulty_info(2).speed)
+	runner.check(L.difficulty_info(2).speed <= 1.0 and L.difficulty_info(0).speed <= 0.75)
+	runner.check(L.step_difficulty(0, -1) == 2 and L.step_difficulty(2, 1) == 0 and L.step_difficulty(1, 1) == 2)
+	runner.check(Menu.difficulty_direction_for_key(KEY_Q) == -1 and Menu.difficulty_direction_for_key(KEY_E) == 1)
+	runner.check(Menu.difficulty_direction_for_key(KEY_A) == 0 and Menu.difficulty_direction_for_key(KEY_ENTER) == 0)
+	runner.check(Menu.difficulty_text(0) == "AI: Easy  (Q / E)")

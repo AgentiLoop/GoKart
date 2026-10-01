@@ -12,6 +12,9 @@ var blurb_label: Label
 var index_label: Label
 var laps_label: Label
 var laps := 3
+var difficulty_label: Label
+var difficulty := 1
+var stage: Control   # fixed 1280x720 layout area, kept centred when the window is wider/taller
 var preview: Minimap
 var bg: ColorRect
 
@@ -33,6 +36,18 @@ static func lap_direction_for_key(keycode: int) -> int:
 			return -1
 	return 0
 
+## Key -> AI difficulty step (-1 / +1), 0 for anything else.
+static func difficulty_direction_for_key(keycode: int) -> int:
+	match keycode:
+		KEY_Q:
+			return -1
+		KEY_E:
+			return 1
+	return 0
+
+static func difficulty_text(i: int) -> String:
+	return "AI: %s  (Q / E)" % TrackLibrary.difficulty_info(i).name
+
 static func laps_text(n: int) -> String:
 	return "Laps: %d  (W / S)" % n
 
@@ -46,9 +61,17 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	selected = TrackLibrary.selected
 	laps = TrackLibrary.laps
+	difficulty = TrackLibrary.difficulty
 	bg = ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+	stage = Control.new()
+	stage.set_anchors_preset(Control.PRESET_CENTER)
+	stage.offset_left = -640.0
+	stage.offset_top = -360.0
+	stage.offset_right = 640.0
+	stage.offset_bottom = 360.0
+	add_child(stage)
 	var title := _label(Vector2(240, 50), 120, 800, Color(1.0, 0.85, 0.15))
 	title.text = "GOKART"
 	var sub := _label(Vector2(240, 190), 26, 800, Color(1, 1, 1))
@@ -56,12 +79,13 @@ func _ready() -> void:
 	name_label = _label(Vector2(240, 250), 56, 800, Color(1, 1, 1))
 	blurb_label = _label(Vector2(240, 322), 24, 800, Color(0.9, 0.9, 0.9))
 	index_label = _label(Vector2(240, 360), 30, 800, Color(1, 1, 1))
-	laps_label = _label(Vector2(240, 398), 28, 800, Color(1.0, 0.85, 0.15))
+	laps_label = _label(Vector2(240, 398), 28, 400, Color(1.0, 0.85, 0.15))
+	difficulty_label = _label(Vector2(640, 398), 28, 400, Color(1.0, 0.85, 0.15))
 	preview = Minimap.new()
 	preview.position = Vector2(500, 440)
-	add_child(preview)
-	var hint := _label(Vector2(240, 660), 22, 800, Color(1, 1, 1))
-	hint.text = "A / D: track      W / S: laps      Enter / Space: race"
+	stage.add_child(preview)
+	var hint := _label(Vector2(140, 660), 22, 1000, Color(1, 1, 1))
+	hint.text = "Arrows / A D: track     Up Down / W S: laps     Q E: AI level     Enter: race"
 	_refresh()
 
 func _label(pos: Vector2, font_size: int, w: float, col: Color) -> Label:
@@ -73,7 +97,7 @@ func _label(pos: Vector2, font_size: int, w: float, col: Color) -> Label:
 	l.add_theme_color_override("font_color", col)
 	l.add_theme_color_override("font_outline_color", Color.BLACK)
 	l.add_theme_constant_override("outline_size", 8)
-	add_child(l)
+	stage.add_child(l)
 	return l
 
 func _refresh() -> void:
@@ -82,6 +106,7 @@ func _refresh() -> void:
 	blurb_label.text = info.blurb
 	index_label.text = counter_text(selected, TrackLibrary.count())
 	laps_label.text = laps_text(laps)
+	difficulty_label.text = difficulty_text(difficulty)
 	bg.color = info.sky_top.darkened(0.45)
 	preview.setup(TrackLibrary.make_data(selected).points, Vector2(280, 205))
 
@@ -95,8 +120,14 @@ func move_laps(dir: int) -> void:
 	laps = TrackLibrary.step_laps(laps, dir)
 	_refresh()
 
+## Change the AI difficulty (wraps around Easy / Medium / Hard).
+func move_difficulty(dir: int) -> void:
+	difficulty = TrackLibrary.step_difficulty(difficulty, dir)
+	_refresh()
+
 func start_race() -> void:
 	TrackLibrary.selected = selected
+	TrackLibrary.difficulty = difficulty
 	TrackLibrary.laps = laps
 	get_tree().change_scene_to_file(RACE_SCENE)
 
@@ -105,7 +136,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var d := direction_for_key(event.physical_keycode)
 	var ld := lap_direction_for_key(event.physical_keycode)
-	if d != 0:
+	var dd := difficulty_direction_for_key(event.physical_keycode)
+	if dd != 0:
+		move_difficulty(dd)
+	elif d != 0:
 		move(d)
 	elif ld != 0:
 		move_laps(ld)

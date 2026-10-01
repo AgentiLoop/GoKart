@@ -6,6 +6,8 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 
 - **Arcade kart physics** with drifting and mini-turbo boosts (release a drift to boost), off-road slowdown and wall collisions (`scripts/kart_physics.gd`)
 - **Procedural closed-circuit tracks** with meshes, walls and animated boost pads; three tracks (Green Hills, Sunset Speedway, Frosty Peaks) with their own layout, item boxes, hazards and sky/ground colours (`scripts/track_data.gd`, `scripts/track.gd`, `scripts/track_library.gd`)
+- **UI scales with the window** (canvas_items stretch, anchored HUD drawn above the speed effects so it stays sharp); 4x MSAA and steady, shadow-free striped walls
+- **AI difficulty** Easy / Medium / Hard on the title menu (`TrackLibrary.DIFFICULTIES`)
 - **Title menu** to pick the track (A / D or arrows) and the lap count (W / S, 1/2/3/5/7 laps), Enter to race; Esc in a race returns to it (`scripts/menu.gd`)
 - **3-lap races** with ordered checkpoints and live race ranking (`scripts/lap_tracker.gd`, `scripts/race_ranking.gd`)
 - **Start countdown** (3-2-1-GO) with a rocket-start boost for well-timed throttle (`scripts/race_start.gd`)
@@ -21,10 +23,11 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 
 | Key | Action |
 | --- | --- |
-| W / S | Accelerate / brake |
-| A / D | Steer |
-| Space | Drift (release for mini-turbo) |
-| E | Use item |
+| W / S or Up / Down | Accelerate / brake |
+| A / D or Left / Right | Steer (eased in, Mario Kart style) |
+| Space or Shift | Drift (release for mini-turbo) |
+| E, Enter or Ctrl | Use the held item (a hint shows under the item name) |
+| Q / E (menu) | AI difficulty: Easy / Medium (default) / Hard |
 | Enter | Race again (on the results screen) / start race (menu) |
 | Esc | Back to the track menu |
 
