@@ -519,3 +519,47 @@ I fixed one way the player kart could get stuck. I haven't seen the game on scre
 
 ## Cycle 6
 Verified smoke test after steering change: 3/3 AI karts racing, race finished lap 3. No new changes.
+## Cycle 6 — 2026-10-01 15:21
+Cycle 6: no new code changes. I haven't seen the game on screen, so I'm not declaring the goal reached.
+
+- **Smoke test:** the headless race smoke test, which couldn't run last cycle, now runs after the wall-pivot steering change. All 3 AI karts raced and reached lap 3, and the player kart was 1st at the last sample. One AI kart (k2) showed speed 0.0 at the final sample. That was a single reading, not a stuck run.
+- **Commit:** I committed the updated `progress.md`.
+- **Needs a person to try in the game:**
+  - How the UI scales and whether screen-effect blur reaches it at different window sizes.
+  - Whether the wall tops still flicker or look soft.
+  - How the steering feels.
+  - Whether the AI speeds (Easy 0.72, Medium 0.85, Hard 1.0) are right.
+- **Using items:** Space is still drift, and E, Enter or Ctrl use the held item.
+- **Not done:** optional AI rubber-banding.
+- **Blockers:** none, and no parity folders were given.
+
+## Cycle 7 — 2026-10-01 15:21
+Cycle 7: I made no code changes. I re-checked the repo and re-ran the unit suite, which passes (3344 checks, 0 failures). I haven't seen the game on screen, so I'm not declaring the goal reached.
+
+**Controls, read from `project.godot`:**
+- Space and Shift are drift.
+- E, Enter, KP Enter and Ctrl use the held item.
+- A, D and the arrow keys steer.
+- The HUD shows "Press E / Enter / Ctrl to use" while an item is held.
+
+**Already in place from earlier cycles:**
+- The UI scales with the window.
+- The HUD sits above the speed-effect overlay.
+- Steering is smoothed, with the minimum-steering fix for getting pinned on a wall.
+- The wall anti-flicker and glow changes are in.
+- Easy, Medium and Hard AI levels are chosen on the title menu.
+
+**Assumptions and loose ends:**
+- I assumed Space stays as drift, since the HUD hint already tells the player which keys fire items.
+- Untracked `.uid` files and `export_presets.cfg` are left uncommitted.
+
+**Needs a person to try in the game:**
+- UI scaling and sharpness at different window sizes.
+- Whether the wall tops still flicker.
+- How the steering feels.
+- Whether the AI speeds (Easy 0.72, Medium 0.85, Hard 1.0) are right.
+
+**Not done:** optional AI rubber-banding.
+
+**Blockers:** none, and no parity folders were given.
+
