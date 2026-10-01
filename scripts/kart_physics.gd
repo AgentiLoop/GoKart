@@ -8,6 +8,8 @@ signal boost_started(level: int)
 signal boost_ended
 signal spin_started
 signal spin_ended
+signal star_started
+signal star_ended
 
 var max_speed := 30.0
 var reverse_max_speed := 10.0
@@ -34,12 +36,29 @@ var spin_duration := 1.2        # seconds spent spinning out after a hit (banana
 var hit_immunity_time := 1.5    # grace period after recovering from a spin
 var spin_time := 0.0
 var immunity_time := 0.0
+var star_duration := 7.0        # seconds of invincibility from a star
+var star_speed_factor := 1.2
+var star_time := 0.0
 
 func is_boosting() -> bool:
 	return boost_time > 0.0
 
+func is_star() -> bool:
+	return star_time > 0.0
+
+## Invincible: hits do nothing and the kart runs a bit faster, even off-road.
+func apply_star(duration := -1.0) -> void:
+	var was := is_star()
+	star_time = maxf(star_time, star_duration if duration < 0.0 else duration)
+	if not was:
+		star_started.emit()
+
 func current_max_speed() -> float:
-	return max_speed * boost_speed_factor if is_boosting() else max_speed * surface_scale
+	if is_boosting():
+		return max_speed * boost_speed_factor
+	if is_star():
+		return max_speed * star_speed_factor
+	return max_speed * surface_scale
 
 func is_spinning() -> bool:
 	return spin_time > 0.0
@@ -51,7 +70,7 @@ func spin_progress() -> float:
 ## Get hit: lose control, boost and drift for spin_duration. Returns false (no effect)
 ## if already spinning or still immune.
 func spin_out() -> bool:
-	if is_spinning() or immunity_time > 0.0:
+	if is_spinning() or immunity_time > 0.0 or is_star():
 		return false
 	spin_time = spin_duration
 	boost_time = 0.0
@@ -115,6 +134,12 @@ func step(delta: float, throttle: float, brake: float, steer: float, drift_held:
 			boost_level = 0
 			boost_from_drift = false
 			boost_ended.emit()
+
+	if star_time > 0.0:
+		star_time -= delta
+		if star_time <= 0.0:
+			star_time = 0.0
+			star_ended.emit()
 
 	# --- spin out: no control, speed bleeds off
 	if immunity_time > 0.0:

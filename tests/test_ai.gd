@@ -192,3 +192,9 @@ func test_ai_field_finishes_race_on_track() -> void:
 	runner.check(lt[0].race_time < lt[2].race_time, "faster AI should finish first")
 	runner.check(off_road < 900, "AI off-road frames=%d" % off_road)
 	print("ai: finish times %s %s %s, offroad frames %d" % [Hud.format_time(lt[0].race_time), Hud.format_time(lt[1].race_time), Hud.format_time(lt[2].race_time), off_road])
+
+func test_ai_uses_red_shell_and_star() -> void:
+	var d := AiDriver.new(TrackData.new(), 0.0, 0.5)
+	runner.check(not d.wants_use(1.0, Items.Type.RED_SHELL, 200.0, INF), "red shell: nobody near")
+	runner.check(d.wants_use(DT, Items.Type.RED_SHELL, 60.0, INF), "red shell: rival ahead")
+	runner.check(d.wants_use(1.0, Items.Type.STAR, INF, INF), "star: always")

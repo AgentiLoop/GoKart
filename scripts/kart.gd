@@ -34,6 +34,7 @@ func _ready() -> void:
 	effects = KartEffects.new()
 	add_child(effects)
 	effects.setup(model, [Vector3(-0.8, 0, -0.8), Vector3(0.8, 0, -0.8), Vector3(-0.8, 0, 0.8), Vector3(0.8, 0, 0.8)])
+	effects.setup_star(body_mesh)
 
 func _add_box(parent: Node3D, size: Vector3, pos: Vector3, color: Color) -> void:
 	var mi := MeshInstance3D.new()

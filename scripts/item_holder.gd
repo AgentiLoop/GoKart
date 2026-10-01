@@ -44,5 +44,5 @@ func use() -> int:
 ## What the HUD should show: the held item, or a cycling preview while rolling.
 func display_item(time: float) -> int:
 	if is_rolling():
-		return 1 + int(time * 12.0) % 3
+		return 1 + int(time * 12.0) % Items.count()
 	return held

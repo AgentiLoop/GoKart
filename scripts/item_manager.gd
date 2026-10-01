@@ -9,6 +9,7 @@ const ItemBox := preload("res://scripts/item_box.gd")
 
 const MUSHROOM_BOOST_TIME := 1.5
 const KART_RADIUS := 1.1
+const STAR_HIT_RADIUS := 2.2
 
 signal kart_hit(kind: int, id: int)
 
@@ -71,12 +72,16 @@ func use_item(id := 0) -> int:
 			_add_projectile(ItemProjectile.make_banana(pos - fwd * 2.4 + Vector3(0, 0.3, 0), id))
 		Items.Type.SHELL:
 			_add_projectile(ItemProjectile.make_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), k.heading, id))
+		Items.Type.RED_SHELL:
+			_add_projectile(ItemProjectile.make_red_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), k.heading, id))
+		Items.Type.STAR:
+			k.model.apply_star()
 	return t
 
 func _add_projectile(p) -> void:
 	projectiles.append(p)
 	var n := Node3D.new()
-	if p.kind == Items.Type.SHELL:
+	if p.is_shell():
 		var mi := MeshInstance3D.new()
 		var sm := SphereMesh.new()
 		sm.radius = 0.55
@@ -84,6 +89,9 @@ func _add_projectile(p) -> void:
 		mi.mesh = sm
 		var mat := ShaderMaterial.new()
 		mat.shader = load("res://shaders/shell.gdshader") as Shader
+		if p.kind == Items.Type.RED_SHELL:
+			mat.set_shader_parameter("shell_color", Color(0.95, 0.1, 0.1))
+			mat.set_shader_parameter("rim_color", Color(1.0, 0.9, 0.85))
 		mi.material_override = mat
 		n.add_child(mi)
 	else:
@@ -134,7 +142,20 @@ func _physics_process(delta: float) -> void:
 			var gaps := rival_gaps(id, positions, headings)
 			if drv.wants_use(delta, holders[id].held, gaps.x, gaps.y):
 				use_item(id)
+	var valid: Array = []
+	for k in karts:
+		valid.append(not k.model.is_star())
+	# a star kart bowls over anyone it touches
+	for id in karts.size():
+		if karts[id].model.is_star():
+			for j in karts.size():
+				if j != id and positions[id].distance_to(positions[j]) <= STAR_HIT_RADIUS and karts[j].model.spin_out():
+					kart_hit.emit(Items.Type.STAR, j)
 	for p in projectiles.duplicate():
+		if p.kind == Items.Type.RED_SHELL:
+			var dir: Vector3 = p.velocity.normalized()
+			var ti: int = ItemProjectile.pick_target(p.position, dir, positions, p.owner_id, valid)
+			p.target_pos = positions[ti] if ti >= 0 else null
 		p.step(delta, track)
 		for id in karts.size():
 			if p.hits(positions[id], KART_RADIUS, id) and karts[id].model.spin_out():
@@ -146,4 +167,4 @@ func _physics_process(delta: float) -> void:
 		else:
 			var n: Node3D = nodes[p]
 			n.position = p.position
-			n.rotation.y += (12.0 if p.kind == Items.Type.SHELL else 0.0) * delta
+			n.rotation.y += (12.0 if p.is_shell() else 0.0) * delta

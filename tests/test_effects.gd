@@ -158,3 +158,24 @@ func test_speed_fx_flash() -> void:
 		fx.update_fx(1.0 / 60.0, 0.0, false)
 	runner.check(fx.flash_amount == 0.0, "flash fades out")
 	fx.queue_free()
+
+func test_star_overlay_and_glitter() -> void:
+	var r = _make_fx()
+	var body := Node3D.new()
+	for i in 3:
+		body.add_child(MeshInstance3D.new())
+	r[1].setup_star(body)
+	runner.check(r[1].star_meshes.size() == 3)
+	runner.check(not r[1].star_glitter.emitting)
+	r[0].apply_star()
+	runner.check(r[1].star_glitter.emitting, "glitter while star")
+	for m in r[1].star_meshes:
+		runner.check(m.material_overlay != null, "overlay on")
+	runner.check(r[1].star_overlay.shader != null, "star shader loaded")
+	for i in int(r[0].star_duration / (1.0 / 60.0)) + 5:
+		r[0].step(1.0 / 60.0, 0.0, 0.0, 0.0, false)
+	runner.check(not r[1].star_glitter.emitting, "glitter stops")
+	for m in r[1].star_meshes:
+		runner.check(m.material_overlay == null, "overlay off")
+	r[1].queue_free()
+	body.free()

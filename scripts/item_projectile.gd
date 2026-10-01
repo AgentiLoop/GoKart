@@ -8,6 +8,10 @@ const Items := preload("res://scripts/items.gd")
 const SHELL_SPEED := 55.0
 const SHELL_LIFE := 10.0
 const SHELL_MAX_BOUNCES := 6
+const RED_SHELL_SPEED := 50.0
+const RED_TURN_RATE := 3.5        # rad/s the homing shell can turn
+const RED_LOCK_RANGE := 28.0      # closer than this it aims straight at its target, else it follows the road
+const RED_LOOKAHEAD := 5          # track samples ahead it aims for while following the road
 const OWNER_GRACE := 0.6   # seconds before the thrower can be hit by their own item
 
 var kind := Items.Type.BANANA
@@ -19,6 +23,7 @@ var owner_id := -1
 var bounces := 0
 var alive := true
 var hint := -1   # track index hint
+var target_pos = null   # Vector3 of the kart a red shell homes on (set by the item manager), or null
 
 static func make_shell(pos: Vector3, heading: float, owner := -1) -> Object:
 	var p = load("res://scripts/item_projectile.gd").new()
@@ -27,6 +32,49 @@ static func make_shell(pos: Vector3, heading: float, owner := -1) -> Object:
 	p.velocity = Vector3(-sin(heading), 0, -cos(heading)) * SHELL_SPEED
 	p.owner_id = owner
 	return p
+
+static func make_red_shell(pos: Vector3, heading: float, owner := -1) -> Object:
+	var p = load("res://scripts/item_projectile.gd").new()
+	p.kind = Items.Type.RED_SHELL
+	p.position = pos
+	p.velocity = Vector3(-sin(heading), 0, -cos(heading)) * RED_SHELL_SPEED
+	p.owner_id = owner
+	return p
+
+func is_shell() -> bool:
+	return kind == Items.Type.SHELL or kind == Items.Type.RED_SHELL
+
+## Nearest candidate roughly ahead of `from` along `dir`; returns its index or -1.
+## Candidates flagged false in `valid` (e.g. invincible karts) and `skip` are ignored.
+static func pick_target(from: Vector3, dir: Vector3, positions: Array, skip: int, valid: Array, max_range := 120.0) -> int:
+	var best := -1
+	var best_f := INF
+	for j in positions.size():
+		if j == skip or not valid[j]:
+			continue
+		var d: Vector3 = positions[j] - from
+		d.y = 0.0
+		var f := d.dot(dir)
+		if f > 0.0 and f < max_range and f < best_f:
+			best_f = f
+			best = j
+	return best
+
+## Turn the velocity toward the desired point, limited by RED_TURN_RATE.
+func _home(delta: float, track) -> void:
+	hint = track.nearest_index(position, hint)
+	var aim: Vector3 = track.points[(hint + RED_LOOKAHEAD) % track.count]
+	if target_pos != null:
+		var to_t: Vector3 = target_pos - position
+		if Vector2(to_t.x, to_t.z).length() < RED_LOCK_RANGE:
+			aim = target_pos
+	var cur := Vector2(velocity.x, velocity.z)
+	var want := Vector2(aim.x - position.x, aim.z - position.z)
+	if want.length_squared() < 0.0001:
+		return
+	var ang := clampf(cur.angle_to(want), -RED_TURN_RATE * delta, RED_TURN_RATE * delta)
+	var nv := cur.rotated(ang)
+	velocity = Vector3(nv.x, 0.0, nv.y)
 
 static func make_banana(pos: Vector3, owner := -1) -> Object:
 	var p = load("res://scripts/item_projectile.gd").new()
@@ -40,8 +88,10 @@ func step(delta: float, track) -> void:
 	if not alive:
 		return
 	age += delta
-	if kind != Items.Type.SHELL:
+	if not is_shell():
 		return
+	if kind == Items.Type.RED_SHELL:
+		_home(delta, track)
 	position += velocity * delta
 	if age >= SHELL_LIFE:
 		alive = false

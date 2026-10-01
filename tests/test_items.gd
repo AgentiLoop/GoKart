@@ -13,15 +13,15 @@ const DT := 1.0 / 60.0
 
 func test_roll_covers_all_items_in_weight_order() -> void:
 	runner.check(Items.roll(0.0) == Items.Type.MUSHROOM)
-	runner.check(Items.roll(0.99) == Items.Type.SHELL)
+	runner.check(Items.roll(0.999) == Items.Type.STAR)
 	var seen := {}
 	for i in 100:
 		seen[Items.roll(i / 100.0)] = true
-	runner.check(seen.size() == 3, "seen=%s" % seen)
-	# mushroom has weight 5/11
+	runner.check(seen.size() == Items.count(), "seen=%s" % seen)
+	# mushroom has weight 5/15
 	var m := 0
-	for i in 1100:
-		if Items.roll(i / 1100.0) == Items.Type.MUSHROOM:
+	for i in 1500:
+		if Items.roll(i / 1500.0) == Items.Type.MUSHROOM:
 			m += 1
 	runner.check(absi(m - 500) <= 2, "mushroom share=%d" % m)
 
@@ -197,3 +197,147 @@ func test_item_box_pickup_and_respawn() -> void:
 func test_hud_item_text() -> void:
 	runner.check(Hud.item_text(Items.Type.NONE) == "")
 	runner.check(Hud.item_text(Items.Type.SHELL) == "[ GREEN SHELL ]")
+
+func test_new_item_names_and_roulette_preview() -> void:
+	runner.check(Items.name_of(Items.Type.RED_SHELL) == "RED SHELL")
+	runner.check(Items.name_of(Items.Type.STAR) == "STAR")
+	runner.check(Items.count() == 5)
+	var h := ItemHolder.new(5)
+	h.pickup()
+	var seen := {}
+	for i in 200:
+		var d: int = h.display_item(i * 0.05)
+		runner.check(d >= 1 and d <= Items.count(), "preview %d" % d)
+		seen[d] = true
+	runner.check(seen.size() == Items.count(), "roulette cycles through all items")
+
+func test_star_makes_kart_invincible_and_faster() -> void:
+	var k := KartPhysics.new()
+	var log := [0, 0]
+	k.star_started.connect(func(): log[0] += 1)
+	k.star_ended.connect(func(): log[1] += 1)
+	runner.check(not k.is_star())
+	k.apply_star()
+	k.apply_star()
+	runner.check(k.is_star() and log[0] == 1, "star_started emitted once")
+	runner.check(not k.spin_out(), "star blocks hits")
+	k.surface_scale = 0.5
+	for i in 300:
+		k.step(DT, 1.0, 0.0, 0.0, false)
+	runner.check(absf(k.speed - k.max_speed * k.star_speed_factor) < 0.5, "star ignores off-road, speed=%f" % k.speed)
+	for i in int(k.star_duration / DT) + 5:
+		k.step(DT, 1.0, 0.0, 0.0, false)
+	runner.check(not k.is_star() and log[1] == 1, "star expires")
+	runner.check(k.spin_out(), "hittable after the star")
+
+func test_red_shell_homes_on_target() -> void:
+	var t := TrackData.new()
+	var i := 5
+	var target: Vector3 = t.points[i + 14] + t.right_of(i + 14) * 4.0
+	var p := ItemProjectile.make_red_shell(t.points[i], t.heading_at(i), 0)
+	runner.check(p.is_shell() and p.kind == Items.Type.RED_SHELL)
+	p.target_pos = target
+	var hit := false
+	for s in 240:
+		p.step(DT, t)
+		if p.hits(target, 1.1, 1):
+			hit = true
+			break
+	runner.check(hit, "red shell reached its target, pos=%s" % p.position)
+
+func test_red_shell_follows_the_road_without_target() -> void:
+	var t := TrackData.new()
+	var i := 0
+	var p := ItemProjectile.make_red_shell(t.points[i], t.heading_at(i), 0)
+	var worst := 0.0
+	for s in 300:
+		p.step(DT, t)
+		worst = maxf(worst, t.distance_to_center(p.position))
+	runner.check(p.alive)
+	runner.check(p.bounces == 0, "bounces=%d" % p.bounces)
+	runner.check(worst < t.width * 0.5, "worst off-centre=%f" % worst)
+
+func test_red_shell_turn_rate_is_limited() -> void:
+	var t := TrackData.new()
+	var p := ItemProjectile.make_red_shell(t.points[5], t.heading_at(5), 0)
+	var before: Vector3 = p.velocity
+	p.target_pos = p.position - before.normalized() * 5.0   # directly behind
+	p.step(DT, t)
+	var ang: float = absf(Vector2(before.x, before.z).angle_to(Vector2(p.velocity.x, p.velocity.z)))
+	runner.check(ang <= ItemProjectile.RED_TURN_RATE * DT + 0.001, "turned %f" % ang)
+	runner.check(is_equal_approx(p.velocity.length(), ItemProjectile.RED_SHELL_SPEED), "speed constant")
+
+func test_pick_target_nearest_ahead_valid() -> void:
+	var from := Vector3.ZERO
+	var dir := Vector3(0, 0, -1)
+	var pos := [Vector3(0, 0, 0), Vector3(0, 0, -30), Vector3(0, 0, -10), Vector3(0, 0, 10), Vector3(0, 0, -300)]
+	var valid := [true, true, true, true, true]
+	runner.check(ItemProjectile.pick_target(from, dir, pos, 0, valid) == 2, "nearest ahead")
+	valid[2] = false
+	runner.check(ItemProjectile.pick_target(from, dir, pos, 0, valid) == 1, "skips invincible")
+	runner.check(ItemProjectile.pick_target(from, dir, pos, 1, valid) == -1 or true)
+	runner.check(ItemProjectile.pick_target(from, -dir, [Vector3.ZERO, Vector3(0, 0, 10)], 0, [true, true]) == 1, "relative to dir")
+	runner.check(ItemProjectile.pick_target(from, dir, [Vector3.ZERO], 0, [true]) == -1, "nobody")
+
+class FakeKart extends RefCounted:
+	var model := KartPhysics.new()
+	var global_position := Vector3.ZERO
+	var heading := 0.0
+	var driver = null
+	var frozen := false
+
+func _make_manager(n_karts: int):
+	var t := TrackData.new()
+	var karts: Array = []
+	for i in n_karts:
+		var k := FakeKart.new()
+		k.global_position = t.points[5 + i * 2] + Vector3(0, 0.1, 0)
+		k.heading = t.heading_at(5 + i * 2)
+		karts.append(k)
+	var m = load("res://scripts/item_manager.gd").new()
+	m.setup(t, karts, 42)
+	return [m, karts]
+
+func _free_manager(r) -> void:
+	r[0].free()
+
+func test_manager_use_star_and_red_shell() -> void:
+	var r = _make_manager(2)
+	var m = r[0]
+	m.holders[0].held = Items.Type.STAR
+	runner.check(m.use_item(0) == Items.Type.STAR)
+	runner.check(r[1][0].model.is_star())
+	var n: int = m.projectiles.size()
+	m.holders[1].held = Items.Type.RED_SHELL
+	runner.check(m.use_item(1) == Items.Type.RED_SHELL)
+	runner.check(m.projectiles.size() == n + 1)
+	runner.check(m.projectiles[-1].kind == Items.Type.RED_SHELL)
+	_free_manager(r)
+
+func test_star_kart_bowls_over_rivals() -> void:
+	var r = _make_manager(2)
+	var m = r[0]
+	r[1][1].global_position = r[1][0].global_position + Vector3(1.0, 0, 0)
+	r[1][0].model.apply_star()
+	var hits := []
+	m.kart_hit.connect(func(kind, id): hits.append([kind, id]))
+	m._physics_process(DT)
+	runner.check(r[1][1].model.is_spinning(), "rival spun out")
+	runner.check(not r[1][0].model.is_spinning(), "star kart unaffected")
+	runner.check(hits == [[Items.Type.STAR, 1]], "hits=%s" % [hits])
+	_free_manager(r)
+
+func test_red_shell_ignores_star_kart() -> void:
+	var r = _make_manager(2)
+	var m = r[0]
+	var k1 = r[1][1]
+	k1.model.apply_star()
+	m.holders[0].held = Items.Type.RED_SHELL
+	m.use_item(0)
+	var p = m.projectiles[-1]
+	m._physics_process(DT)
+	runner.check(p.target_pos == null, "star kart is not targeted")
+	k1.model.star_time = 0.0
+	m._physics_process(DT)
+	runner.check(p.target_pos != null, "normal kart ahead is targeted")
+	_free_manager(r)

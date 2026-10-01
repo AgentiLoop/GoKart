@@ -28,6 +28,9 @@ var pops: Array[GPUParticles3D] = []   # one-shot star burst when a drift level 
 var flash_light: OmniLight3D
 var flash_amount := 0.0                 # 1 right at mini-turbo release, decays to 0
 var flash_color := Color.WHITE
+var star_overlay: ShaderMaterial        # rainbow material_overlay applied to the body while invincible
+var star_meshes: Array[MeshInstance3D] = []
+var star_glitter: GPUParticles3D
 
 ## Exhaust flame tint: drift mini-turbos use the spark colour of their level, other boosts are orange.
 static func flame_color(level: int, from_drift: bool) -> Color:
@@ -71,6 +74,59 @@ func setup(physics_model, wheel_offsets: Array) -> void:
 	model.drift_started.connect(_on_drift_started)
 	model.boost_started.connect(_on_boost_started)
 	model.boost_ended.connect(_on_boost_ended)
+	model.star_started.connect(_on_star_started)
+	model.star_ended.connect(_on_star_ended)
+	star_glitter = _make_glitter()
+	star_glitter.position = Vector3(0, 0.7, 0)
+	add_child(star_glitter)
+
+## Remember the body meshes that get the rainbow overlay while the kart has a star.
+func setup_star(body: Node3D) -> void:
+	star_overlay = ShaderMaterial.new()
+	star_overlay.shader = load("res://shaders/star.gdshader") as Shader
+	for c in body.get_children():
+		if c is MeshInstance3D:
+			star_meshes.append(c)
+
+func _make_glitter() -> GPUParticles3D:
+	var p := GPUParticles3D.new()
+	p.amount = 48
+	p.lifetime = 0.6
+	p.local_coords = false
+	p.emitting = false
+	p.visibility_aabb = AABB(Vector3(-5, -5, -5), Vector3(10, 10, 10))
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	pm.emission_box_extents = Vector3(0.8, 0.4, 1.2)
+	pm.direction = Vector3(0, 1, 0)
+	pm.spread = 60.0
+	pm.initial_velocity_min = 1.0
+	pm.initial_velocity_max = 3.0
+	pm.gravity = Vector3(0, -2, 0)
+	pm.scale_min = 0.8
+	pm.scale_max = 1.8
+	var g := Gradient.new()
+	g.colors = PackedColorArray([Color(1, 0.2, 0.2, 1), Color(1, 0.9, 0.2, 1), Color(0.2, 1, 0.4, 1), Color(0.2, 0.6, 1, 1), Color(0.8, 0.3, 1, 0)])
+	g.offsets = PackedFloat32Array([0.0, 0.25, 0.5, 0.75, 1.0])
+	var gt := GradientTexture1D.new()
+	gt.gradient = g
+	pm.color_ramp = gt
+	p.process_material = pm
+	var q := QuadMesh.new()
+	q.size = Vector2(0.16, 0.16)
+	q.material = _particle_material(Color(1, 1, 1, 1))
+	p.draw_pass_1 = q
+	return p
+
+func _on_star_started() -> void:
+	for m in star_meshes:
+		m.material_overlay = star_overlay
+	star_glitter.emitting = true
+
+func _on_star_ended() -> void:
+	for m in star_meshes:
+		m.material_overlay = null
+	star_glitter.emitting = false
 
 func _particle_material(color: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()

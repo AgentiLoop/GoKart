@@ -68,14 +68,16 @@ func update_minimap(positions: Array, colors: Array) -> void:
 func show_countdown(text: String) -> void:
 	countdown_label.text = text
 
-func update_hud(tracker, speed: float, boosting: bool, drift_level: int, item := 0, place := "") -> void:
+func update_hud(tracker, speed: float, boosting: bool, drift_level: int, item := 0, place := "", star := false) -> void:
 	place_label.text = place
 	item_label.text = item_text(item)
 	lap_label.text = lap_text(tracker.lap, tracker.total_laps) if tracker.lap > 0 else "READY"
 	time_label.text = "TIME %s\nLAP  %s" % [format_time(tracker.race_time), format_time(tracker.lap_time)]
 	speed_label.text = "%d km/h" % int(round(absf(speed) * 3.6))
 	var s := ""
-	if boosting:
+	if star:
+		s = "STAR!"
+	elif boosting:
 		s = "BOOST!"
 	elif drift_level > 0:
 		s = ["", "MINI-TURBO", "SUPER MINI-TURBO", "ULTRA MINI-TURBO"][drift_level]
