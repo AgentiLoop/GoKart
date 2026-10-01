@@ -563,3 +563,25 @@ Cycle 7: I made no code changes. I re-checked the repo and re-ran the unit suite
 
 **Blockers:** none, and no parity folders were given.
 
+## Cycle 8 — 2026-10-01 15:22
+Cycle 8: no new code changes. I only committed the pending `progress.md` update. I haven't seen the game on screen, so I'm not declaring the goal reached.
+
+- **Already in place from earlier cycles:**
+  - UI scaling with the window, with the HUD above the speed-effect overlay.
+  - Arrow keys for steering.
+  - Smoothed steering, plus the minimum-steering fix for getting pinned on a wall.
+  - Wall anti-flicker and glow changes.
+  - Easy, Medium and Hard AI levels on the title menu.
+  - Item controls: Space and Shift drift, and E, Enter, KP Enter and Ctrl use the held item. The HUD shows "Press E / Enter / Ctrl to use" while an item is held.
+- **Checks this cycle:** none. I last ran the unit suite in cycle 7 (3344 checks, 0 failures). The headless race smoke test passed in cycle 6.
+- **Needs a person to try in the game:**
+  - UI scaling and sharpness at different window sizes.
+  - Whether the wall tops still flicker.
+  - How the steering feels.
+  - Whether the AI speeds (Easy 0.72, Medium 0.85, Hard 1.0) are right.
+- **Not done:** optional AI rubber-banding.
+- **Assumptions and loose ends:**
+  - I assumed Space stays as drift.
+  - Untracked `.uid` files and `export_presets.cfg` are left uncommitted.
+- **Blockers:** none, and no parity folders were given.
+
