@@ -5,6 +5,8 @@ const KartPhysics := preload("res://scripts/kart_physics.gd")
 const KartEffects := preload("res://scripts/kart_effects.gd")
 const KartModel := preload("res://scripts/kart_model.gd")
 
+const SHRUNK_SCALE := 0.5
+
 var model := KartPhysics.new()
 var gravity := 30.0
 var heading := 0.0   # yaw in radians
@@ -16,6 +18,7 @@ var driver = null        # AiDriver for computer karts; null = keyboard player
 var kart_id := 0
 var track_index := 0
 var tracker = null       # LapTracker
+var body_scale := 1.0    # visual size: shrinks while hit by lightning
 var frozen := false      # true during the start countdown: no input, no driving
 
 func _ready() -> void:
@@ -55,6 +58,8 @@ func _physics_process(delta: float) -> void:
 	drift_slide = lerpf(drift_slide, target_slide, clampf(10.0 * delta, 0.0, 1.0))
 	rotation.y = heading
 	body_mesh.rotation.y = drift_slide + model.spin_progress() * TAU * 2.0
+	body_scale = move_toward(body_scale, SHRUNK_SCALE if model.is_shrunk() else 1.0, 3.0 * delta)
+	body_mesh.scale = Vector3.ONE * body_scale
 	body_mesh.visible = model.is_spinning() or model.immunity_time <= 0.0 or fmod(model.immunity_time, 0.2) < 0.1
 	var forward := Vector3(-sin(heading), 0, -cos(heading))
 	velocity.x = forward.x * model.speed

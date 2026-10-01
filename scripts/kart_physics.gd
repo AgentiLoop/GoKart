@@ -10,6 +10,8 @@ signal spin_started
 signal spin_ended
 signal star_started
 signal star_ended
+signal shrink_started
+signal shrink_ended
 
 var max_speed := 30.0
 var reverse_max_speed := 10.0
@@ -39,6 +41,9 @@ var immunity_time := 0.0
 var star_duration := 7.0        # seconds of invincibility from a star
 var star_speed_factor := 1.2
 var star_time := 0.0
+var shrink_duration := 7.0      # seconds a lightning strike keeps a kart small and slow
+var shrink_speed_factor := 0.7
+var shrink_time := 0.0
 
 func is_boosting() -> bool:
 	return boost_time > 0.0
@@ -53,11 +58,26 @@ func apply_star(duration := -1.0) -> void:
 	if not was:
 		star_started.emit()
 
+func is_shrunk() -> bool:
+	return shrink_time > 0.0
+
+## Lightning strike: smaller and slower for shrink_duration. A star kart is immune (returns false).
+func apply_shrink(duration := -1.0) -> bool:
+	if is_star():
+		return false
+	var was := is_shrunk()
+	shrink_time = maxf(shrink_time, shrink_duration if duration < 0.0 else duration)
+	if not was:
+		shrink_started.emit()
+	return true
+
 func current_max_speed() -> float:
 	if is_boosting():
 		return max_speed * boost_speed_factor
 	if is_star():
 		return max_speed * star_speed_factor
+	if is_shrunk():
+		return max_speed * shrink_speed_factor * surface_scale
 	return max_speed * surface_scale
 
 func is_spinning() -> bool:
@@ -140,6 +160,12 @@ func step(delta: float, throttle: float, brake: float, steer: float, drift_held:
 		if star_time <= 0.0:
 			star_time = 0.0
 			star_ended.emit()
+
+	if shrink_time > 0.0:
+		shrink_time -= delta
+		if shrink_time <= 0.0:
+			shrink_time = 0.0
+			shrink_ended.emit()
 
 	# --- spin out: no control, speed bleeds off
 	if immunity_time > 0.0:

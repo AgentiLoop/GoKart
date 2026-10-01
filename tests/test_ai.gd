@@ -198,3 +198,9 @@ func test_ai_uses_red_shell_and_star() -> void:
 	runner.check(not d.wants_use(1.0, Items.Type.RED_SHELL, 200.0, INF), "red shell: nobody near")
 	runner.check(d.wants_use(DT, Items.Type.RED_SHELL, 60.0, INF), "red shell: rival ahead")
 	runner.check(d.wants_use(1.0, Items.Type.STAR, INF, INF), "star: always")
+
+func test_ai_uses_lightning_after_delay() -> void:
+	var t := TrackData.new()
+	var d := AiDriver.new(t)
+	runner.check(not d.wants_use(0.5, Items.Type.LIGHTNING, INF, INF), "before delay")
+	runner.check(d.wants_use(1.1, Items.Type.LIGHTNING, INF, INF), "lightning after delay")

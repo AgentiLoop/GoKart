@@ -242,3 +242,18 @@ Cycle 5: added two new items, the homing red shell and the star, and committed. 
 ## Cycle 6 — kart model
 - scripts/kart_model.gd: procedural kart (chassis, nose cone, wings, side pods, spoiler, exhausts, seat, steering wheel, driver w/ helmet, 4 cylinder wheels w/ hubs). Wheels spin with speed, front wheels + steering wheel + head turn with steer. kart.gd uses it; star overlay now recurses over all meshes. tests/test_kart_model.gd. 1574 checks pass, smoke 3/3, screenshot tool ran (not visually inspected).
 - Remaining: triple shells / lightning / blue shell, item-vs-AI tuning.
+## Cycle 6 — 2026-10-01 13:54
+Cycle 6: replaced the kart's plain boxes with a procedural kart model and committed it. The unit suite passes (1574 checks, 0 failures). The headless startup run printed no errors or warnings, and the smoke run ended with all 3 AI karts racing. The smoke run also printed "exit code: 1", which I did not look into. The windowed screenshot tool ran and saved its PNGs, but I haven't looked at them. All runs were behind perl alarm limits.
+
+- **Model:** `scripts/kart_model.gd` builds the kart from primitives. It has a chassis, nose cone, front wing, side pods, rear spoiler, exhausts, seat, steering wheel, and a driver with a helmet. It has four cylinder wheels with hub caps and a marker so the spin is visible.
+- **Animation:** all wheels spin with ground speed, and the front wheels turn with steering. The steering wheel and the driver's head also turn with steering.
+- **Wiring:** `kart.gd` now builds the model and calls `update_wheels` every physics frame. The star overlay in `kart_effects.gd` now covers every mesh in the model.
+- **Tests:** `tests/test_kart_model.gd` has 4 tests, covering the model's structure, wheel spin, front-only steering and the steering clamp.
+- **Assumptions:** I haven't looked at how the new kart looks on screen. Wheel and body proportions are my own choice, and the collision box is unchanged. No parity folders were given.
+- **Remaining:** triple shells, lightning, a blue shell, and tuning how items hit the AI karts.
+- **Blockers:** none.
+
+
+## Cycle 7 — lightning
+- Items.Type.LIGHTNING (weight 1.0): all rivals not under a star shrink (0.5 scale, 0.7x top speed, 7 s), spin out, drop held item. scripts/lightning_bolt.gd = jagged sky-to-kart bolt per victim (fades 0.5 s); white-yellow screen flash via speed_fx; HUD "SHRUNK!"; AI uses it after delay. 1616 checks pass; headless scene check confirmed 3 rivals shrunk/spinning, bolts cleaned up.
+- Remaining: triple shells, blue (spiny) shell, item-vs-AI tuning, visual inspection of screenshots.

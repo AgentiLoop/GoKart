@@ -13,15 +13,15 @@ const DT := 1.0 / 60.0
 
 func test_roll_covers_all_items_in_weight_order() -> void:
 	runner.check(Items.roll(0.0) == Items.Type.MUSHROOM)
-	runner.check(Items.roll(0.999) == Items.Type.STAR)
+	runner.check(Items.roll(0.999) == Items.Type.LIGHTNING)
 	var seen := {}
 	for i in 100:
 		seen[Items.roll(i / 100.0)] = true
 	runner.check(seen.size() == Items.count(), "seen=%s" % seen)
-	# mushroom has weight 5/15
+	# mushroom has weight 5/16
 	var m := 0
-	for i in 1500:
-		if Items.roll(i / 1500.0) == Items.Type.MUSHROOM:
+	for i in 1600:
+		if Items.roll(i / 1600.0) == Items.Type.MUSHROOM:
 			m += 1
 	runner.check(absi(m - 500) <= 2, "mushroom share=%d" % m)
 
@@ -201,7 +201,8 @@ func test_hud_item_text() -> void:
 func test_new_item_names_and_roulette_preview() -> void:
 	runner.check(Items.name_of(Items.Type.RED_SHELL) == "RED SHELL")
 	runner.check(Items.name_of(Items.Type.STAR) == "STAR")
-	runner.check(Items.count() == 5)
+	runner.check(Items.name_of(Items.Type.LIGHTNING) == "LIGHTNING")
+	runner.check(Items.count() == 6)
 	var h := ItemHolder.new(5)
 	h.pickup()
 	var seen := {}
@@ -341,3 +342,52 @@ func test_red_shell_ignores_star_kart() -> void:
 	m._physics_process(DT)
 	runner.check(p.target_pos != null, "normal kart ahead is targeted")
 	_free_manager(r)
+
+func test_shrink_slows_and_expires() -> void:
+	var k := KartPhysics.new()
+	var fired := []
+	k.shrink_started.connect(func(): fired.append("start"))
+	k.shrink_ended.connect(func(): fired.append("end"))
+	runner.check(not k.is_shrunk())
+	runner.check(k.apply_shrink())
+	runner.check(k.is_shrunk())
+	runner.check(is_equal_approx(k.current_max_speed(), k.max_speed * 0.7), "slower")
+	k.apply_boost(1.0)
+	runner.check(k.current_max_speed() > k.max_speed, "boost overrides shrink")
+	k.boost_time = 0.0
+	for i in int(k.shrink_duration / DT) + 5:
+		k.step(DT, 0.0, 0.0, 0.0, false)
+	runner.check(not k.is_shrunk(), "expired")
+	runner.check(fired == ["start", "end"], "signals=%s" % [fired])
+
+func test_star_is_immune_to_shrink() -> void:
+	var k := KartPhysics.new()
+	k.apply_star()
+	runner.check(not k.apply_shrink())
+	runner.check(not k.is_shrunk())
+
+func test_manager_lightning_hits_everyone_but_user_and_star() -> void:
+	var r = _make_manager(4)
+	var m = r[0]
+	var ks: Array = r[1]
+	ks[3].model.apply_star()
+	m.holders[2].held = Items.Type.MUSHROOM
+	m.holders[0].held = Items.Type.LIGHTNING
+	var struck := []
+	m.lightning_struck.connect(func(u, v): struck.append([u, v]))
+	var hits := []
+	m.kart_hit.connect(func(kind, id): hits.append([kind, id]))
+	runner.check(m.use_item(0) == Items.Type.LIGHTNING)
+	runner.check(not ks[0].model.is_shrunk() and not ks[0].model.is_spinning(), "user unaffected")
+	for id in [1, 2]:
+		runner.check(ks[id].model.is_shrunk(), "shrunk %d" % id)
+		runner.check(ks[id].model.is_spinning(), "spinning %d" % id)
+	runner.check(not ks[3].model.is_shrunk() and not ks[3].model.is_spinning(), "star immune")
+	runner.check(m.holders[2].held == Items.Type.NONE, "item dropped")
+	runner.check(struck == [[0, [1, 2]]], "struck=%s" % [struck])
+	runner.check(hits == [[Items.Type.LIGHTNING, 1], [Items.Type.LIGHTNING, 2]], "hits=%s" % [hits])
+	runner.check(m.bolts.size() == 2, "bolt per victim")
+	_free_manager(r)
+
+func test_hud_lightning_text() -> void:
+	runner.check(Hud.item_text(Items.Type.LIGHTNING) == "[ LIGHTNING ]")

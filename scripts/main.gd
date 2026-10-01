@@ -116,10 +116,14 @@ func _ready() -> void:
 		k.frozen = true
 	race_start.go.connect(_on_go)
 	kart.model.boost_started.connect(_on_player_boost)
+	items.lightning_struck.connect(_on_lightning)
 
 func _on_player_boost(level: int) -> void:
 	if kart.model.boost_from_drift:
 		speed_fx.trigger_flash(KartEffects.spark_color(level))
+
+func _on_lightning(_user: int, _victims: Array) -> void:
+	speed_fx.trigger_flash(Color(2.0, 2.0, 1.6))
 
 func _on_go() -> void:
 	for i in karts.size():
@@ -153,7 +157,7 @@ func _physics_process(delta: float) -> void:
 		finish_times.append(k.tracker.race_time if k.tracker.is_finished else -1.0)
 	kart_index = kart.track_index
 	var place := RaceRanking.rank_of(0, progresses, finish_times)
-	hud.update_hud(tracker, kart.model.speed, kart.model.is_boosting(), kart.model.drift_level, items.holder.display_item(items.time), Hud.place_text(place, karts.size()), kart.model.is_star())
+	hud.update_hud(tracker, kart.model.speed, kart.model.is_boosting(), kart.model.drift_level, items.holder.display_item(items.time), Hud.place_text(place, karts.size()), kart.model.is_star(), kart.model.is_shrunk())
 	hud.show_countdown(race_start.label())
 	var marker_pos: Array = []
 	var marker_col: Array = []

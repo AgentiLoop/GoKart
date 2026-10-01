@@ -179,3 +179,22 @@ func test_star_overlay_and_glitter() -> void:
 		runner.check(m.material_overlay == null, "overlay off")
 	r[1].queue_free()
 	body.free()
+
+func test_lightning_bolt_shape_and_fade() -> void:
+	var LB := preload("res://scripts/lightning_bolt.gd")
+	var ground := Vector3(3, 0.5, -7)
+	var pts: PackedVector3Array = LB.make_points(ground, 5)
+	runner.check(pts.size() == LB.SEGMENTS + 1)
+	runner.check(pts[-1].is_equal_approx(ground), "ends at kart")
+	runner.check(is_equal_approx(pts[0].y, ground.y + LB.HEIGHT), "starts in sky")
+	runner.check(pts == LB.make_points(ground, 5), "deterministic")
+	for i in range(1, pts.size()):
+		runner.check(pts[i].y < pts[i - 1].y, "descends")
+	var b = LB.new()
+	_tree().add_child(b)
+	b.build(ground)
+	runner.check(b.materials.size() == LB.SEGMENTS)
+	runner.check(b.tick(LB.LIFETIME * 0.5))
+	runner.check(b.materials[0].albedo_color.a < 0.9, "fading")
+	runner.check(not b.tick(LB.LIFETIME), "expires")
+	b.queue_free()

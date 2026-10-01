@@ -6,12 +6,14 @@ const Items := preload("res://scripts/items.gd")
 const ItemHolder := preload("res://scripts/item_holder.gd")
 const ItemProjectile := preload("res://scripts/item_projectile.gd")
 const ItemBox := preload("res://scripts/item_box.gd")
+const LightningBolt := preload("res://scripts/lightning_bolt.gd")
 
 const MUSHROOM_BOOST_TIME := 1.5
 const KART_RADIUS := 1.1
 const STAR_HIT_RADIUS := 2.2
 
 signal kart_hit(kind: int, id: int)
+signal lightning_struck(user: int, victims: Array)
 
 var track
 var karts: Array = []     # index in this array == kart_id; karts[0] is the player
@@ -21,6 +23,7 @@ var holder             # the player's holder (holders[0])
 var boxes: Array = []
 var projectiles: Array = []
 var nodes := {}   # projectile -> Node3D
+var bolts: Array = []   # live lightning bolt visuals
 var time := 0.0
 
 func setup(track_data, all_karts, seed_value := 0) -> void:
@@ -76,7 +79,27 @@ func use_item(id := 0) -> int:
 			_add_projectile(ItemProjectile.make_red_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), k.heading, id))
 		Items.Type.STAR:
 			k.model.apply_star()
+		Items.Type.LIGHTNING:
+			_strike(id)
 	return t
+
+## Lightning: every rival that is not a star kart shrinks, spins out and drops its item.
+func _strike(user: int) -> void:
+	var victims: Array = []
+	for j in karts.size():
+		if j == user or karts[j].model.is_star():
+			continue
+		karts[j].model.apply_shrink()
+		karts[j].model.spin_out()
+		holders[j].held = Items.Type.NONE
+		holders[j].roulette_time = 0.0
+		victims.append(j)
+		kart_hit.emit(Items.Type.LIGHTNING, j)
+		var bolt := LightningBolt.new()
+		add_child(bolt)
+		bolt.build(karts[j].global_position)
+		bolts.append(bolt)
+	lightning_struck.emit(user, victims)
 
 func _add_projectile(p) -> void:
 	projectiles.append(p)
@@ -122,6 +145,10 @@ func _remove_projectile(p) -> void:
 
 func _physics_process(delta: float) -> void:
 	time += delta
+	for b in bolts.duplicate():
+		if not b.tick(delta):
+			bolts.erase(b)
+			b.queue_free()
 	var positions: Array = []
 	var headings: Array = []
 	for k in karts:
