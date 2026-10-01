@@ -23,6 +23,9 @@ var steer_input := 0.0   # smoothed steering actually applied (-1..1)
 var frozen := false      # true during the start countdown: no input, no driving
 
 func _ready() -> void:
+	# karts live on layer 2 and only collide with the world (layer 1), so they drive through each other
+	collision_layer = 2
+	collision_mask = 1
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
 	shape.size = Vector3(1.4, 0.6, 2.2)

@@ -7,6 +7,26 @@ const TrackData := preload("res://scripts/track_data.gd")
 var data: TrackData
 var wall_height := 1.4
 var wall_offset := 0.8   # wall centre distance beyond the road edge
+var banner_text := "START"
+var _banner_labels: Array[Label3D] = []
+var _banner_panel: MeshInstance3D
+
+## Sets the start-gate banner text ("START", "CONTINUE" or "FINISH") and its colours.
+func set_banner(text: String) -> void:
+	banner_text = text
+	var bg := Color(0.1, 0.25, 0.8)
+	var fg := Color(1.0, 0.85, 0.1)
+	if text == "START":
+		bg = Color(0.05, 0.55, 0.15)
+		fg = Color(1, 1, 1)
+	elif text == "FINISH":
+		bg = Color(0.75, 0.05, 0.05)
+		fg = Color(1, 1, 1)
+	for lbl in _banner_labels:
+		lbl.text = text
+		lbl.modulate = fg
+	if _banner_panel != null:
+		(_banner_panel.material_override as StandardMaterial3D).albedo_color = bg
 
 func _init(track_data: TrackData = null) -> void:
 	data = track_data if track_data != null else TrackData.new()
@@ -48,53 +68,55 @@ func _build_walls() -> void:
 	var body := StaticBody3D.new()
 	body.name = "Walls"
 	add_child(body)
-	var xforms: Array[Transform3D] = []
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var offset := data.width * 0.5 + wall_offset
+	var half := 0.4   # half wall thickness
+	var h := Vector3(0, wall_height, 0)
 	for side in [-1.0, 1.0]:
+		# One cross-section per track sample, shared by both neighbouring segments, so the wall
+		# is a single gap-free ribbon (no overlapping boxes) even on tight curves.
+		var inner: Array[Vector3] = []
+		var outer: Array[Vector3] = []
+		for i in data.count:
+			var c: Vector3 = data.points[i] + data.right_of(i) * offset * side
+			var r: Vector3 = data.right_of(i)
+			inner.append(c - r * half)
+			outer.append(c + r * half)
 		for i in data.count:
 			var j := (i + 1) % data.count
-			var a: Vector3 = data.points[i] + data.right_of(i) * offset * side
-			var b: Vector3 = data.points[j] + data.right_of(j) * offset * side
-			var dir := b - a
-			var seg_len := dir.length() + 0.15
-			var basis := Basis.looking_at(dir.normalized(), Vector3.UP)
-			var t := Transform3D(basis, (a + b) * 0.5 + Vector3(0, wall_height * 0.5, 0))
-			xforms.append(t)
+			var red := (i / 2) % 2 == 0
+			var col := Color(0.85, 0.02, 0.02) if red else Color(1.0, 1.0, 1.0)
+			var rn: Vector3 = data.right_of(i)
+			_wall_quad(st, outer[i], outer[j], outer[j] + h, outer[i] + h, rn, col)
+			_wall_quad(st, inner[j], inner[i], inner[i] + h, inner[j] + h, -rn, col)
+			_wall_quad(st, inner[i] + h, outer[i] + h, outer[j] + h, inner[j] + h, Vector3.UP, col)
+			# Convex prism per segment sharing its corner vertices with the neighbours: seamless collision.
 			var cs := CollisionShape3D.new()
-			var bs := BoxShape3D.new()
-			bs.size = Vector3(0.8, wall_height, seg_len)
-			cs.shape = bs
-			cs.transform = t
+			var shape := ConvexPolygonShape3D.new()
+			shape.points = PackedVector3Array([
+				inner[i], outer[i], inner[j], outer[j],
+				inner[i] + h, outer[i] + h, inner[j] + h, outer[j] + h])
+			cs.shape = shape
 			body.add_child(cs)
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	var box := BoxMesh.new()
-	box.size = Vector3(0.8, wall_height, 1.0)
-	mm.mesh = box
-	mm.instance_count = xforms.size()
-	for k in xforms.size():
-		var t := xforms[k]
-		var seg_len := data.spacing + 0.15
-		# Neighbouring segments overlap slightly, so segments of the two stripe colours get a tiny
-		# size difference: their coplanar faces would otherwise z-fight (the flickering wall tops).
-		var red := (k / 2) % 2 == 0
-		var grow := Vector3(1, 1, 1) if red else Vector3(1.04, 1.03, 1)
-		t.basis = t.basis * Basis.from_scale(Vector3(grow.x, grow.y, seg_len))
-		mm.set_instance_transform(k, t)
-		mm.set_instance_color(k, Color(1.0, 0.12, 0.1) if red else Color(1.0, 1.0, 1.0))
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
+	var mmi := MeshInstance3D.new()
+	mmi.name = "WallMesh"
+	mmi.mesh = st.commit()
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
-	# Bright, steady walls: no shadow flicker/acne on the tops, plus a little self-glow.
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	# Steady walls: no shadow flicker/acne on the tops. No emission glow (it washed out the red).
 	mat.disable_receive_shadows = true
-	mat.emission_enabled = true
-	mat.emission = Color(0.35, 0.35, 0.35)
-	mat.emission_energy_multiplier = 1.0
+	mat.roughness = 0.8
 	mmi.material_override = mat
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mmi)
+
+func _wall_quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, col: Color) -> void:
+	for v in [a, b, c, a, c, d]:
+		st.set_color(col)
+		st.set_normal(n)
+		st.add_vertex(v)
 
 func _build_start_gate() -> void:
 	var p: Vector3 = data.points[0]
@@ -106,9 +128,33 @@ func _build_start_gate() -> void:
 	gate.rotation.y = heading
 	add_child(gate)
 	var hw := data.width * 0.5
+	# Mario Kart 64 style gate: candy-striped posts holding a banner with checkered edges.
 	for s in [-1.0, 1.0]:
-		_box(gate, Vector3(0.6, 6.0, 0.6), Vector3(s * (hw + 0.5), 3.0, 0), Color(0.15, 0.15, 0.15))
-	_box(gate, Vector3(data.width + 2.0, 1.2, 0.6), Vector3(0, 6.0, 0), Color(1, 1, 1))
+		for k in 8:
+			var stripe := Color(0.9, 0.1, 0.1) if k % 2 == 0 else Color(1, 1, 1)
+			_box(gate, Vector3(0.7, 0.95, 0.7), Vector3(s * (hw + 0.5), 0.475 + k * 0.95, 0), stripe)
+	var banner_w := data.width + 2.0
+	_banner_panel = _box(gate, Vector3(banner_w, 2.4, 0.4), Vector3(0, 6.2, 0), Color(0.1, 0.25, 0.8))
+	var checks := int(banner_w / 0.6)
+	var check_w := banner_w / checks
+	for cx in checks:
+		for row in 2:
+			var c := Color(0.05, 0.05, 0.05) if (cx + row) % 2 == 0 else Color(1, 1, 1)
+			var y := 6.2 + (1.2 + 0.15) if row == 0 else 6.2 - (1.2 + 0.15)
+			_box(gate, Vector3(check_w, 0.3, 0.45), Vector3(-banner_w * 0.5 + check_w * (cx + 0.5), y, 0), c)
+	for face in [1.0, -1.0]:
+		var lbl := Label3D.new()
+		lbl.font_size = 128
+		lbl.pixel_size = 0.0125
+		lbl.outline_size = 36
+		lbl.outline_modulate = Color(0.05, 0.05, 0.2)
+		lbl.modulate = Color(1.0, 0.85, 0.1)
+		lbl.position = Vector3(0, 6.2, face * 0.22)
+		lbl.rotation.y = 0.0 if face > 0 else PI
+		lbl.text = banner_text
+		gate.add_child(lbl)
+		_banner_labels.append(lbl)
+	set_banner(banner_text)
 	# checkered start line on the road
 	var cols := 8
 	var cell := data.width / cols
@@ -119,7 +165,7 @@ func _build_start_gate() -> void:
 			else:
 				_box(gate, Vector3(cell, 0.03, 1.0), Vector3(-hw + cell * (cx + 0.5), 0.045, -0.5 + cz), Color(0.95, 0.95, 0.95))
 
-func _box(parent: Node3D, size: Vector3, pos: Vector3, color: Color) -> void:
+func _box(parent: Node3D, size: Vector3, pos: Vector3, color: Color) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var m := BoxMesh.new()
 	m.size = size
@@ -129,6 +175,7 @@ func _box(parent: Node3D, size: Vector3, pos: Vector3, color: Color) -> void:
 	mi.material_override = mat
 	mi.position = pos
 	parent.add_child(mi)
+	return mi
 
 func _build_pads() -> void:
 	var shader := load("res://shaders/boost_pad.gdshader") as Shader

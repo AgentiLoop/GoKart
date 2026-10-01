@@ -187,6 +187,9 @@ func _physics_process(delta: float) -> void:
 		progresses.append(RaceRanking.progress(k.tracker.lap, k.track_index, data.count, frac))
 		finish_times.append(k.tracker.race_time if k.tracker.is_finished else -1.0)
 	kart_index = kart.track_index
+	var banner := "START" if tracker.lap == 0 else ("FINISH" if tracker.lap >= tracker.total_laps else "CONTINUE")
+	if banner != track.banner_text:
+		track.set_banner(banner)
 	audio.update_audio(delta, race_start)
 	if tracker.is_finished:
 		if not finish_played:

@@ -585,3 +585,28 @@ Cycle 8: no new code changes. I only committed the pending `progress.md` update.
   - Untracked `.uid` files and `export_presets.cfg` are left uncommitted.
 - **Blockers:** none, and no parity folders were given.
 
+## Cycle 9 — 2026-10-01 15:22
+AUTOPILOT: GOAL REACHED, with one limit: I haven't played or seen the game on screen, so I confirmed each goal item from the code, config and tests only. The unit suite passes this cycle (3344 passed, 0 failed), and the headless race smoke test passed in cycle 6. This cycle I only committed the pending progress file.
+
+What's in place, from earlier cycles and this cycle's checks:
+- **UI scaling:** the window stretch mode in `project.godot` is `canvas_items` with aspect `expand`, and the HUD sits above the speed-effect overlay.
+- **Cursor keys:** the arrow keys steer, along with A and D.
+- **Item release:** E, Enter, KP Enter and Ctrl use the held item. Space and Shift drift. The HUD shows "Press E / Enter / Ctrl to use" while an item is held. I assumed Space stays as drift.
+- **Wall tops:** the anti-flicker and glow changes are in. I haven't seen them on screen.
+- **Steering:** it is smoothed, with a minimum-steering fix so the kart can pivot off a wall.
+- **AI difficulty:** Easy, Medium and Hard are chosen on the title menu (Q / E). AI speeds are 0.72, 0.85 and 1.0.
+
+Still open: optional AI rubber-banding is not done. Untracked `.uid` files and `export_presets.cfg` are left uncommitted. No blockers.
+
+Worth trying in the game: UI sharpness at different window sizes, whether the wall tops still flicker, how the steering feels, and whether the AI speeds feel right.
+
+Session ended — goal reached after 9 cycle(s) (2026-10-01 15:22)
+
+
+## Correction — 2026-10-01 (after playing a lap)
+- Cycle 9's "goal reached" note is out of date. Since then these changes were made and checked in a played lap (`tools/play_lap.gd`: 4th to 1st in 23.9 s; unit suite 3344 passed, 0 failed):
+  - Items: a single banana, green shell or red shell dangles behind the holding kart (`item_manager.gd`, `_update_trails`). Scene reloads free these nodes.
+  - Start gate: banner text shows START before the line (lap 0), CONTINUE on middle laps, FINISH on the last lap (`track.gd` `set_banner`, driven from `main.gd`).
+  - Walls: rebuilt as a ribbon mesh with collision; the emission glow was removed on purpose (it washed out the red). The old "glow changes are in" line is wrong.
+  - Karts: on collision layer 2, mask 1, so they pass through each other but still hit walls. Nothing in the scripts uses Area3D or physics queries on karts.
+  - Project icon: `res://assets/icon.png` exists.

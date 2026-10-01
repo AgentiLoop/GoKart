@@ -26,6 +26,7 @@ var boxes: Array = []
 var projectiles: Array = []
 var nodes := {}   # projectile -> Node3D
 var orbits := {}   # kart id -> Node3D holding the orbiting triple-shell visuals
+var trails := {}   # kart id -> [item kind, Node3D] for a single banana/shell dangling behind the kart
 var bolts: Array = []   # live lightning bolt visuals
 var blasts: Array = []   # live blue shell explosion visuals
 var time := 0.0
@@ -190,27 +191,62 @@ func _update_orbits() -> void:
 			orbit.get_child(c).position = Vector3(cos(a), 0.0, sin(a)) * 1.5
 		orbit.position = karts[id].global_position + Vector3(0, 0.9, 0)
 
+func _make_banana_node() -> Node3D:
+	var n := Node3D.new()
+	for k in 2:
+		var mi := MeshInstance3D.new()
+		var cm := CapsuleMesh.new()
+		cm.radius = 0.16
+		cm.height = 0.9
+		mi.mesh = cm
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(1.0, 0.9, 0.1)
+		mat.emission_enabled = true
+		mat.emission = Color(1.0, 0.8, 0.0)
+		mat.emission_energy_multiplier = 0.4
+		mi.material_override = mat
+		mi.rotation_degrees = Vector3(0, 0, 70 + 40 * k)
+		mi.position = Vector3(0.12 * k - 0.06, 0.25, 0)
+		n.add_child(mi)
+	return n
+
+## A single banana / green shell / red shell dangles behind the kart that holds it
+## (Mario Kart 64 item dangling), for the player and every AI kart.
+func _update_trails() -> void:
+	for id in karts.size():
+		var kind: int = holders[id].held
+		if kind != Items.Type.BANANA and kind != Items.Type.SHELL and kind != Items.Type.RED_SHELL:
+			kind = Items.Type.NONE
+		var entry = trails.get(id)
+		if entry != null and entry[0] != kind:
+			entry[1].queue_free()
+			trails.erase(id)
+			entry = null
+		if kind == Items.Type.NONE:
+			continue
+		if entry == null:
+			var node: Node3D
+			if kind == Items.Type.BANANA:
+				node = _make_banana_node()
+			else:
+				node = Node3D.new()
+				node.add_child(_make_shell_mesh(kind, 0.4))
+			add_child(node)
+			entry = [kind, node]
+			trails[id] = entry
+		var k = karts[id]
+		var fwd := Vector3(-sin(k.heading), 0, -cos(k.heading))
+		entry[1].position = k.global_position - fwd * 2.2 + Vector3(0, 0.5, 0)
+		if kind != Items.Type.BANANA:
+			entry[1].rotation.y = time * 12.0
+
 func _add_projectile(p) -> void:
 	projectiles.append(p)
 	var n := Node3D.new()
 	if p.is_shell():
 		n.add_child(_make_shell_mesh(p.kind, 0.55))
 	else:
-		for k in 2:
-			var mi := MeshInstance3D.new()
-			var cm := CapsuleMesh.new()
-			cm.radius = 0.16
-			cm.height = 0.9
-			mi.mesh = cm
-			var mat := StandardMaterial3D.new()
-			mat.albedo_color = Color(1.0, 0.9, 0.1)
-			mat.emission_enabled = true
-			mat.emission = Color(1.0, 0.8, 0.0)
-			mat.emission_energy_multiplier = 0.4
-			mi.material_override = mat
-			mi.rotation_degrees = Vector3(0, 0, 70 + 40 * k)
-			mi.position = Vector3(0.12 * k - 0.06, 0.25, 0)
-			n.add_child(mi)
+		n = _make_banana_node()
 	n.position = p.position
 	add_child(n)
 	nodes[p] = n
@@ -239,6 +275,7 @@ func _physics_process(delta: float) -> void:
 	for id in karts.size():
 		holders[id].update(delta)
 	_update_orbits()
+	_update_trails()
 	for b in boxes:
 		b.tick(delta)
 		for id in karts.size():
