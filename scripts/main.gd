@@ -12,6 +12,11 @@ const ItemManager := preload("res://scripts/item_manager.gd")
 const AiDriver := preload("res://scripts/ai_driver.gd")
 const RaceRanking := preload("res://scripts/race_ranking.gd")
 const RaceStart := preload("res://scripts/race_start.gd")
+const RaceResults := preload("res://scripts/race_results.gd")
+
+## Seconds after the player crosses the line before the results panel appears.
+const RESULTS_DELAY := 2.0
+const RACER_NAMES := ["YOU", "BLUE", "GREEN", "PURPLE"]
 
 const OFFROAD_SCALE := 0.5
 const PAD_BOOST_TIME := 1.2
@@ -34,6 +39,8 @@ var items
 var kart_index := 0
 var karts: Array = []   # karts[0] is the player
 var race_start := RaceStart.new()
+var finish_timer := 0.0
+var results_shown := false
 
 func _ready() -> void:
 	var env := WorldEnvironment.new()
@@ -136,6 +143,11 @@ func _on_go() -> void:
 		if ab > 0.0:
 			karts[i].model.apply_boost(ab, 1)
 
+func _unhandled_input(event: InputEvent) -> void:
+	if results_shown and event is InputEventKey and event.pressed and not event.echo \
+			and (event.physical_keycode == KEY_ENTER or event.physical_keycode == KEY_KP_ENTER):
+		get_tree().reload_current_scene()
+
 func _back() -> Vector3:
 	return Vector3(sin(kart.heading), 0, cos(kart.heading))
 
@@ -156,6 +168,17 @@ func _physics_process(delta: float) -> void:
 		progresses.append(RaceRanking.progress(k.tracker.lap, k.track_index, data.count, frac))
 		finish_times.append(k.tracker.race_time if k.tracker.is_finished else -1.0)
 	kart_index = kart.track_index
+	if tracker.is_finished:
+		if kart.driver == null:
+			# the finished player is taken over by the autopilot so the kart keeps rolling
+			kart.driver = AiDriver.new(data, 0.0, 999.0)
+		finish_timer += delta
+		if not results_shown and finish_timer >= RESULTS_DELAY:
+			results_shown = true
+			var names: Array = []
+			for i in karts.size():
+				names.append(RACER_NAMES[i % RACER_NAMES.size()])
+			hud.show_results(RaceResults.table_text(RaceResults.rows(names, progresses, finish_times), 0))
 	var place := RaceRanking.rank_of(0, progresses, finish_times)
 	hud.update_hud(tracker, kart.model.speed, kart.model.is_boosting(), kart.model.drift_level, items.holder.display_item(items.time), Hud.place_text(place, karts.size()), kart.model.is_star(), kart.model.is_shrunk())
 	hud.show_countdown(race_start.label())

@@ -13,6 +13,7 @@ var banner_label: Label
 var item_label: Label
 var place_label: Label
 var countdown_label: Label
+var results_label: Label
 var minimap: Minimap
 
 static func format_time(t: float) -> String:
@@ -42,6 +43,14 @@ func _ready() -> void:
 	countdown_label.size = Vector2(400, 200)
 	banner_label = _make_label(Vector2(340, 280), 72, HORIZONTAL_ALIGNMENT_CENTER)
 	banner_label.size = Vector2(600, 100)
+	results_label = _make_label(Vector2(340, 190), 30, HORIZONTAL_ALIGNMENT_LEFT)
+	results_label.add_theme_font_override("font", _mono_font())
+	results_label.visible = false
+
+static func _mono_font() -> Font:
+	var f := SystemFont.new()
+	f.font_names = PackedStringArray(["Menlo", "Courier New", "monospace"])
+	return f
 
 func _make_label(pos: Vector2, font_size: int, align: HorizontalAlignment) -> Label:
 	var l := Label.new()
@@ -63,6 +72,11 @@ func setup_minimap(points: PackedVector3Array) -> void:
 func update_minimap(positions: Array, colors: Array) -> void:
 	if minimap != null:
 		minimap.set_markers(positions, colors)
+
+## Final standings panel (text from RaceResults.table_text); empty hides it.
+func show_results(text: String) -> void:
+	results_label.text = text
+	results_label.visible = text != ""
 
 ## Big centre text for the start countdown ("3", "2", "1", "GO!"); empty hides it.
 func show_countdown(text: String) -> void:

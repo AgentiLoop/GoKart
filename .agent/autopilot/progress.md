@@ -293,3 +293,24 @@ Cycle 8: added a triple shells item and committed it. The unit suite passes (184
 ## Cycle 9 — blue (spiny) shell
 - Items.Type.BLUE_SHELL (weight 1.0): fired at the race leader (excluding the user) via ItemProjectile.pick_leader; flies at 75 u/s hovering at y=1.6 along the track centre line, ignores walls, locks on within 40 m. Only the target can trigger it; explosion (BLUE_BLAST_RADIUS 7) spins out all non-star karts nearby; blue_blast.gd is the expanding-sphere visual. AI uses it after the delay. 1879 checks pass; headless scene check showed fire -> blast -> 2 karts spinning.
 - Remaining: item-vs-AI tuning, visual inspection of screenshots.
+## Cycle 9 — 2026-10-01 13:59
+Cycle 9: added a blue (spiny) shell item and committed it. The unit suite passes (1879 checks, 0 failures). I haven't looked at the shell or blast on screen, and I didn't run the smoke race or take screenshots. Both test runs were behind perl alarm limits (120 s unit suite, 60 s scene check).
+
+- **Item:** BLUE_SHELL has weight 1.0 (`items.gd`). When fired it locks onto the race leader other than the user (`ItemProjectile.pick_leader`, `item_manager.gd`).
+- **Flight:** the shell flies at 75 u/s, hovers at y=1.6 and follows the road, with no wall ricochets. It dives straight at the leader within 40 m and expires after 30 s. Only its target can trigger it.
+- **Blast:** impact spins out every non-star kart within 7 m. A star leader still triggers the explosion but is unharmed. `blue_blast.gd` draws an expanding, fading blue sphere, and the shell mesh is blue with 8 spikes.
+- **AI:** AI karts use it after the use delay.
+- **Tests:** about 35 new checks cover leader picking, target-only hits, following the road to the leader, expiry, the manager's targeting and blast, a star leader being immune, and the blast visual. The AI use is also covered. I updated the item-roll tests for the new weights and item count.
+- **Scene check:** a throwaway headless script on the real scene fired the shell, which exploded at frame 12 with a blast visual and 2 karts spinning. At race start the grid is bunched, so that is not a test of the long chase.
+- **Assumptions:**
+  - The speed, blast radius and spike visuals are my own choices.
+  - If the user is the leader, the shell targets the next-best kart.
+  - The README is updated and `progress.md` has the cycle 9 notes.
+  - No parity folders were given, so nothing was mirrored.
+- **Remaining:** item-vs-AI tuning and a look at the screenshots.
+- **Blockers:** none.
+
+
+## Cycle 10 — results screen + restart
+- scripts/race_results.gd (pure): rows/points/table_text; HUD show_results panel; main.gd: finished player is handed to an AiDriver autopilot, results panel 2 s after the finish, Enter reloads the scene. tests/test_results.gd. 1895 checks pass; headless scene check showed the panel with 1st YOU.
+- Remaining: item-vs-AI tuning, visual inspection of screenshots, more tracks/menus.

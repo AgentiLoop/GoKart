@@ -11,6 +11,7 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 - **AI opponents** using pure-pursuit steering, corner speed limiting, stuck recovery and item use (`scripts/ai_driver.gd`)
 - **Items** from rainbow `?` item boxes with a roulette: mushroom, banana, green shell (ricochets), red homing shell, triple shells (three orbiting green shells fired one by one), blue spiny shell (hunts the leader along the road and explodes), star and lightning (`scripts/items.gd`, `item_holder.gd`, `item_manager.gd`, `item_projectile.gd`). Getting hit spins the kart out; lightning shrinks and slows every rival (`lightning_bolt.gd`).
 - **Visual effects**: drift sparks, boost flames, tire trails, speed lines / boost blur, and custom shaders in `shaders/`
+- **Results screen**: after you finish, an autopilot takes over and a standings table with points appears; Enter restarts (`scripts/race_results.gd`)
 - **HUD** with place, lap, item slot and a track minimap (`scripts/hud.gd`, `scripts/minimap.gd`)
 - **Procedural kart model** with steering front wheels and spinning wheels (`scripts/kart_model.gd`)
 
@@ -22,6 +23,7 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 | A / D | Steer |
 | Space | Drift (release for mini-turbo) |
 | E | Use item |
+| Enter | Race again (on the results screen) |
 
 ## Running
 
