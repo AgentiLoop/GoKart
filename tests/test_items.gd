@@ -13,15 +13,15 @@ const DT := 1.0 / 60.0
 
 func test_roll_covers_all_items_in_weight_order() -> void:
 	runner.check(Items.roll(0.0) == Items.Type.MUSHROOM)
-	runner.check(Items.roll(0.999) == Items.Type.LIGHTNING)
+	runner.check(Items.roll(0.999) == Items.Type.TRIPLE_SHELL)
 	var seen := {}
 	for i in 100:
 		seen[Items.roll(i / 100.0)] = true
 	runner.check(seen.size() == Items.count(), "seen=%s" % seen)
-	# mushroom has weight 5/16
+	# mushroom has weight 5/18
 	var m := 0
-	for i in 1600:
-		if Items.roll(i / 1600.0) == Items.Type.MUSHROOM:
+	for i in 1800:
+		if Items.roll(i / 1800.0) == Items.Type.MUSHROOM:
 			m += 1
 	runner.check(absi(m - 500) <= 2, "mushroom share=%d" % m)
 
@@ -202,7 +202,7 @@ func test_new_item_names_and_roulette_preview() -> void:
 	runner.check(Items.name_of(Items.Type.RED_SHELL) == "RED SHELL")
 	runner.check(Items.name_of(Items.Type.STAR) == "STAR")
 	runner.check(Items.name_of(Items.Type.LIGHTNING) == "LIGHTNING")
-	runner.check(Items.count() == 6)
+	runner.check(Items.count() == 7)
 	var h := ItemHolder.new(5)
 	h.pickup()
 	var seen := {}
@@ -391,3 +391,78 @@ func test_manager_lightning_hits_everyone_but_user_and_star() -> void:
 
 func test_hud_lightning_text() -> void:
 	runner.check(Hud.item_text(Items.Type.LIGHTNING) == "[ LIGHTNING ]")
+
+func test_triple_shell_has_three_charges() -> void:
+	runner.check(Items.name_of(Items.Type.TRIPLE_SHELL) == "TRIPLE SHELLS")
+	var h := ItemHolder.new(1)
+	h.held = Items.Type.TRIPLE_SHELL
+	h.charges = Items.TRIPLE_CHARGES
+	for left in [2, 1]:
+		runner.check(h.use() == Items.Type.TRIPLE_SHELL)
+		runner.check(h.held == Items.Type.TRIPLE_SHELL and h.charges == left, "charges=%d" % h.charges)
+	runner.check(h.use() == Items.Type.TRIPLE_SHELL)
+	runner.check(h.held == Items.Type.NONE and h.charges == 0, "emptied after third")
+	runner.check(h.use() == Items.Type.NONE)
+
+func test_roulette_grants_charges_only_for_triple() -> void:
+	var seen_triple := false
+	for seed_value in range(1, 200):
+		var h := ItemHolder.new(seed_value)
+		h.pickup()
+		h.update(h.roulette_duration + 0.1)
+		if h.held == Items.Type.TRIPLE_SHELL:
+			seen_triple = true
+			runner.check(h.charges == 3)
+		else:
+			runner.check(h.charges == 0)
+	runner.check(seen_triple, "some seed rolls triple shells")
+
+func test_holder_clear() -> void:
+	var h := ItemHolder.new(1)
+	h.held = Items.Type.TRIPLE_SHELL
+	h.charges = 2
+	h.roulette_time = 1.0
+	h.clear()
+	runner.check(h.held == Items.Type.NONE and h.charges == 0 and not h.is_rolling())
+
+func test_manager_triple_shell_fires_three_then_empties() -> void:
+	var r = _make_manager(2)
+	var m = r[0]
+	var n: int = m.projectiles.size()
+	m.holders[0].held = Items.Type.TRIPLE_SHELL
+	m.holders[0].charges = 3
+	m._physics_process(DT)
+	runner.check(m.orbits.has(0) and m.orbits[0].get_child_count() == 3, "three orbiting shells")
+	for i in 3:
+		n = m.projectiles.size()
+		runner.check(m.use_item(0) == Items.Type.TRIPLE_SHELL)
+		runner.check(m.projectiles.size() == n + 1, "shell %d fired" % i)
+		runner.check(m.projectiles[-1].kind == Items.Type.SHELL)
+		m._physics_process(DT)
+	runner.check(m.holders[0].held == Items.Type.NONE)
+	runner.check(not m.orbits.has(0), "orbit removed when empty")
+	runner.check(m.use_item(0) == Items.Type.NONE)
+	_free_manager(r)
+
+func test_orbit_shrinks_with_charges() -> void:
+	var r = _make_manager(2)
+	var m = r[0]
+	m.holders[1].held = Items.Type.TRIPLE_SHELL
+	m.holders[1].charges = 3
+	m._physics_process(DT)
+	m.use_item(1)
+	m._physics_process(DT)
+	runner.check(m.holders[1].charges == 2)
+	runner.check(m.orbits[1].get_child_count() == 2, "orbit follows charges")
+	runner.check(m.orbits[1].position.distance_to(r[1][1].global_position + Vector3(0, 0.9, 0)) < 0.01, "orbit centred on kart")
+	_free_manager(r)
+
+func test_lightning_strips_triple_shells() -> void:
+	var r = _make_manager(2)
+	var m = r[0]
+	m.holders[1].held = Items.Type.TRIPLE_SHELL
+	m.holders[1].charges = 3
+	m.holders[0].held = Items.Type.LIGHTNING
+	m.use_item(0)
+	runner.check(m.holders[1].held == Items.Type.NONE and m.holders[1].charges == 0)
+	_free_manager(r)

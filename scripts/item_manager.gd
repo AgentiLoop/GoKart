@@ -23,6 +23,7 @@ var holder             # the player's holder (holders[0])
 var boxes: Array = []
 var projectiles: Array = []
 var nodes := {}   # projectile -> Node3D
+var orbits := {}   # kart id -> Node3D holding the orbiting triple-shell visuals
 var bolts: Array = []   # live lightning bolt visuals
 var time := 0.0
 
@@ -73,7 +74,7 @@ func use_item(id := 0) -> int:
 			k.model.apply_boost(MUSHROOM_BOOST_TIME, 2)
 		Items.Type.BANANA:
 			_add_projectile(ItemProjectile.make_banana(pos - fwd * 2.4 + Vector3(0, 0.3, 0), id))
-		Items.Type.SHELL:
+		Items.Type.SHELL, Items.Type.TRIPLE_SHELL:
 			_add_projectile(ItemProjectile.make_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), k.heading, id))
 		Items.Type.RED_SHELL:
 			_add_projectile(ItemProjectile.make_red_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), k.heading, id))
@@ -91,8 +92,7 @@ func _strike(user: int) -> void:
 			continue
 		karts[j].model.apply_shrink()
 		karts[j].model.spin_out()
-		holders[j].held = Items.Type.NONE
-		holders[j].roulette_time = 0.0
+		holders[j].clear()
 		victims.append(j)
 		kart_hit.emit(Items.Type.LIGHTNING, j)
 		var bolt := LightningBolt.new()
@@ -101,22 +101,51 @@ func _strike(user: int) -> void:
 		bolts.append(bolt)
 	lightning_struck.emit(user, victims)
 
+func _make_shell_mesh(kind: int, radius: float) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = radius
+	sm.height = radius * 1.45
+	mi.mesh = sm
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/shell.gdshader") as Shader
+	if kind == Items.Type.RED_SHELL:
+		mat.set_shader_parameter("shell_color", Color(0.95, 0.1, 0.1))
+		mat.set_shader_parameter("rim_color", Color(1.0, 0.9, 0.85))
+	mi.material_override = mat
+	return mi
+
+## Shells orbiting a kart while it holds triple shells: one per remaining charge.
+func _update_orbits() -> void:
+	for id in karts.size():
+		var want: int = holders[id].charges if holders[id].held == Items.Type.TRIPLE_SHELL else 0
+		var orbit: Node3D = orbits.get(id)
+		if want == 0:
+			if orbit != null:
+				orbit.queue_free()
+				orbits.erase(id)
+			continue
+		if orbit == null:
+			orbit = Node3D.new()
+			add_child(orbit)
+			orbits[id] = orbit
+		while orbit.get_child_count() > want:
+			var last := orbit.get_child(orbit.get_child_count() - 1)
+			orbit.remove_child(last)
+			last.queue_free()
+		while orbit.get_child_count() < want:
+			orbit.add_child(_make_shell_mesh(Items.Type.SHELL, 0.3))
+		var n := orbit.get_child_count()
+		for c in n:
+			var a := time * 4.0 + TAU * c / n
+			orbit.get_child(c).position = Vector3(cos(a), 0.0, sin(a)) * 1.5
+		orbit.position = karts[id].global_position + Vector3(0, 0.9, 0)
+
 func _add_projectile(p) -> void:
 	projectiles.append(p)
 	var n := Node3D.new()
 	if p.is_shell():
-		var mi := MeshInstance3D.new()
-		var sm := SphereMesh.new()
-		sm.radius = 0.55
-		sm.height = 0.8
-		mi.mesh = sm
-		var mat := ShaderMaterial.new()
-		mat.shader = load("res://shaders/shell.gdshader") as Shader
-		if p.kind == Items.Type.RED_SHELL:
-			mat.set_shader_parameter("shell_color", Color(0.95, 0.1, 0.1))
-			mat.set_shader_parameter("rim_color", Color(1.0, 0.9, 0.85))
-		mi.material_override = mat
-		n.add_child(mi)
+		n.add_child(_make_shell_mesh(p.kind, 0.55))
 	else:
 		for k in 2:
 			var mi := MeshInstance3D.new()
@@ -156,6 +185,7 @@ func _physics_process(delta: float) -> void:
 		headings.append(k.heading)
 	for id in karts.size():
 		holders[id].update(delta)
+	_update_orbits()
 	for b in boxes:
 		b.tick(delta)
 		for id in karts.size():

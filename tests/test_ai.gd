@@ -204,3 +204,8 @@ func test_ai_uses_lightning_after_delay() -> void:
 	var d := AiDriver.new(t)
 	runner.check(not d.wants_use(0.5, Items.Type.LIGHTNING, INF, INF), "before delay")
 	runner.check(d.wants_use(1.1, Items.Type.LIGHTNING, INF, INF), "lightning after delay")
+
+func test_ai_uses_triple_shell_like_shell() -> void:
+	var d := AiDriver.new(null, 0.0, 1.0)
+	runner.check(not d.wants_use(1.5, Items.Type.TRIPLE_SHELL, INF, INF))
+	runner.check(d.wants_use(DT, Items.Type.TRIPLE_SHELL, 30.0, INF))

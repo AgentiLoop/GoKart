@@ -1,16 +1,19 @@
 extends RefCounted
 ## Item types and the weighted item-box roll (pure, unit tested).
 
-enum Type { NONE, MUSHROOM, BANANA, SHELL, RED_SHELL, STAR, LIGHTNING }
+enum Type { NONE, MUSHROOM, BANANA, SHELL, RED_SHELL, STAR, LIGHTNING, TRIPLE_SHELL }
 
-const WEIGHTS := {Type.MUSHROOM: 5.0, Type.BANANA: 3.0, Type.SHELL: 3.0, Type.RED_SHELL: 2.5, Type.STAR: 1.5, Type.LIGHTNING: 1.0}
+const WEIGHTS := {Type.MUSHROOM: 5.0, Type.BANANA: 3.0, Type.SHELL: 3.0, Type.RED_SHELL: 2.5, Type.STAR: 1.5, Type.LIGHTNING: 1.0, Type.TRIPLE_SHELL: 2.0}
+
+## Shells granted by one TRIPLE_SHELL pickup.
+const TRIPLE_CHARGES := 3
 
 ## Number of real items (excludes NONE); the HUD roulette cycles through them.
 static func count() -> int:
 	return Type.size() - 1
 
 static func name_of(t: int) -> String:
-	return ["", "MUSHROOM", "BANANA", "GREEN SHELL", "RED SHELL", "STAR", "LIGHTNING"][t]
+	return ["", "MUSHROOM", "BANANA", "GREEN SHELL", "RED SHELL", "STAR", "LIGHTNING", "TRIPLE SHELLS"][t]
 
 ## Map r in [0,1) to an item using WEIGHTS.
 static func roll(r: float) -> int:

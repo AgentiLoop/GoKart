@@ -9,6 +9,7 @@ signal roulette_finished(item: int)
 var held := Items.Type.NONE
 var roulette_time := 0.0
 var roulette_duration := 1.5
+var charges := 0   # uses left of a multi-use item (triple shells)
 var rng := RandomNumberGenerator.new()
 
 func _init(seed_value := 0) -> void:
@@ -33,13 +34,24 @@ func update(delta: float) -> void:
 		if roulette_time <= 0.0:
 			roulette_time = 0.0
 			held = Items.roll(rng.randf())
+			charges = Items.TRIPLE_CHARGES if held == Items.Type.TRIPLE_SHELL else 0
 			roulette_finished.emit(held)
 
 ## Consume the held item (NONE if empty or still rolling).
 func use() -> int:
 	var t := held
+	if t == Items.Type.TRIPLE_SHELL and charges > 1:
+		charges -= 1
+		return t
 	held = Items.Type.NONE
+	charges = 0
 	return t
+
+## Drop whatever is held or rolling (used when lightning strikes).
+func clear() -> void:
+	held = Items.Type.NONE
+	charges = 0
+	roulette_time = 0.0
 
 ## What the HUD should show: the held item, or a cycling preview while rolling.
 func display_item(time: float) -> int:

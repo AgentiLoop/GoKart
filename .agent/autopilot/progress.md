@@ -257,3 +257,20 @@ Cycle 6: replaced the kart's plain boxes with a procedural kart model and commit
 ## Cycle 7 — lightning
 - Items.Type.LIGHTNING (weight 1.0): all rivals not under a star shrink (0.5 scale, 0.7x top speed, 7 s), spin out, drop held item. scripts/lightning_bolt.gd = jagged sky-to-kart bolt per victim (fades 0.5 s); white-yellow screen flash via speed_fx; HUD "SHRUNK!"; AI uses it after delay. 1616 checks pass; headless scene check confirmed 3 rivals shrunk/spinning, bolts cleaned up.
 - Remaining: triple shells, blue (spiny) shell, item-vs-AI tuning, visual inspection of screenshots.
+## Cycle 7 — 2026-10-01 13:56
+Cycle 7: added a lightning item and committed it. The unit suite passes (1616 checks, 0 failures). The headless startup run printed no errors. I did not run the full smoke race or the screenshot tool this cycle, and I haven't seen the bolt or the shrunk karts on screen. All runs were behind perl alarm limits.
+
+- **Effect:** the new LIGHTNING item (weight 1.0, `items.gd`) shrinks, spins out and strips the held item from every rival that isn't under a star. The user's kart is unaffected.
+- **Physics:** a shrunk kart has 0.7× top speed for 7 s. A boost overrides the slowdown and a star blocks lightning (`kart_physics.gd`).
+- **Visuals:** each victim is hit by a jagged glowing bolt that fades out in 0.5 s (new `scripts/lightning_bolt.gd`). The kart model shrinks to half size, the screen flashes white-yellow, and the HUD shows "SHRUNK!".
+- **AI:** AI karts use lightning once the use delay has passed.
+- **Tests:** about 40 new checks cover the shrink physics, star immunity, which karts the strike hits, the bolt shape and fade, and the AI. The item-roll test was updated for the new weights.
+- **Scene check:** a throwaway headless script instantiated the real scene and fired lightning. The 3 rivals ended up shrunk (scale 0.5) and spinning, and the bolts were cleaned up afterwards.
+- **Assumptions:** the bolt is built from thin glowing boxes, and the shrink size and speed are my own choices. I did not mirror anything because no parity folders were given.
+- **Remaining:** triple shells, a blue shell, item-vs-AI tuning, and a look at the screenshots.
+- **Blockers:** none.
+
+
+## Cycle 8 — triple shells
+- Items.Type.TRIPLE_SHELL (weight 2.0): holder keeps `charges` (3); each use fires a green shell; shells orbit the kart (item_manager `_update_orbits`) and shrink with charges. Lightning clears charges via holder.clear(). AI treats it like a green shell. 1844 checks pass; headless scene check confirmed 3 orbiting, 2 after a shot.
+- Remaining: blue (spiny) shell, item-vs-AI tuning, visual inspection of screenshots.
