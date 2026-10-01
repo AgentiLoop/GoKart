@@ -1,8 +1,50 @@
 # GoKart
-Mario Kart style racer in Godot 4.
 
-- Run tests: `./run_tests.sh`
-- Controls: W/S accelerate/brake, A/D steer, Space drift (release for mini-turbo boost), E use item
-- Track: procedural closed circuit (`scripts/track_data.gd` geometry, `scripts/track.gd` meshes/walls/pads), 3 laps with ordered checkpoints (`scripts/lap_tracker.gd`), boost pads (animated shader), off-road slowdown, HUD.
-- Visual check: `godot --path . -s tools/screenshot.gd` (writes /tmp/gokart_*.png)
-- Items: item boxes (rainbow `?` cube shader) start a roulette (`scripts/item_holder.gd`); mushroom boost, banana (dropped behind), green shell (fired ahead, ricochets off walls, `shaders/shell.gdshader`). Getting hit spins the kart out (`KartPhysics.spin_out`). Logic is in `scripts/items.gd`, `item_projectile.gd`, `item_box.gd`; `item_manager.gd` wires them into the race. Two bananas are pre-placed as road hazards.
+A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Everything — track, karts, effects — is generated procedurally from code; there are no imported art assets.
+
+## Features
+
+- **Arcade kart physics** with drifting and mini-turbo boosts (release a drift to boost), off-road slowdown and wall collisions (`scripts/kart_physics.gd`)
+- **Procedural closed-circuit track** with meshes, walls and animated boost pads (`scripts/track_data.gd`, `scripts/track.gd`)
+- **3-lap races** with ordered checkpoints and live race ranking (`scripts/lap_tracker.gd`, `scripts/race_ranking.gd`)
+- **Start countdown** (3-2-1-GO) with a rocket-start boost for well-timed throttle (`scripts/race_start.gd`)
+- **AI opponents** using pure-pursuit steering, corner speed limiting, stuck recovery and item use (`scripts/ai_driver.gd`)
+- **Items** from rainbow `?` item boxes with a roulette: mushroom, banana, green shell (ricochets), red homing shell and star (`scripts/items.gd`, `item_holder.gd`, `item_manager.gd`, `item_projectile.gd`). Getting hit spins the kart out.
+- **Visual effects**: drift sparks, boost flames, tire trails, speed lines / boost blur, and custom shaders in `shaders/`
+- **HUD** with place, lap, item slot and a track minimap (`scripts/hud.gd`, `scripts/minimap.gd`)
+- **Procedural kart model** with steering front wheels and spinning wheels (`scripts/kart_model.gd`)
+
+## Controls
+
+| Key | Action |
+| --- | --- |
+| W / S | Accelerate / brake |
+| A / D | Steer |
+| Space | Drift (release for mini-turbo) |
+| E | Use item |
+
+## Running
+
+Requires [Godot 4.4+](https://godotengine.org/).
+
+```sh
+godot --path .          # run the game (main scene: scenes/main.tscn)
+```
+
+## Testing
+
+```sh
+./run_tests.sh                                  # headless unit tests (tests/)
+godot --headless --path . -s tools/smoke.gd     # headless race smoke test with AI karts
+godot --path . -s tools/screenshot.gd           # visual check, writes /tmp/gokart_*.png
+```
+
+## Project layout
+
+```
+scenes/   main scene
+scripts/  game logic (physics, track, AI, items, HUD, effects)
+shaders/  boost pad, item box, shell, star and speed-fx shaders
+tests/    unit tests and test runner
+tools/    smoke test and screenshot helper
+```
