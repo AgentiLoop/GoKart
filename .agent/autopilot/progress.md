@@ -378,3 +378,19 @@ Cycle 13: added a lap-count option to the title menu. I did not run the game win
 - **Remaining:** item-vs-AI tuning, positional audio for AI karts, more tracks, and a visual review of the screenshots. I can't view images with my tools, so that review needs a person.
 - **Blockers:** none.
 
+## Cycle 14 — 2026-10-01 14:10
+Cycle 14: added a third track, "Frosty Peaks", with snow ground, a dusk sky and tight esses, in `scripts/track_library.gd`. The unit suite passes (2147 checks, 0 failures). The existing per-track tests, which loop over every track, now cover it. That includes the AI and bot finish checks and the check that pads, boxes and hazards sit on the road. I didn't add Frosty Peaks-specific tests.
+
+- **Menu check:** `tools/menu_check.gd` passes headless.
+- **Smoke run:** a run on track 2 showed 3/3 AI karts racing. The player bot sat at the start with speed 0, which is the known limitation of that bot. I have no evidence of how a human player handles the track.
+- **Bot offroad:** the naive full-throttle bot finished Frosty Peaks but spent 26 frames off the road, where the other two tracks had 0.
+- **Not checked:** I haven't looked at the track or the menu preview on screen.
+- **Docs and commits:** README updated; commits 972d06c and cd0f034. The Cycle 14 note went into `.agent/autopilot/progress.md`.
+- **Time limits:** every shell run used a perl `alarm` limit.
+- **Parity:** no parity folders were given, so nothing was mirrored.
+- **Remaining:** item-vs-AI tuning, positional audio for AI karts, more tracks, and a visual review of screenshots, which needs a person.
+- **Blockers:** none.
+
+
+## Cycle 15 — 2026-10-01
+Added positional engine audio for AI karts (`scripts/ai_engine_audio.gd`, AudioStreamPlayer3D per AI kart, pitch follows speed, distance attenuation, shared cached stream). Tests 2156 pass; headless smoke 3/3 AI racing. Not listened to (no audio output verification). Remaining: item-vs-AI tuning, more tracks, visual review.

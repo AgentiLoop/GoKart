@@ -93,3 +93,37 @@ func test_effect_library() -> void:
 func test_loop_db() -> void:
 	runner.check(GameAudio.loop_db(true, -10.0) == -10.0)
 	runner.check(GameAudio.loop_db(false, -10.0) == GameAudio.SILENT_DB)
+
+func test_ai_engine_pitch_and_volume() -> void:
+	var AiEngineAudio := preload("res://scripts/ai_engine_audio.gd")
+	var idle: float = AiEngineAudio.pitch_for(0.0, 30.0, false)
+	var fast: float = AiEngineAudio.pitch_for(30.0, 30.0, false)
+	runner.check(fast > idle and idle > 0.0)
+	runner.check(AiEngineAudio.pitch_for(30.0, 30.0, true) > fast)
+	runner.check(AiEngineAudio.pitch_for(-15.0, 30.0, false) == AiEngineAudio.pitch_for(15.0, 30.0, false))
+	runner.check(AiEngineAudio.volume_for(true) < AiEngineAudio.volume_for(false))
+	var s: AudioStreamWAV = AiEngineAudio.engine_stream()
+	runner.check(s != null and s == AiEngineAudio.engine_stream())   # cached and shared
+	runner.check(s.loop_mode == AudioStreamWAV.LOOP_FORWARD)
+
+func test_ai_engine_node_follows_kart() -> void:
+	var AiEngineAudio := preload("res://scripts/ai_engine_audio.gd")
+	var KartPhysics := preload("res://scripts/kart_physics.gd")
+	var stub := Node.new()
+	stub.set_script(preload("res://tests/stub_kart.gd"))
+	stub.model = KartPhysics.new()
+	stub.frozen = false
+	var node: AudioStreamPlayer3D = AiEngineAudio.new()
+	node.kart = stub
+	stub.model.speed = 0.0
+	node._physics_process(0.016)
+	var idle := node.pitch_scale
+	stub.model.speed = stub.model.max_speed
+	node._physics_process(0.016)
+	runner.check(node.pitch_scale > idle)
+	runner.check(node.volume_db == AiEngineAudio.volume_for(false))
+	stub.frozen = true
+	node._physics_process(0.016)
+	runner.check(node.volume_db == AiEngineAudio.volume_for(true))
+	node.free()
+	stub.free()

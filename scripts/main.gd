@@ -14,6 +14,7 @@ const RaceRanking := preload("res://scripts/race_ranking.gd")
 const RaceStart := preload("res://scripts/race_start.gd")
 const RaceResults := preload("res://scripts/race_results.gd")
 const GameAudio := preload("res://scripts/game_audio.gd")
+const AiEngineAudio := preload("res://scripts/ai_engine_audio.gd")
 const TrackLibrary := preload("res://scripts/track_library.gd")
 
 ## Seconds after the player crosses the line before the results panel appears.
@@ -112,6 +113,9 @@ func _ready() -> void:
 		ai.kart_id = karts.size()
 		add_child(ai)
 		ai.model.max_speed *= spec[2]
+		var engine_sfx := AiEngineAudio.new()
+		engine_sfx.kart = ai
+		ai.add_child(engine_sfx)
 		karts.append(ai)
 
 	items = ItemManager.new()
