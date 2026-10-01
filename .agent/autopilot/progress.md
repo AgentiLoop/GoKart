@@ -183,3 +183,17 @@ Cycle 1: AI karts now race without hitting walls. A stray tab on main.gd line 11
 - New `scripts/race_start.gd` (3-2-1-GO, press-timing start boost, 0.8 s window), `tests/test_start.gd` (7 tests). Karts `frozen` until GO; lap timers start at GO; HUD big countdown label; AI karts get fixed start boosts [0.9, 0.5, 0].
 - Tests 837 pass; smoke 3/3 AI karts racing.
 - Remaining: kart model, mini-turbo flash, minimap, more items (triple shells, star, lightning, red shell), item-vs-AI tuning.
+## Cycle 2 — 2026-10-01 13:45
+Cycle 2: added the start countdown and rocket-start boost, committed.
+
+- **Countdown:** `scripts/race_start.gd` runs 3-2-1-GO, and the HUD shows it as a large centre label. All karts are frozen until GO. Lap and race timers start at GO, and item use is blocked during the countdown.
+- **Start boost:** pressing the throttle in the last 0.8 s before GO gives a boost of 0.4–1.2 s, stronger the closer to GO. Holding the throttle from earlier, or never pressing it, gives none. The AI karts get fixed start boosts of 0.9 s, 0.5 s and none.
+- **Tests:** I added `tests/test_start.gd` with 7 tests, and the suite now passes 837 checks with 0 failures. The headless smoke test (`tools/smoke.gd`) still has all 3 AI karts racing and reaching lap 3. Both ran behind a `perl alarm` time limit. A startup run with a short quit-after printed no errors or warnings.
+- **Assumption:** I did not play the countdown in a window, so its on-screen look is unchecked.
+- **Not mirrored:** no parity folders were given.
+- **Remaining:** a proper kart model, a mini-turbo flash, a minimap, more items (triple shells, star, lightning, homing red shell), and tuning how items hit the AI karts.
+- **Blockers:** none.
+
+## Cycle 3 — mini-turbo flash
+- Level-up star pop (one-shot GPUParticles3D) on each drift level, flame tint by mini-turbo level (blue/orange/purple; orange for mushroom/pad), screen-edge colour flash (speed_fx shader uniforms) + kart OmniLight flash on mini-turbo release. `boost_from_drift` flag in KartPhysics. 856 tests pass, smoke 3/3.
+- Remaining: kart model, minimap, more items (triple shells, star, lightning, homing red shell), item-vs-AI tuning.

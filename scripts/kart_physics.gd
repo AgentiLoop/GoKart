@@ -29,6 +29,7 @@ var drift_charge := 0.0
 var drift_level := 0
 var boost_time := 0.0
 var boost_level := 0
+var boost_from_drift := false   # true while the current boost is a drift mini-turbo
 var spin_duration := 1.2        # seconds spent spinning out after a hit (banana / shell)
 var hit_immunity_time := 1.5    # grace period after recovering from a spin
 var spin_time := 0.0
@@ -55,6 +56,7 @@ func spin_out() -> bool:
 	spin_time = spin_duration
 	boost_time = 0.0
 	boost_level = 0
+	boost_from_drift = false
 	speed *= 0.5
 	if drifting:
 		drifting = false
@@ -67,11 +69,13 @@ func spin_out() -> bool:
 	return true
 
 ## Instant boost (mushroom, boost pad, start boost).
-func apply_boost(duration: float, level: int = 1) -> void:
+func apply_boost(duration: float, level: int = 1, from_drift: bool = false) -> void:
 	var was := is_boosting()
 	boost_time = maxf(boost_time, duration)
 	boost_level = maxi(boost_level, level)
-	if not was:
+	if from_drift or not was:
+		boost_from_drift = from_drift
+	if not was or from_drift:
 		boost_started.emit(level)
 
 func _update_level() -> void:
@@ -92,7 +96,7 @@ func _start_drift(steer: float) -> void:
 
 func _end_drift() -> void:
 	if drift_level > 0:
-		apply_boost(boost_durations[drift_level - 1], drift_level)
+		apply_boost(boost_durations[drift_level - 1], drift_level, true)
 	drifting = false
 	drift_direction = 0
 	drift_charge = 0.0
@@ -109,6 +113,7 @@ func step(delta: float, throttle: float, brake: float, steer: float, drift_held:
 		if boost_time <= 0.0:
 			boost_time = 0.0
 			boost_level = 0
+			boost_from_drift = false
 			boost_ended.emit()
 
 	# --- spin out: no control, speed bleeds off

@@ -11,11 +11,27 @@ const SPARK_COLORS := [
 	Color(0.8, 0.3, 1.0),    # level 3: purple
 ]
 
+const FLAME_COLORS := [
+	Color(1.0, 0.45, 0.05),  # mushroom / pad / start boost: orange-red
+	Color(0.3, 0.6, 1.0),    # mini-turbo 1: blue
+	Color(1.0, 0.55, 0.1),   # mini-turbo 2: orange
+	Color(0.8, 0.3, 1.0),    # mini-turbo 3: purple
+]
+const FLASH_DECAY := 4.0      # 1/s: mini-turbo flash fades in ~0.25 s
+
 var model            # KartPhysics
 var sparks: Array[GPUParticles3D] = []
 var flames: Array[GPUParticles3D] = []
 var trails: Array = []
 var wheel_nodes: Array[Node3D] = []
+var pops: Array[GPUParticles3D] = []   # one-shot star burst when a drift level is reached
+var flash_light: OmniLight3D
+var flash_amount := 0.0                 # 1 right at mini-turbo release, decays to 0
+var flash_color := Color.WHITE
+
+## Exhaust flame tint: drift mini-turbos use the spark colour of their level, other boosts are orange.
+static func flame_color(level: int, from_drift: bool) -> Color:
+	return FLAME_COLORS[clampi(level, 1, 3)] if from_drift else FLAME_COLORS[0]
 
 static func spark_color(level: int) -> Color:
 	return SPARK_COLORS[clampi(level, 0, SPARK_COLORS.size() - 1)]
@@ -37,10 +53,20 @@ func setup(physics_model, wheel_offsets: Array) -> void:
 			s.position = off + Vector3(0, 0.1, 0.2)
 			add_child(s)
 			sparks.append(s)
+			var pop := _make_pop()
+			pop.position = off + Vector3(0, 0.3, 0.2)
+			add_child(pop)
+			pops.append(pop)
 			var f := _make_flame()
 			f.position = Vector3(off.x * 0.45, 0.45, 1.2)
 			add_child(f)
 			flames.append(f)
+	flash_light = OmniLight3D.new()
+	flash_light.position = Vector3(0, 0.8, 0.6)
+	flash_light.omni_range = 6.0
+	flash_light.light_energy = 0.0
+	flash_light.visible = false
+	add_child(flash_light)
 	model.drift_level_changed.connect(_on_level_changed)
 	model.drift_started.connect(_on_drift_started)
 	model.boost_started.connect(_on_boost_started)
@@ -123,6 +149,32 @@ func _make_flame() -> GPUParticles3D:
 	p.draw_pass_1 = q
 	return p
 
+func _make_pop() -> GPUParticles3D:
+	var p := GPUParticles3D.new()
+	p.amount = 24
+	p.lifetime = 0.4
+	p.one_shot = true
+	p.explosiveness = 1.0
+	p.local_coords = false
+	p.emitting = false
+	p.visibility_aabb = AABB(Vector3(-5, -5, -5), Vector3(10, 10, 10))
+	var pm := ParticleProcessMaterial.new()
+	pm.direction = Vector3(0, 1, 0)
+	pm.spread = 180.0
+	pm.initial_velocity_min = 3.0
+	pm.initial_velocity_max = 6.0
+	pm.gravity = Vector3(0, -10, 0)
+	pm.scale_min = 1.0
+	pm.scale_max = 2.0
+	pm.color = SPARK_COLORS[1]
+	pm.color_ramp = _fade_ramp()
+	p.process_material = pm
+	var q := QuadMesh.new()
+	q.size = Vector2(0.14, 0.14)
+	q.material = _particle_material(Color(1, 1, 1, 1))
+	p.draw_pass_1 = q
+	return p
+
 func _set_spark_color(level: int) -> void:
 	for s in sparks:
 		(s.process_material as ParticleProcessMaterial).color = spark_color(level)
@@ -137,15 +189,25 @@ func _on_level_changed(level: int) -> void:
 		_set_spark_color(level)
 		for s in sparks:
 			s.amount_ratio = 0.5 + 0.25 * level
+		if level > 0:
+			for p in pops:
+				(p.process_material as ParticleProcessMaterial).color = spark_color(level)
+				p.restart()
+				p.emitting = true
 	else:
 		for s in sparks:
 			s.emitting = false
 
-func _on_boost_started(_level: int) -> void:
+func _on_boost_started(level: int) -> void:
 	for s in sparks:
 		s.emitting = false
+	var col := flame_color(level, model.boost_from_drift)
 	for f in flames:
+		(f.process_material as ParticleProcessMaterial).color = col
 		f.emitting = true
+	if model.boost_from_drift:
+		flash_color = spark_color(level)
+		flash_amount = 1.0
 
 func _on_boost_ended() -> void:
 	for f in flames:
@@ -153,6 +215,10 @@ func _on_boost_ended() -> void:
 
 ## Called every physics frame by the kart.
 func update_fx(delta: float, on_floor: bool) -> void:
+	flash_amount = move_toward(flash_amount, 0.0, FLASH_DECAY * delta)
+	flash_light.visible = flash_amount > 0.0
+	flash_light.light_color = flash_color
+	flash_light.light_energy = 8.0 * flash_amount
 	if model.drifting == false:
 		for s in sparks:
 			if s.emitting and not model.is_boosting():

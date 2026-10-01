@@ -4,6 +4,8 @@ uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;
 uniform float speed_amount : hint_range(0.0, 1.0) = 0.0;  // 0..1 of top speed
 uniform float boost_amount : hint_range(0.0, 1.0) = 0.0;  // boost intensity
 uniform float time_s = 0.0;
+uniform float flash_amount : hint_range(0.0, 1.0) = 0.0;  // mini-turbo release flash
+uniform vec3 flash_color : source_color = vec3(1.0);
 uniform int blur_samples = 10;
 
 float hash(float n) { return fract(sin(n * 127.1) * 43758.5453); }
@@ -36,5 +38,7 @@ void fragment() {
 	// vignette + slight blue-white boost tint
 	col *= 1.0 - smoothstep(0.55, 1.1, dist) * (0.15 + 0.25 * boost_amount);
 	col += vec3(0.05, 0.1, 0.2) * boost_amount * smoothstep(0.3, 0.9, dist);
+	// mini-turbo flash: coloured glow pulse from the screen edges
+	col += flash_color * flash_amount * (0.12 + 0.5 * smoothstep(0.2, 0.9, dist));
 	COLOR = vec4(col, 1.0);
 }

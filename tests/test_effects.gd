@@ -103,3 +103,58 @@ func test_speed_fx_shader_params() -> void:
 		fx.update_fx(1.0 / 60.0, 0.0, false)
 	runner.check(fx.boost_amount == 0.0 and fx.speed_amount < 0.01)
 	fx.queue_free()
+
+func test_flame_color_by_boost_source() -> void:
+	runner.check(KartEffects.flame_color(2, false) == KartEffects.FLAME_COLORS[0])
+	runner.check(KartEffects.flame_color(1, true) != KartEffects.flame_color(3, true))
+	runner.check(KartEffects.flame_color(3, true) == KartEffects.spark_color(3))
+
+func _drift_to_level(m, level: int) -> void:
+	m.speed = 25.0
+	for i in 600:
+		m.step(1.0 / 60.0, 1.0, 0.0, 1.0, true)
+		if m.drift_level >= level:
+			break
+
+func test_level_up_pops_and_mini_turbo_flash() -> void:
+	var r = _make_fx()
+	var m = r[0]
+	var fx = r[1]
+	runner.check(fx.pops.size() == 2)
+	runner.check(fx.flash_amount == 0.0)
+	_drift_to_level(m, 2)
+	runner.check(m.drift_level == 2, "level=%d" % m.drift_level)
+	var pm: ParticleProcessMaterial = fx.pops[0].process_material
+	runner.check(pm.color == KartEffects.spark_color(2), "pop colour = level colour")
+	runner.check(fx.pops[0].emitting, "pop burst emitting")
+	m.step(1.0 / 60.0, 1.0, 0.0, 1.0, false)   # release
+	runner.check(m.boost_from_drift)
+	runner.check(fx.flash_amount == 1.0 and fx.flash_color == KartEffects.spark_color(2), "flash triggered")
+	var fm: ParticleProcessMaterial = fx.flames[0].process_material
+	runner.check(fm.color == KartEffects.flame_color(2, true), "flame tinted by mini-turbo level")
+	fx.update_fx(1.0 / 60.0, true)
+	runner.check(fx.flash_light.visible and fx.flash_amount < 1.0)
+	for i in 30:
+		fx.update_fx(1.0 / 60.0, true)
+	runner.check(fx.flash_amount == 0.0 and not fx.flash_light.visible, "flash fades")
+	fx.queue_free()
+
+func test_mushroom_boost_is_not_drift_boost() -> void:
+	var r = _make_fx()
+	r[0].apply_boost(1.0, 1)
+	runner.check(not r[0].boost_from_drift)
+	runner.check(r[1].flash_amount == 0.0, "no flash for mushroom")
+	runner.check((r[1].flames[0].process_material as ParticleProcessMaterial).color == KartEffects.flame_color(1, false))
+	r[1].queue_free()
+
+func test_speed_fx_flash() -> void:
+	var fx = SpeedFx.new()
+	_tree().add_child(fx)
+	fx.trigger_flash(Color(0.3, 0.6, 1.0))
+	fx.update_fx(1.0 / 60.0, 0.0, false)
+	runner.check(fx.flash_amount > 0.9 and fx.flash_amount < 1.0)
+	runner.check(is_equal_approx(fx.mat.get_shader_parameter("flash_amount"), fx.flash_amount))
+	for i in 60:
+		fx.update_fx(1.0 / 60.0, 0.0, false)
+	runner.check(fx.flash_amount == 0.0, "flash fades out")
+	fx.queue_free()

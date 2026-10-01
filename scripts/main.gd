@@ -3,6 +3,7 @@ extends Node3D
 
 const Kart := preload("res://scripts/kart.gd")
 const SpeedFx := preload("res://scripts/speed_fx.gd")
+const KartEffects := preload("res://scripts/kart_effects.gd")
 const Track := preload("res://scripts/track.gd")
 const TrackData := preload("res://scripts/track_data.gd")
 const LapTracker := preload("res://scripts/lap_tracker.gd")
@@ -113,6 +114,11 @@ func _ready() -> void:
 	for k in karts:
 		k.frozen = true
 	race_start.go.connect(_on_go)
+	kart.model.boost_started.connect(_on_player_boost)
+
+func _on_player_boost(level: int) -> void:
+	if kart.model.boost_from_drift:
+		speed_fx.trigger_flash(KartEffects.spark_color(level))
 
 func _on_go() -> void:
 	for i in karts.size():
