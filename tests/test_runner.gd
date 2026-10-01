@@ -6,7 +6,7 @@ var passed := 0
 var failed := 0
 var current := ""
 
-func _init() -> void:
+func _initialize() -> void:
 	var dir := DirAccess.open("res://tests")
 	var files: Array[String] = []
 	for f in dir.get_files():

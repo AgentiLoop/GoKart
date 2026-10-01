@@ -2,12 +2,14 @@ extends CharacterBody3D
 ## Scene-side kart: reads input, drives KartPhysics, moves the body.
 
 const KartPhysics := preload("res://scripts/kart_physics.gd")
+const KartEffects := preload("res://scripts/kart_effects.gd")
 
 var model := KartPhysics.new()
 var gravity := 30.0
 var heading := 0.0   # yaw in radians
 var drift_slide := 0.0   # visual slide angle while drifting
 var body_mesh: Node3D
+var effects: Node3D
 
 func _ready() -> void:
 	var col := CollisionShape3D.new()
@@ -23,6 +25,9 @@ func _ready() -> void:
 	for x in [-0.8, 0.8]:
 		for z in [-0.8, 0.8]:
 			_add_box(body_mesh, Vector3(0.3, 0.5, 0.5), Vector3(x, 0.25, z), Color(0.1, 0.1, 0.1))
+	effects = KartEffects.new()
+	add_child(effects)
+	effects.setup(model, [Vector3(-0.8, 0, -0.8), Vector3(0.8, 0, -0.8), Vector3(-0.8, 0, 0.8), Vector3(0.8, 0, 0.8)])
 
 func _add_box(parent: Node3D, size: Vector3, pos: Vector3, color: Color) -> void:
 	var mi := MeshInstance3D.new()
@@ -49,3 +54,4 @@ func _physics_process(delta: float) -> void:
 	velocity.z = forward.z * model.speed
 	velocity.y = 0.0 if is_on_floor() else velocity.y - gravity * delta
 	move_and_slide()
+	effects.update_fx(delta, is_on_floor())
