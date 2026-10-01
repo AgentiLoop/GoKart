@@ -36,6 +36,8 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 Requires [Godot 4.4+](https://godotengine.org/).
 
 ```sh
+git clone https://github.com/AgentiLoop/GoKart.git
+cd GoKart
 godot --path .          # run the game (opens the title menu: scenes/menu.tscn)
 ```
 
