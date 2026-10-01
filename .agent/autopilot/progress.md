@@ -502,3 +502,20 @@ I made no new gameplay changes this cycle. The headless checks pass, but I haven
 
 ## Cycle 5
 Added a minimum steering factor (0.45) while throttle/brake is held so the player kart can turn away from a wall instead of being pinned. Tests 3344/0.
+## Cycle 5 — 2026-10-01 15:20
+I fixed one way the player kart could get stuck. I haven't seen the game on screen, so I'm not declaring the goal reached.
+
+- **The fix:** when the kart is pressed against a wall, wall contact zeroes its speed and steering scaled with speed. It could barely turn and had to reverse out. Steering now has a minimum of 45% while throttle or brake is held (`scripts/kart_physics.gd`), so the kart can pivot off the wall.
+- **Checks:** the unit suite passes (3344 checks, 0 failures). The headless race smoke test didn't run: the shell has no `timeout` command, and I didn't retry.
+- **Commit:** the change and the updated `progress.md` are committed.
+- **Still needs a person to try in the game:**
+  - UI scaling at different window sizes.
+  - Whether the wall tops still flicker.
+  - How the steering feels.
+  - Whether the AI speeds (Easy 0.72, Medium 0.85, Hard 1.0) are right.
+- **Not done:** optional AI rubber-banding.
+- **Blockers:** none, and no parity folders were given.
+
+
+## Cycle 6
+Verified smoke test after steering change: 3/3 AI karts racing, race finished lap 3. No new changes.
