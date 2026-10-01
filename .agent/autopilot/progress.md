@@ -479,3 +479,26 @@ I couldn't see the game on screen, so I'm not declaring the goal reached. Four i
 
 Optional rubber-banding for the AI is not done. There are no blockers and no parity folders were given.
 
+## Cycle 4 — 2026-10-01 15:19
+I made no new gameplay changes this cycle. The headless checks pass, but I haven't seen the game on screen, so I'm not declaring the goal reached.
+
+- **Checks:** the unit suite passes (3344 checks, 0 failures). In the headless race smoke test, all 3 AI karts raced and none got stuck.
+- **Commit:** I committed the updated `progress.md`.
+- **Already in place from cycle 1 (confirmed in the files):**
+  - The window scales the UI (`canvas_items` stretch with `expand` aspect).
+  - The HUD sits on layer 10, above the layer-5 speed-effect overlay, so speed lines and blur don't touch it.
+  - Arrow keys, Enter and E/Ctrl work, with an on-screen item hint.
+  - Steering is smoothed.
+  - Walls use the anti-flicker and self-glow changes.
+  - Easy, Medium and Hard AI levels are chosen on the title menu.
+- **Needs a person to try in the game:**
+  - How the UI scales at different window sizes.
+  - Whether the wall tops still flicker.
+  - How the steering feels.
+  - Whether the AI speeds (Easy 0.72, Medium 0.85, Hard 1.0) are right.
+- **Not done:** optional AI rubber-banding.
+- **Blockers:** none, and no parity folders were given.
+
+
+## Cycle 5
+Added a minimum steering factor (0.45) while throttle/brake is held so the player kart can turn away from a wall instead of being pinned. Tests 3344/0.
