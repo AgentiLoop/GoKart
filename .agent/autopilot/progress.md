@@ -78,3 +78,42 @@ Assumption: tire trails only draw while drifting, not during normal driving.
 - tools/screenshot.gd now uses a bot + physics-frame stages; ran windowed on Metal with no errors, drift_charged and boost shots saved (not visually inspected).
 - Observation: drift min turn radius (~17-40 m) is tighter than the track's broad bends, so drifting on the gentle curves hits the inside wall; tune track corners / drift arc.
 - TODO: items (mushroom, shells, banana) w/ shader effects, AI karts, proper kart model, mini-turbo flash/star, tighter drift-friendly corners, countdown + start boost, minimap.
+## Cycle 3 — 2026-10-01 12:49
+Cycle 3 is committed (fe04ba0). The game now has a playable 3-lap track with boost pads and a HUD. All 90 unit-test checks pass headless (`./run_tests.sh`). The windowed screenshot run logged no errors, but I can't view images, so I haven't looked at how the track or HUD render.
+
+**What I did**
+- **Track:** a closed circuit built from a spline and resampled at 3 m spacing (`scripts/track_data.gd`, `scripts/track.gd`). It has a road ribbon, red/white striped walls with colliders, and a start gate with a checkered line. Tests check that the track doesn't overlap itself and that the road and pad queries are correct.
+- **Laps:** 8 ordered checkpoints, 3 laps, with lap and race timers (`scripts/lap_tracker.gd`). Tests confirm that skipping checkpoints or driving the wrong way doesn't count.
+- **Boost pads:** 4 pads on the road, using an animated chevron shader (`shaders/boost_pad.gdshader`, `scripts/boost_pad.gd`). They glow through the existing glow setting and give a 1.2 s boost.
+- **Off-road and walls:**
+  - Driving off the road halves top speed; a boost overrides this.
+  - Hitting a wall removes the speed that went into it.
+- **HUD:** lap counter, lap and race time, km/h, a BOOST / mini-turbo level indicator and a FINISH banner (`scripts/hud.gd`). `main.gd` wires the track, laps, pads and HUD together. The kart starts just behind the line.
+- **Tests:** 14 new tests in `tests/test_track.gd`. One has a simple pursuit bot drive all 3 laps with the kart physics. It finished in 1:02.5 with no off-road frames.
+- **Screenshot tool:** `tools/screenshot.gd` now uses a bot and fires its stages on physics frames. It ran windowed on Metal and saved the drift, charged-drift and boost shots.
+- README and `progress.md` are updated.
+
+**Assumptions and an issue found**
+- The tightest drift turn (about 17–40 m radius) is tighter than the track's broad bends. Drifting on the gentle curves hits the inner wall, which cost the bot most of its drift speed. This needs tuning.
+- Tire trails still only draw while drifting (carried over from cycle 2).
+- No parity folders were specified, so none were mirrored.
+
+**What remains**
+- Items (mushroom, shells, banana) with shader effects.
+- AI karts.
+- A proper kart model.
+- A mini-turbo flash/star effect.
+- Track corners that suit drifting.
+- A start countdown and start boost.
+- A minimap.
+- Looking at the screenshots and tuning the effect parameters.
+
+No blockers.
+
+
+## Cycle 4
+- Items: scripts/items.gd (types + weighted roll), item_holder.gd (roulette, hold, use), item_projectile.gd (green shell flies straight + ricochets off road walls via TrackData.closest_point; banana stationary; owner grace), item_box.gd (pickup/respawn), item_manager.gd (boxes, use_item, projectile nodes, hit resolution). Shaders: item_box.gdshader (rainbow fresnel + ?), shell.gdshader. Input action use_item = E.
+- KartPhysics.spin_out(): 1.2 s spin (no control, boost/drift cancelled, no mini-turbo), then 1.5 s immunity; kart.gd animates the spin + blinks while immune. HUD shows held item.
+- TrackData: item box rows, pre-placed banana hazards, closest_point().
+- tests/test_items.gd: 17 tests -> 235 checks pass. tools/screenshot.gd also captures shell/banana/mushroom/item_box/hit shots (ran windowed on Metal, no errors; not visually inspected).
+- TODO: AI karts (so shells/bananas have targets), proper kart model, mini-turbo flash/star, drift-friendly corners, countdown + start boost, minimap, more items (triple, star, lightning), homing red shell.

@@ -31,7 +31,7 @@ func _steer() -> void:
 func _process(_d: float) -> bool:
 	var f := Engine.get_physics_frames()
 	var k = main.kart
-	if stage == 0 or (stage >= 3 and stage != 11):
+	if stage == 0 or (stage >= 3 and stage != 11 and stage != 8 and stage != 9 and stage != 10):
 		_steer()
 	if stage == 0 and k.global_position.z < -42.0:
 		Input.action_release("steer_left")
@@ -54,7 +54,47 @@ func _process(_d: float) -> bool:
 	elif stage == 3 and f >= drift_start + 12:
 		_shot("boost")
 		stage = 4
-	elif stage == 4 and f >= drift_start + 60:
+	elif stage == 4 and f >= drift_start + 30:
+		# --- items: shell fired ahead, banana dropped behind, mushroom boost, item box, banana hit
+		main.items.holder.held = 3
+		main.items.use_item()
+		drift_start = f
+		stage = 5
+	elif stage == 5 and f >= drift_start + 8:
+		_shot("shell")
+		main.items.holder.held = 2
+		main.items.use_item()
+		drift_start = f
+		stage = 6
+	elif stage == 6 and f >= drift_start + 8:
+		_shot("banana")
+		k.model.boost_time = 0.0
+		main.items.holder.held = 1
+		main.items.use_item()
+		drift_start = f
+		stage = 7
+	elif stage == 7 and f >= drift_start + 15:
+		_shot("mushroom")
+		var t = main.track.data
+		var bi: int = int(t.DEFAULT_BOX_ROWS[1] * t.count) % t.count
+		var from: int = (bi - 5 + t.count) % t.count
+		k.position = t.points[from] + Vector3(0, 0.1, 0)
+		k.heading = t.heading_at(from)
+		k.model.speed = 12.0
+		main.kart_index = from
+		drift_start = f
+		stage = 8
+	elif stage == 8 and f >= drift_start + 20:
+		_shot("item_box")
+		var fwd := Vector3(-sin(k.heading), 0, -cos(k.heading))
+		main.items._add_projectile(main.items.ItemProjectile.make_banana(k.position + fwd * 4.0 + Vector3(0, 0.3, 0)))
+		drift_start = f
+		stage = 9
+	elif stage == 9 and k.model.is_spinning():
+		drift_start = f
+		stage = 10
+	elif stage == 10 and f >= drift_start + 30:
+		_shot("hit")
 		return true
 	if stage == 2 and f % 20 == 0:
 		print("f=", f, " speed=", snappedf(k.model.speed, 0.1), " drift=", k.model.drifting, " charge=", snappedf(k.model.drift_charge, 0.01), " pos=", k.global_position)

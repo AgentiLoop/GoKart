@@ -7,6 +7,7 @@ const Track := preload("res://scripts/track.gd")
 const TrackData := preload("res://scripts/track_data.gd")
 const LapTracker := preload("res://scripts/lap_tracker.gd")
 const Hud := preload("res://scripts/hud.gd")
+const ItemManager := preload("res://scripts/item_manager.gd")
 
 const OFFROAD_SCALE := 0.5
 const PAD_BOOST_TIME := 1.2
@@ -17,6 +18,7 @@ var speed_fx
 var track
 var tracker
 var hud
+var items
 var kart_index := 0
 
 func _ready() -> void:
@@ -66,6 +68,10 @@ func _ready() -> void:
 	add_child(kart)
 	kart_index = start_idx
 
+	items = ItemManager.new()
+	add_child(items)
+	items.setup(data, kart)
+
 	cam = Camera3D.new()
 	cam.current = true
 	cam.fov = 70.0
@@ -87,7 +93,7 @@ func _physics_process(delta: float) -> void:
 	tracker.update(delta, kart_index)
 	if data.pad_at(pos) != null:
 		kart.model.apply_boost(PAD_BOOST_TIME, 1)
-	hud.update_hud(tracker, kart.model.speed, kart.model.is_boosting(), kart.model.drift_level)
+	hud.update_hud(tracker, kart.model.speed, kart.model.is_boosting(), kart.model.drift_level, items.holder.display_item(items.time))
 
 func _process(delta: float) -> void:
 	var target := kart.global_position + _back() * 6.0 + Vector3(0, 3.0, 0)

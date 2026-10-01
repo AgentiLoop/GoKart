@@ -48,7 +48,8 @@ func _physics_process(delta: float) -> void:
 	var target_slide := -model.drift_direction * 0.45 if model.drifting else 0.0
 	drift_slide = lerpf(drift_slide, target_slide, clampf(10.0 * delta, 0.0, 1.0))
 	rotation.y = heading
-	body_mesh.rotation.y = drift_slide
+	body_mesh.rotation.y = drift_slide + model.spin_progress() * TAU * 2.0
+	body_mesh.visible = model.is_spinning() or model.immunity_time <= 0.0 or fmod(model.immunity_time, 0.2) < 0.1
 	var forward := Vector3(-sin(heading), 0, -cos(heading))
 	velocity.x = forward.x * model.speed
 	velocity.z = forward.z * model.speed

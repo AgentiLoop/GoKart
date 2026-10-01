@@ -6,6 +6,8 @@ signal drift_started(direction: int)
 signal drift_level_changed(level: int)
 signal boost_started(level: int)
 signal boost_ended
+signal spin_started
+signal spin_ended
 
 var max_speed := 30.0
 var reverse_max_speed := 10.0
@@ -27,12 +29,42 @@ var drift_charge := 0.0
 var drift_level := 0
 var boost_time := 0.0
 var boost_level := 0
+var spin_duration := 1.2        # seconds spent spinning out after a hit (banana / shell)
+var hit_immunity_time := 1.5    # grace period after recovering from a spin
+var spin_time := 0.0
+var immunity_time := 0.0
 
 func is_boosting() -> bool:
 	return boost_time > 0.0
 
 func current_max_speed() -> float:
 	return max_speed * boost_speed_factor if is_boosting() else max_speed * surface_scale
+
+func is_spinning() -> bool:
+	return spin_time > 0.0
+
+## 0..1 through the current spin (0 when not spinning).
+func spin_progress() -> float:
+	return 1.0 - spin_time / spin_duration if is_spinning() else 0.0
+
+## Get hit: lose control, boost and drift for spin_duration. Returns false (no effect)
+## if already spinning or still immune.
+func spin_out() -> bool:
+	if is_spinning() or immunity_time > 0.0:
+		return false
+	spin_time = spin_duration
+	boost_time = 0.0
+	boost_level = 0
+	speed *= 0.5
+	if drifting:
+		drifting = false
+		drift_direction = 0
+		drift_charge = 0.0
+		if drift_level != 0:
+			drift_level = 0
+			drift_level_changed.emit(0)
+	spin_started.emit()
+	return true
 
 ## Instant boost (mushroom, boost pad, start boost).
 func apply_boost(duration: float, level: int = 1) -> void:
@@ -78,6 +110,18 @@ func step(delta: float, throttle: float, brake: float, steer: float, drift_held:
 			boost_time = 0.0
 			boost_level = 0
 			boost_ended.emit()
+
+	# --- spin out: no control, speed bleeds off
+	if immunity_time > 0.0:
+		immunity_time = maxf(immunity_time - delta, 0.0)
+	if spin_time > 0.0:
+		spin_time -= delta
+		speed = move_toward(speed, 0.0, friction * 3.0 * delta)
+		if spin_time <= 0.0:
+			spin_time = 0.0
+			immunity_time = hit_immunity_time
+			spin_ended.emit()
+		return 0.0
 
 	# --- drift state machine
 	if drift_held and not drifting and speed >= min_drift_speed and absf(steer) > 0.3:

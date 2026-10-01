@@ -11,6 +11,11 @@ const DEFAULT_CONTROL: Array[Vector2] = [
 ]
 ## [fraction of lap, lateral offset in metres (+ = right)]
 const DEFAULT_PADS := [[0.2, 0.0], [0.45, -3.0], [0.7, 3.0], [0.9, 0.0]]
+## Item box rows: fraction of lap. Each row spans the road at ITEM_BOX_OFFSETS.
+const DEFAULT_BOX_ROWS := [0.1, 0.33, 0.58, 0.8]
+const ITEM_BOX_OFFSETS := [-4.5, -1.5, 1.5, 4.5]
+## Pre-placed banana hazards: [fraction of lap, lateral offset]
+const DEFAULT_HAZARDS := [[0.27, 2.0], [0.52, -2.5]]
 
 var width := 16.0
 var spacing := 3.0
@@ -20,6 +25,8 @@ var tangents := PackedVector3Array()
 var count := 0
 var length := 0.0
 var pads: Array = []
+var item_box_positions: Array[Vector3] = []
+var hazard_positions: Array[Vector3] = []
 
 func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0) -> void:
 	control = ctrl
@@ -65,6 +72,15 @@ func _build() -> void:
 		pad.center = points[idx] + right_of(idx) * spec[1]
 		pad.index = idx
 		pads.append(pad)
+	item_box_positions.clear()
+	for f in DEFAULT_BOX_ROWS:
+		var bi: int = int(f * count) % count
+		for off in ITEM_BOX_OFFSETS:
+			item_box_positions.append(points[bi] + right_of(bi) * off)
+	hazard_positions.clear()
+	for spec in DEFAULT_HAZARDS:
+		var hi: int = int(spec[0] * count) % count
+		hazard_positions.append(points[hi] + right_of(hi) * spec[1])
 
 ## Unit vector to the right of travel direction at sample i.
 func right_of(i: int) -> Vector3:
@@ -101,10 +117,11 @@ func nearest_index(pos: Vector3, hint := -1, window := 15) -> int:
 static func _dist_xz(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
 
-## Distance from pos to the centerline polyline.
-func distance_to_center(pos: Vector3, hint := -1) -> float:
+## Closest point on the centerline polyline to pos.
+func closest_point(pos: Vector3, hint := -1) -> Vector3:
 	var idx := nearest_index(pos, hint)
 	var best := INF
+	var best_pt := points[idx]
 	var p := Vector2(pos.x, pos.z)
 	for o in [-1, 0]:
 		var a3 := points[posmod(idx + o, count)]
@@ -113,8 +130,15 @@ func distance_to_center(pos: Vector3, hint := -1) -> float:
 		var b := Vector2(b3.x, b3.z)
 		var ab := b - a
 		var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.0001), 0.0, 1.0)
-		best = minf(best, p.distance_to(a + ab * t))
-	return best
+		var d := p.distance_to(a + ab * t)
+		if d < best:
+			best = d
+			best_pt = a3.lerp(b3, t)
+	return best_pt
+
+## Distance from pos to the centerline polyline.
+func distance_to_center(pos: Vector3, hint := -1) -> float:
+	return _dist_xz(closest_point(pos, hint), pos)
 
 func is_on_road(pos: Vector3, hint := -1) -> bool:
 	return distance_to_center(pos, hint) <= width * 0.5
