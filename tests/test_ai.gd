@@ -31,6 +31,26 @@ func test_driver_steers_toward_the_road() -> void:
 	var out3 := d3.decide(DT, t.points[i], heading, 20.0)
 	runner.check(absf(out3.steer) < 0.5, "steer=%f" % out3.steer)
 
+func test_driver_slows_for_bends_and_not_on_straights() -> void:
+	var t := TrackData.new()
+	var d := AiDriver.new(t, 0.0)
+	runner.check(d.corner_speed(10) == INF or d.corner_speed(10) > 60.0, "straight=%f" % d.corner_speed(10))
+	var tightest := INF
+	for i in t.count:
+		tightest = minf(tightest, d.corner_speed(i))
+	runner.check(tightest >= AiDriver.MIN_CORNER_SPEED, "tightest=%f" % tightest)
+	runner.check(tightest < INF)
+	# well above the safe speed in a bend: lift off the throttle
+	var bend := 0
+	for i in t.count:
+		if d.corner_speed(i) < d.corner_speed(bend):
+			bend = i
+	var out := d.decide(DT, t.points[bend], t.heading_at(bend), d.corner_speed(bend) + 10.0)
+	runner.check(out.throttle == 0.0, "throttle=%f" % out.throttle)
+	var d2 := AiDriver.new(t, 0.0)
+	var out2 := d2.decide(DT, t.points[bend], t.heading_at(bend), 5.0)
+	runner.check(out2.throttle == 1.0)
+
 func test_driver_lane_offset_shifts_aim() -> void:
 	var t := TrackData.new()
 	var i := 20

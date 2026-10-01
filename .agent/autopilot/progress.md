@@ -160,3 +160,10 @@ Goal: create a Mario Kart clone called GoKart. mkdir /Users/toddbruss/Documents/
  • **Kart movement:** VehicleBody3D, or custom arcade physics for the Mario Kart handling. write unit tests and test the game frequently. .....******* ANALYZE PROJECT..... YOU GOT STUCK TESTING SMOKE GO **************** DO NOT GET STUCK... PUT A TIME LIMIT ON SHELL
 Budget: no time limit, unlimited cycles
 
+
+## Cycle 1 (session 2) — AI karts working
+- Fixed parse error in `scripts/main.gd` (stray indent) that made smoke.gd spam errors forever (the earlier "stuck").
+- AI driver: lookahead 10→6 samples (stopped corner-cutting into inner walls), added `corner_speed()` bend-speed limiter. AI karts now have 0 wall hits over 40 s.
+- `tools/smoke.gd` passes: 3/3 AI karts reach lap 2+ in 60 s. Always run with a time limit: `perl -e 'alarm 100; exec @ARGV' godot --headless --path . -s tools/smoke.gd`.
+- Tests: 817 passed.
+- Remaining: kart model, mini-turbo flash, countdown/start boost, minimap, more items, AI hit by items tuning.

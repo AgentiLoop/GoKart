@@ -8,10 +8,13 @@ const Items := preload("res://scripts/items.gd")
 const STUCK_SPEED := 1.5
 const STUCK_TIME := 1.2
 const REVERSE_TIME := 0.9
+const CORNER_SAMPLES := 12     # samples ahead used to measure how sharp the upcoming bend is
+const CORNER_TURN_RATE := 1.5  # rad/s the AI is willing to turn at when picking a corner speed
+const MIN_CORNER_SPEED := 14.0
 
 var track
 var lane_offset := 0.0      # metres right of the centerline to aim for
-var lookahead := 10         # samples ahead of the nearest sample to aim at
+var lookahead := 6         # samples ahead of the nearest sample to aim at
 var steer_gain := 2.5
 var use_delay := 1.5        # seconds an item is held before the AI considers using it
 var idx := -1
@@ -45,7 +48,17 @@ func decide(delta: float, pos: Vector3, heading: float, speed: float, controllab
 		reverse_time -= delta
 		# steering is mirrored while reversing, so flip it to swing the nose toward the target
 		return {"throttle": 0.0, "brake": 1.0, "steer": -steer, "drift": false}
+	var safe := corner_speed(idx)
+	if speed > safe + 2.0:
+		return {"throttle": 0.0, "brake": 0.5 if speed > safe + 8.0 else 0.0, "steer": steer, "drift": false}
 	return {"throttle": 1.0, "brake": 0.0, "steer": steer, "drift": false}
+
+## Highest speed at which the upcoming bend can be taken with CORNER_TURN_RATE of steering.
+func corner_speed(i: int) -> float:
+	var ang := absf(wrapf(track.heading_at((i + CORNER_SAMPLES) % track.count) - track.heading_at(i), -PI, PI))
+	if ang < 0.01:
+		return INF
+	return maxf(CORNER_TURN_RATE * CORNER_SAMPLES * track.spacing / ang, MIN_CORNER_SPEED)
 
 ## Should the AI use its held item now? gap_ahead / gap_behind: distance to the nearest
 ## rival in front / behind (INF if none).

@@ -33,7 +33,7 @@ func _process(_d: float) -> bool:
 	if f >= FRAMES:
 		var moving := 0
 		for i in range(1, main.karts.size()):
-			if main.karts[i].tracker.lap >= 1 and absf(main.karts[i].model.speed) > 5.0:
+			if main.karts[i].tracker.lap >= 2:
 				moving += 1
 		print("SMOKE: ai karts racing: %d/%d" % [moving, main.karts.size() - 1])
 		quit(0 if moving == main.karts.size() - 1 else 1)
