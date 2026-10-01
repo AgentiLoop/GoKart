@@ -8,9 +8,17 @@ const TrackData := preload("res://scripts/track_data.gd")
 const LapTracker := preload("res://scripts/lap_tracker.gd")
 const Hud := preload("res://scripts/hud.gd")
 const ItemManager := preload("res://scripts/item_manager.gd")
+const AiDriver := preload("res://scripts/ai_driver.gd")
+const RaceRanking := preload("res://scripts/race_ranking.gd")
 
 const OFFROAD_SCALE := 0.5
 const PAD_BOOST_TIME := 1.2
+## AI grid: [samples before the player's slot (negative = ahead), lane offset, speed scale, body colour]
+const AI_SPECS := [
+	[-6, -3.0, 0.97, Color(0.15, 0.3, 0.95)],
+	[-6, 3.0, 0.94, Color(0.15, 0.75, 0.25)],
+	[-3, 0.0, 0.91, Color(0.65, 0.2, 0.85)],
+]
 
 var kart: CharacterBody3D
 var cam: Camera3D
@@ -20,6 +28,7 @@ var tracker
 var hud
 var items
 var kart_index := 0
+var karts: Array = []   # karts[0] is the player
 
 func _ready() -> void:
 	var env := WorldEnvironment.new()
@@ -60,17 +69,33 @@ func _ready() -> void:
 	tracker = LapTracker.new(data.count, 8, 3)
 
 	kart = Kart.new()
-	# start just behind the line, facing along the track
-	var start_idx := data.count - 4
+	# the player starts at the back of the grid, just behind the line, facing along the track
+	var start_idx := data.count - 10
 	var start_pos: Vector3 = data.points[start_idx] + Vector3(0, 0.1, 0)
 	kart.position = start_pos
 	kart.heading = data.heading_at(start_idx)
+	kart.tracker = tracker
+	kart.track_index = start_idx
 	add_child(kart)
 	kart_index = start_idx
+	karts.append(kart)
+	for spec in AI_SPECS:
+		var ai := Kart.new()
+		var gi: int = start_idx - spec[0]
+		ai.body_color = spec[3]
+		ai.position = data.points[gi] + data.right_of(gi) * spec[1] + Vector3(0, 0.1, 0)
+		ai.heading = data.heading_at(gi)
+		ai.driver = AiDriver.new(data, spec[1], 1.0 + 0.7 * karts.size())
+		ai.tracker = LapTracker.new(data.count, 8, 3)
+		ai.track_index = gi
+		ai.kart_id = karts.size()
+		add_child(ai)
+		ai.model.max_speed *= spec[2]
+		karts.append(ai)
 
 	items = ItemManager.new()
 	add_child(items)
-	items.setup(data, kart)
+	items.setup(data, karts)
 
 	cam = Camera3D.new()
 	cam.current = true
@@ -87,13 +112,21 @@ func _back() -> Vector3:
 
 func _physics_process(delta: float) -> void:
 	var data: TrackData = track.data
-	var pos := kart.global_position
-	kart_index = data.nearest_index(pos, kart_index)
-	kart.model.surface_scale = 1.0 if data.is_on_road(pos, kart_index) else OFFROAD_SCALE
-	tracker.update(delta, kart_index)
-	if data.pad_at(pos) != null:
-		kart.model.apply_boost(PAD_BOOST_TIME, 1)
-	hud.update_hud(tracker, kart.model.speed, kart.model.is_boosting(), kart.model.drift_level, items.holder.display_item(items.time))
+	var progresses: Array = []
+	var finish_times: Array = []
+	for k in karts:
+		var kp: Vector3 = k.global_position
+		k.track_index = data.nearest_index(kp, k.track_index)
+		k.model.surface_scale = 1.0 if data.is_on_road(kp, k.track_index) else OFFROAD_SCALE
+		k.tracker.update(delta, k.track_index)
+		if data.pad_at(kp) != null:
+			k.model.apply_boost(PAD_BOOST_TIME, 1)
+		var frac: float = (kp - data.points[k.track_index]).dot(data.tangents[k.track_index]) / data.spacing
+		progresses.append(RaceRanking.progress(k.tracker.lap, k.track_index, data.count, frac))
+		finish_times.append(k.tracker.race_time if k.tracker.is_finished else -1.0)
+	kart_index = kart.track_index
+	var place := RaceRanking.rank_of(0, progresses, finish_times)
+	hud.update_hud(tracker, kart.model.speed, kart.model.is_boosting(), kart.model.drift_level, items.holder.display_item(items.time), Hud.place_text(place, karts.size()))
 
 func _process(delta: float) -> void:
 	var target := kart.global_position + _back() * 6.0 + Vector3(0, 3.0, 0)

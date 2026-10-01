@@ -2,6 +2,7 @@ extends CanvasLayer
 ## Race HUD: lap counter, lap/race timers, speed, boost/drift indicator, finish banner.
 
 const Items := preload("res://scripts/items.gd")
+const RaceRanking := preload("res://scripts/race_ranking.gd")
 
 var lap_label: Label
 var time_label: Label
@@ -9,6 +10,7 @@ var speed_label: Label
 var state_label: Label
 var banner_label: Label
 var item_label: Label
+var place_label: Label
 
 static func format_time(t: float) -> String:
 	var total_ms := int(round(t * 1000.0))
@@ -16,6 +18,9 @@ static func format_time(t: float) -> String:
 
 static func item_text(item: int) -> String:
 	return "" if item == Items.Type.NONE else "[ %s ]" % Items.name_of(item)
+
+static func place_text(rank: int, total: int) -> String:
+	return "" if total <= 1 else "%s / %d" % [RaceRanking.ordinal(rank), total]
 
 static func lap_text(lap: int, total: int) -> String:
 	return "LAP %d/%d" % [clampi(lap, 1, total), total]
@@ -28,6 +33,8 @@ func _ready() -> void:
 	state_label = _make_label(Vector2(24, 660), 28, HORIZONTAL_ALIGNMENT_LEFT)
 	item_label = _make_label(Vector2(440, 16), 32, HORIZONTAL_ALIGNMENT_CENTER)
 	item_label.size = Vector2(400, 40)
+	place_label = _make_label(Vector2(1000, 16), 48, HORIZONTAL_ALIGNMENT_RIGHT)
+	place_label.custom_minimum_size = Vector2(256, 0)
 	banner_label = _make_label(Vector2(340, 280), 72, HORIZONTAL_ALIGNMENT_CENTER)
 	banner_label.size = Vector2(600, 100)
 
@@ -41,7 +48,8 @@ func _make_label(pos: Vector2, font_size: int, align: HorizontalAlignment) -> La
 	add_child(l)
 	return l
 
-func update_hud(tracker, speed: float, boosting: bool, drift_level: int, item := 0) -> void:
+func update_hud(tracker, speed: float, boosting: bool, drift_level: int, item := 0, place := "") -> void:
+	place_label.text = place
 	item_label.text = item_text(item)
 	lap_label.text = lap_text(tracker.lap, tracker.total_laps) if tracker.lap > 0 else "READY"
 	time_label.text = "TIME %s\nLAP  %s" % [format_time(tracker.race_time), format_time(tracker.lap_time)]

@@ -117,3 +117,46 @@ No blockers.
 - TrackData: item box rows, pre-placed banana hazards, closest_point().
 - tests/test_items.gd: 17 tests -> 235 checks pass. tools/screenshot.gd also captures shell/banana/mushroom/item_box/hit shots (ran windowed on Metal, no errors; not visually inspected).
 - TODO: AI karts (so shells/bananas have targets), proper kart model, mini-turbo flash/star, drift-friendly corners, countdown + start boost, minimap, more items (triple, star, lightning), homing red shell.
+## Cycle 4 — 2026-10-01 12:52
+Cycle 4 is committed (e81a9c8): GoKart now has item boxes and three items: mushroom, banana and green shell. All 235 headless unit-test checks pass (`./run_tests.sh`), up from 90. The windowed screenshot run on Metal logged no errors, but I can't view images, so I haven't looked at how the items and shaders render.
+
+**What I did**
+- **Item boxes:** 4 rows of 4 boxes sit on the road, with a rainbow translucent cube shader and a "?" on each face (`shaders/item_box.gdshader`). Touching one starts a 1.5 s roulette that gives a mushroom, banana or green shell. Boxes respawn after 3 s.
+- **Items:** press E (the new `use_item` input) to use the held item.
+  - Mushroom: a 1.5 s boost.
+  - Banana: dropped behind the kart.
+  - Green shell (`shaders/shell.gdshader`): fired ahead at 55 m/s, ricochets off the road walls, and disappears after 6 bounces or 10 s.
+  - Two bananas are pre-placed on the road as hazards, so there is something to hit before AI karts exist.
+- **Getting hit:** `KartPhysics.spin_out()` makes the kart spin for 1.2 s with no steering, and it cancels any boost or drift without awarding a mini-turbo. Afterwards the kart is immune for 1.5 s. `kart.gd` animates the spin and blinks the body while immune.
+- **Track data:** `TrackData` now has item-box rows, banana hazard positions and `closest_point()`. `distance_to_center` is now built on `closest_point`.
+- **HUD:** shows the held item, e.g. "[ GREEN SHELL ]".
+- **Tests:** 145 new checks in `tests/test_items.gd` (17 test functions). They cover the item roll, the roulette, spin-out, shell ricochets and expiry, banana hits, box respawn, and box and hazard placement.
+- **Screenshot tool:** `tools/screenshot.gd` also saves shell, banana, mushroom, item_box and hit shots. In the hit stage the kart's speed dropped to 3.0 m/s, which shows the spin-out works in the real scene.
+- README and `.agent/autopilot/progress.md` are updated.
+
+**Assumptions**
+- No parity folders were specified, so nothing was mirrored.
+- Items only affect the player kart for now, since there are no AI karts yet. The thrower is safe from their own item for 0.6 s.
+
+**What remains**
+- AI karts, so shells and bananas have targets.
+- A proper kart model.
+- A mini-turbo flash/star effect.
+- Drift-friendly track corners. The bot still hits the inner wall when drifting on the gentle curves, as in cycle 3.
+- A start countdown and start boost.
+- A minimap.
+- More items: triple shells, star, lightning, homing red shell.
+- Looking at the screenshots and tuning the effect parameters.
+
+No blockers.
+
+Session ended — Stop All (2026-10-01 13:33)
+
+# Auto-pilot session — 2026-10-01 13:34
+Goal: create a Mario Kart clone called GoKart. mkdir /Users/toddbruss/Documents/GitHub/GoKart with all Mario Kart effects. I believe Godot 4 can do the Mario Kart effects, but I haven't built any of them yet:
+ • **Drift sparks and boost flames:** GPUParticles3D.
+ • **Speed lines and boost blur:** screen-space shaders and the built-in glow and tonemapping.
+ • **Item effects and tire trails:** shaders, plus Trail or ribbon meshes.
+ • **Kart movement:** VehicleBody3D, or custom arcade physics for the Mario Kart handling. write unit tests and test the game frequently. .....******* ANALYZE PROJECT..... YOU GOT STUCK TESTING SMOKE GO **************** DO NOT GET STUCK... PUT A TIME LIMIT ON SHELL
+Budget: no time limit, unlimited cycles
+

@@ -10,21 +10,25 @@ const ItemBox := preload("res://scripts/item_box.gd")
 const MUSHROOM_BOOST_TIME := 1.5
 const KART_RADIUS := 1.1
 
-signal kart_hit(kind: int)
+signal kart_hit(kind: int, id: int)
 
 var track
-var kart
-var kart_id := 0
-var holder
+var karts: Array = []     # index in this array == kart_id; karts[0] is the player
+var holders: Array = []   # one ItemHolder per kart
+var kart               # the player kart (karts[0])
+var holder             # the player's holder (holders[0])
 var boxes: Array = []
 var projectiles: Array = []
 var nodes := {}   # projectile -> Node3D
 var time := 0.0
 
-func setup(track_data, player_kart, seed_value := 0) -> void:
+func setup(track_data, all_karts, seed_value := 0) -> void:
 	track = track_data
-	kart = player_kart
-	holder = ItemHolder.new(seed_value)
+	karts = all_karts if all_karts is Array else [all_karts]
+	kart = karts[0]
+	for i in karts.size():
+		holders.append(ItemHolder.new(seed_value + i if seed_value != 0 else 0))
+	holder = holders[0]
 	for p in track.item_box_positions:
 		var b := ItemBox.new()
 		b.position = p
@@ -33,19 +37,40 @@ func setup(track_data, player_kart, seed_value := 0) -> void:
 	for p in track.hazard_positions:
 		_add_projectile(ItemProjectile.make_banana(p + Vector3(0, 0.3, 0)))
 
-func use_item() -> int:
-	if kart.model.is_spinning():
+## Distances (ahead, behind) from racer i to the nearest rival roughly in its lane.
+## positions/headings are per racer. INF when nobody qualifies.
+static func rival_gaps(i: int, positions: Array, headings: Array) -> Vector2:
+	var ahead := INF
+	var behind := INF
+	var h: float = headings[i]
+	var fwd := Vector3(-sin(h), 0, -cos(h))
+	var right := Vector3(-fwd.z, 0, fwd.x)
+	for j in positions.size():
+		if j == i:
+			continue
+		var d: Vector3 = positions[j] - positions[i]
+		var f := d.dot(fwd)
+		var l := absf(d.dot(right))
+		if f > 0.0 and l < 6.0:
+			ahead = minf(ahead, f)
+		elif f < 0.0 and l < 4.0:
+			behind = minf(behind, -f)
+	return Vector2(ahead, behind)
+
+func use_item(id := 0) -> int:
+	var k = karts[id]
+	if k.model.is_spinning():
 		return Items.Type.NONE
-	var t: int = holder.use()
-	var pos: Vector3 = kart.global_position
-	var fwd := Vector3(-sin(kart.heading), 0, -cos(kart.heading))
+	var t: int = holders[id].use()
+	var pos: Vector3 = k.global_position
+	var fwd := Vector3(-sin(k.heading), 0, -cos(k.heading))
 	match t:
 		Items.Type.MUSHROOM:
-			kart.model.apply_boost(MUSHROOM_BOOST_TIME, 2)
+			k.model.apply_boost(MUSHROOM_BOOST_TIME, 2)
 		Items.Type.BANANA:
-			_add_projectile(ItemProjectile.make_banana(pos - fwd * 2.4 + Vector3(0, 0.3, 0), kart_id))
+			_add_projectile(ItemProjectile.make_banana(pos - fwd * 2.4 + Vector3(0, 0.3, 0), id))
 		Items.Type.SHELL:
-			_add_projectile(ItemProjectile.make_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), kart.heading, kart_id))
+			_add_projectile(ItemProjectile.make_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), k.heading, id))
 	return t
 
 func _add_projectile(p) -> void:
@@ -89,19 +114,33 @@ func _remove_projectile(p) -> void:
 
 func _physics_process(delta: float) -> void:
 	time += delta
-	holder.update(delta)
-	var kpos: Vector3 = kart.global_position
+	var positions: Array = []
+	var headings: Array = []
+	for k in karts:
+		positions.append(k.global_position)
+		headings.append(k.heading)
+	for id in karts.size():
+		holders[id].update(delta)
 	for b in boxes:
 		b.tick(delta)
-		if b.try_take(kpos):
-			holder.pickup()
+		for id in karts.size():
+			if b.try_take(positions[id]):
+				holders[id].pickup()
 	if Input.is_action_just_pressed("use_item"):
-		use_item()
+		use_item(0)
+	for id in range(1, karts.size()):
+		var drv = karts[id].driver
+		if drv != null:
+			var gaps := rival_gaps(id, positions, headings)
+			if drv.wants_use(delta, holders[id].held, gaps.x, gaps.y):
+				use_item(id)
 	for p in projectiles.duplicate():
 		p.step(delta, track)
-		if p.hits(kpos, KART_RADIUS, kart_id) and kart.model.spin_out():
-			p.alive = false
-			kart_hit.emit(p.kind)
+		for id in karts.size():
+			if p.hits(positions[id], KART_RADIUS, id) and karts[id].model.spin_out():
+				p.alive = false
+				kart_hit.emit(p.kind, id)
+				break
 		if not p.alive:
 			_remove_projectile(p)
 		else:

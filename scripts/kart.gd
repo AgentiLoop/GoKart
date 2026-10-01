@@ -10,6 +10,11 @@ var heading := 0.0   # yaw in radians
 var drift_slide := 0.0   # visual slide angle while drifting
 var body_mesh: Node3D
 var effects: Node3D
+var body_color := Color(0.9, 0.1, 0.1)
+var driver = null        # AiDriver for computer karts; null = keyboard player
+var kart_id := 0
+var track_index := 0
+var tracker = null       # LapTracker
 
 func _ready() -> void:
 	var col := CollisionShape3D.new()
@@ -20,7 +25,7 @@ func _ready() -> void:
 	add_child(col)
 	body_mesh = Node3D.new()
 	add_child(body_mesh)
-	_add_box(body_mesh, Vector3(1.4, 0.4, 2.2), Vector3(0, 0.4, 0), Color(0.9, 0.1, 0.1))
+	_add_box(body_mesh, Vector3(1.4, 0.4, 2.2), Vector3(0, 0.4, 0), body_color)
 	_add_box(body_mesh, Vector3(0.7, 0.4, 0.8), Vector3(0, 0.8, -0.1), Color(0.95, 0.85, 0.2))
 	for x in [-0.8, 0.8]:
 		for z in [-0.8, 0.8]:
@@ -44,7 +49,14 @@ func _physics_process(delta: float) -> void:
 	var throttle := Input.get_action_strength("accelerate")
 	var brake := Input.get_action_strength("brake")
 	var steer := Input.get_action_strength("steer_right") - Input.get_action_strength("steer_left")
-	heading += model.step(delta, throttle, brake, steer, Input.is_action_pressed("drift"))
+	var drift_held := Input.is_action_pressed("drift")
+	if driver != null:
+		var d: Dictionary = driver.decide(delta, global_position, heading, model.speed, not model.is_spinning())
+		throttle = d.throttle
+		brake = d.brake
+		steer = d.steer
+		drift_held = d.drift
+	heading += model.step(delta, throttle, brake, steer, drift_held)
 	var target_slide := -model.drift_direction * 0.45 if model.drifting else 0.0
 	drift_slide = lerpf(drift_slide, target_slide, clampf(10.0 * delta, 0.0, 1.0))
 	rotation.y = heading
