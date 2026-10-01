@@ -214,6 +214,8 @@ func step(delta: float, throttle: float, brake: float, steer: float, drift_held:
 	# --- steering
 	var yaw := 0.0
 	var speed_factor := clampf(absf(speed) / 4.0, 0.0, 1.0)
+	if throttle > 0.0 or brake > 0.0:
+		speed_factor = maxf(speed_factor, 0.45)   # can still pivot off a wall while pinned against it
 	var dir_sign := signf(speed) if speed != 0.0 else 1.0
 	if drifting:
 		# Steering widens/tightens the arc but cannot reverse the drift direction.
