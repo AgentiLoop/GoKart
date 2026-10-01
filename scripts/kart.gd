@@ -54,4 +54,8 @@ func _physics_process(delta: float) -> void:
 	velocity.z = forward.z * model.speed
 	velocity.y = 0.0 if is_on_floor() else velocity.y - gravity * delta
 	move_and_slide()
+	for i in get_slide_collision_count():
+		var n := get_slide_collision(i).get_normal()
+		if absf(n.y) < 0.5:   # wall hit: lose the speed that went into the wall
+			model.speed = minf(model.speed, maxf(velocity.dot(forward), 0.0))
 	effects.update_fx(delta, is_on_floor())

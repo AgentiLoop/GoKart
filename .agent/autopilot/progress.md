@@ -45,3 +45,36 @@ Assumptions:
 - tests/test_effects.gd (7 tests); test runner now uses _initialize so a live scene tree exists. 43 checks pass.
 - tools/screenshot.gd: windowed run that drives the kart and saves /tmp/gokart_{drift,boost}.png (ran on Metal, no shader errors; images not visually inspected).
 - TODO: track with checkpoints/laps, items (mushroom, shells, banana) w/ effects, HUD, AI karts, proper kart model, boost pads, mini-turbo flash/star effects.
+## Cycle 2 — 2026-10-01 12:41
+Cycle 2 is committed (9a60b82). Drift sparks, boost flames, tire trails and the speed-line/boost-blur shader are in. All 43 unit-test checks pass headless (`./run_tests.sh`). I haven't looked at the screenshots, so I can't say how the effects look.
+
+What I did:
+- **Kart effects:** `scripts/kart_effects.gd` adds drift sparks as GPUParticles3D at the rear wheels, coloured by mini-turbo level (warm white, then blue, orange, purple). It also adds GPUParticles3D boost flames at the exhausts, and tire trails. Everything is driven by the `KartPhysics` drift and boost signals.
+- **Tire trails:** `scripts/tire_trail.gd` is a ribbon mesh that fades and expires. One trail per wheel is drawn while drifting, tinted by drift level.
+- **Screen shader:** `shaders/speed_fx.gdshader` and `scripts/speed_fx.gd` give a radial boost blur, speed lines and a vignette with a boost tint. Camera FOV widens with speed and boost in `main.gd`. `kart.gd` and `main.gd` are wired up.
+- **Tests:**
+  - `tests/test_effects.gd` adds 7 tests (spark colours, emitter wiring, trail growth, expiry and gaps, shader parameters).
+  - I changed the test runner from `_init` to `_initialize` so tests get a live scene tree.
+- **Visual check:** `tools/screenshot.gd` runs the game windowed on Metal, drives a drift and boost, and saves `/tmp/gokart_drift.png` and `/tmp/gokart_boost.png`. The run logged no shader or script errors, and the screenshots were saved. The saved drift frame was still at drift level 0.
+- `progress.md` is updated.
+
+What remains:
+- A real track with checkpoints and laps, and boost pads.
+- Items (mushroom, shells, banana) with their effects.
+- HUD.
+- AI karts.
+- A proper kart model.
+- A mini-turbo flash/star effect.
+- Look at the screenshots and tune the effect parameters.
+
+Blockers: none. No parity folders were specified, so none were mirrored.
+
+Assumption: tire trails only draw while drifting, not during normal driving.
+
+## Cycle 3
+- Added procedural track (scripts/track_data.gd pure geometry: Catmull-Rom loop resampled at 3 m, road queries; scripts/track.gd: road ribbon, striped walls w/ box colliders, start gate, boost pads), scripts/boost_pad.gd, shaders/boost_pad.gdshader (scrolling chevrons, HDR emission -> glow), scripts/lap_tracker.gd (8 ordered checkpoints, 3 laps, shortcut/wrong-way proof), scripts/hud.gd (lap, timers, speed, boost/mini-turbo state, FINISH banner).
+- KartPhysics.surface_scale (off-road halves top speed, boost overrides); kart.gd loses speed on wall hits; main.gd wires track/laps/pads/HUD.
+- tests/test_track.gd: 14 new tests incl. an end-to-end pursuit bot finishing 3 laps (~62 s) -> 90 checks pass.
+- tools/screenshot.gd now uses a bot + physics-frame stages; ran windowed on Metal with no errors, drift_charged and boost shots saved (not visually inspected).
+- Observation: drift min turn radius (~17-40 m) is tighter than the track's broad bends, so drifting on the gentle curves hits the inside wall; tune track corners / drift arc.
+- TODO: items (mushroom, shells, banana) w/ shader effects, AI karts, proper kart model, mini-turbo flash/star, tighter drift-friendly corners, countdown + start boost, minimap.

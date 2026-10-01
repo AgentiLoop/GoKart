@@ -18,6 +18,7 @@ var drift_charge_thresholds := [0.8, 1.6, 2.6]   # seconds for blue / orange / p
 var boost_durations := [0.6, 1.0, 1.5]
 var boost_speed_factor := 1.4
 var boost_acceleration := 45.0
+var surface_scale := 1.0        # <1 on grass/off-road: scales top speed (boost ignores it)
 
 var speed := 0.0
 var drifting := false
@@ -31,7 +32,7 @@ func is_boosting() -> bool:
 	return boost_time > 0.0
 
 func current_max_speed() -> float:
-	return max_speed * boost_speed_factor if is_boosting() else max_speed
+	return max_speed * boost_speed_factor if is_boosting() else max_speed * surface_scale
 
 ## Instant boost (mushroom, boost pad, start boost).
 func apply_boost(duration: float, level: int = 1) -> void:
