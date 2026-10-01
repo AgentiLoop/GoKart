@@ -433,3 +433,49 @@ Window-scaling UI (canvas_items/expand, anchored HUD on layer 10 above the speed
 smoothed Mario-Kart-style steering (KartPhysics.smooth_steer, tighter low-speed turning), wall z-fight fix (stripe segments differ slightly in size), shadow-free glowing walls, MSAA 4x,
 AI difficulty Easy/Medium/Hard (Q/E in menu, speed 0.72/0.85/1.0). Tests: 3344 pass. Fixed pre-existing parse error in tests/test_items.gd.
 Remaining: visual review by a human, steering feel tuning, rubber-banding.
+## Cycle 1 — 2026-10-01 15:18
+Cycle done: I implemented the UI, input, wall, steering and AI-difficulty changes. I haven't seen the result on screen. The unit suite passes (3344 checks, 0 failures) and the headless smoke and menu checks ran without errors. Committed as 3e54457.
+
+- **UI scaling and blur:**
+  - The window is now resizable and the UI scales with it (canvas_items stretch, expand aspect). HUD labels and the minimap are anchored to the window edges, and the title menu sits in a centred 1280x720 stage.
+  - The HUD now draws above the speed-effects overlay, so speed lines and blur no longer touch the text.
+  - I removed the speed-based edge blur. Only a lighter boost blur remains.
+- **Controls:**
+  - Arrow keys now accelerate, brake and steer, as well as W/A/S/D. Shift also drifts.
+  - **Using items:** E, Enter or Ctrl use the held item. Space stays as drift, so it does not use items. A "Press E / Enter / Ctrl to use" hint now shows under the item name.
+- **Walls:**
+  - Flicker: neighbouring red and white segments overlapped at the same height and fought over the same pixels, so I made the white ones very slightly larger.
+  - Brightness: walls no longer cast or receive shadows and have a bit of self-glow.
+  - Sharpness: I turned on 4x MSAA, FXAA and anisotropic filtering.
+- **Steering:** Steering input now eases in and recentres, with faster counter-steer. Turning is tighter at low speed and slightly less sharp at top speed. This is new feel tuning I couldn't try by hand, so it may need adjusting.
+- **AI difficulty:**
+  - Easy, Medium (default) and Hard are chosen on the title menu with Q/E. They scale AI top speed to 0.72, 0.85 and 1.0 of the previous value. The AI's rocket-start boost scales too (none on Easy, half on Medium).
+  - Hard is about the old speed, and Medium and Easy are slower.
+- **Tests and docs:** New unit tests cover steering smoothing, difficulty levels and key bindings. I also fixed a parse error already in `tests/test_items.gd` that stopped the suite from loading. README and the progress log are updated.
+
+**Remaining:** a person should look over the screenshots at different window sizes, tune the steering feel and AI speeds by hand, and optionally add rubber-banding. Parity folders: none were given.
+
+**Blockers:** none.
+
+## Cycle 2 — 2026-10-01 15:18
+I made no new code changes this cycle. I re-checked the state from cycle 1 and it still holds: the unit suite passes (3344 checks, 0 failures). The only uncommitted files are `progress.md`, `export_presets.cfg` and some Godot `.uid` files.
+
+I couldn't see the result on screen, so I'm not declaring the goal reached. Four items still need a human to try them in the game:
+- **Resizing:** the UI scaling and screen-effect blur at different window sizes.
+- **Walls:** the wall flicker fix and sharpness.
+- **Feel:** the steering feel and the AI speeds (Easy 0.72, Medium 0.85, Hard 1.0).
+- **Space bar:** Space is still drift. E, Enter and Ctrl use the held item, and an on-screen hint says so.
+
+Optional rubber-banding for the AI is not done. No blockers, and no parity folders were given.
+
+## Cycle 3 — 2026-10-01 15:18
+I made no new code changes this cycle. The work from cycle 1 is committed (3e54457) and the unit suite still passes (3344 checks, 0 failures). The only uncommitted files are `progress.md`, `export_presets.cfg` and some Godot `.uid` files.
+
+I couldn't see the game on screen, so I'm not declaring the goal reached. Four items still need a person to try them in the game:
+- **UI scaling and blur:** check the UI scaling and screen-effect blur at different window sizes.
+- **Walls:** check the wall flicker fix and sharpness.
+- **Steering and AI speeds:** tune the steering feel and the AI speeds (Easy 0.72, Medium 0.85, Hard 1.0).
+- **Using items:** Space is still drift. E, Enter and Ctrl use the held item, and an on-screen hint says so.
+
+Optional rubber-banding for the AI is not done. There are no blockers and no parity folders were given.
+
