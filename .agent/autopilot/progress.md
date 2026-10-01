@@ -314,3 +314,22 @@ Cycle 9: added a blue (spiny) shell item and committed it. The unit suite passes
 ## Cycle 10 — results screen + restart
 - scripts/race_results.gd (pure): rows/points/table_text; HUD show_results panel; main.gd: finished player is handed to an AiDriver autopilot, results panel 2 s after the finish, Enter reloads the scene. tests/test_results.gd. 1895 checks pass; headless scene check showed the panel with 1st YOU.
 - Remaining: item-vs-AI tuning, visual inspection of screenshots, more tracks/menus.
+## Cycle 10 — 2026-10-01 14:00
+Cycle 10: added a race results screen and a restart, and committed it. The unit suite passes (1895 checks, 0 failures). I haven't looked at the panel on screen, and I didn't run the smoke race. Both test runs were wrapped in perl alarm limits (120 s unit suite, 60 s scene check).
+
+- **Results table:** `scripts/race_results.gd` ranks racers by finish time, then by race progress for anyone still racing. It adds points (15/12/10/8…) and builds the panel text, marking the player's row with ">". `tests/test_results.gd` covers points, time formatting, row ordering and the player marker.
+- **Autopilot:** when the player finishes, `main.gd` gives the kart an `AiDriver` so it keeps rolling.
+- **Panel and restart:** 2 s after the finish the HUD shows the results panel (`show_results` in `hud.gd`). Enter reloads the scene to race again.
+- **Scene check:** a throwaway headless script on the real scene forced the player to finish. It confirmed the autopilot was set and the panel appeared with 1st YOU. The AI karts showed as unfinished.
+- **Assumptions:**
+  - The points table, the 2 s delay and the racer names (YOU/BLUE/GREEN/PURPLE) are my own choices.
+  - The panel uses a Menlo/Courier font to line up the columns.
+  - No parity folders were given, so nothing was mirrored.
+- **Docs:** README and `progress.md` are updated.
+- **Remaining:** item-vs-AI tuning, a look at the screenshots, and possibly a title menu and more tracks.
+- **Blockers:** none.
+
+
+## Cycle 11 — procedural audio
+- scripts/sound_synth.gd (pure sample synthesis: tones, sweeps, noise, seamless engine/screech loops, countdown logic, effect library) + scripts/game_audio.gd (engine pitch by speed, screech while drifting, one-shots for countdown/boost/drift/pickup/hit/explosion/lightning/star/throw/finish); wired in main.gd. tests/test_audio.gd. 1957 checks pass; headless scene check confirmed events fire (beeps, go, boost, hit, pickup, star).
+- Remaining: item-vs-AI tuning, visual inspection of screenshots, title menu / more tracks, positional audio for AI karts.

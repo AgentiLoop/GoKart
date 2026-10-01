@@ -13,6 +13,7 @@ const AiDriver := preload("res://scripts/ai_driver.gd")
 const RaceRanking := preload("res://scripts/race_ranking.gd")
 const RaceStart := preload("res://scripts/race_start.gd")
 const RaceResults := preload("res://scripts/race_results.gd")
+const GameAudio := preload("res://scripts/game_audio.gd")
 
 ## Seconds after the player crosses the line before the results panel appears.
 const RESULTS_DELAY := 2.0
@@ -41,6 +42,8 @@ var karts: Array = []   # karts[0] is the player
 var race_start := RaceStart.new()
 var finish_timer := 0.0
 var results_shown := false
+var audio
+var finish_played := false
 
 func _ready() -> void:
 	var env := WorldEnvironment.new()
@@ -119,6 +122,9 @@ func _ready() -> void:
 	hud = Hud.new()
 	add_child(hud)
 	hud.setup_minimap(data.points)
+	audio = GameAudio.new()
+	add_child(audio)
+	audio.setup(kart, items)
 	for k in karts:
 		k.frozen = true
 	race_start.go.connect(_on_go)
@@ -168,7 +174,11 @@ func _physics_process(delta: float) -> void:
 		progresses.append(RaceRanking.progress(k.tracker.lap, k.track_index, data.count, frac))
 		finish_times.append(k.tracker.race_time if k.tracker.is_finished else -1.0)
 	kart_index = kart.track_index
+	audio.update_audio(delta, race_start)
 	if tracker.is_finished:
+		if not finish_played:
+			finish_played = true
+			audio.play_finish()
 		if kart.driver == null:
 			# the finished player is taken over by the autopilot so the kart keeps rolling
 			kart.driver = AiDriver.new(data, 0.0, 999.0)
