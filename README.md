@@ -2,6 +2,14 @@
 
 A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Everything — track, karts, effects — is generated procedurally from code; there are no imported art assets.
 
+## Screenshots
+
+| Green Hills | Sunset Speedway | Frosty Peaks |
+| --- | --- | --- |
+| ![Drifting through Green Hills in 1st place](assets/screenshots/green-hills-drift.png) | ![Racing the pack on Sunset Speedway](assets/screenshots/sunset-speedway.png) | ![Chasing 2nd place on Frosty Peaks](assets/screenshots/frosty-peaks.png) |
+
+Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the road, drifts and fires items at random).
+
 ## Features
 
 - **Arcade kart physics** with drifting and mini-turbo boosts (release a drift to boost), off-road slowdown and wall collisions (`scripts/kart_physics.gd`)
@@ -48,6 +56,7 @@ godot --path .          # run the game (opens the title menu: scenes/menu.tscn)
 godot --headless --path . -s tools/smoke.gd -- 1  # headless race smoke test with AI karts (arg = track index)
 godot --headless --path . -s tools/menu_check.gd  # menu -> race -> Esc flow check
 godot --path . -s tools/screenshot.gd           # visual check, writes /tmp/gokart_*.png
+godot --path . -s tools/random_drive.gd -- 1    # random drive, 3 screenshots -> /tmp/gokart_random_*.png (arg = track index, random if omitted)
 ```
 
 ## Project layout
