@@ -6,7 +6,7 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 
 | Green Hills | Sunset Speedway | Frosty Peaks |
 | --- | --- | --- |
-| ![Hitting a boost pad on Green Hills](assets/screenshots/green-hills-drift.png) | ![Racing the pack on Sunset Speedway](assets/screenshots/sunset-speedway.png) | ![Chasing 2nd place on Frosty Peaks](assets/screenshots/frosty-peaks.png) |
+| ![Hitting a boost pad on Green Hills](assets/screenshots/green-hills-boost.png) | ![Racing the pack on Sunset Speedway](assets/screenshots/sunset-speedway.png) | ![Chasing 2nd place on Frosty Peaks](assets/screenshots/frosty-peaks.png) |
 
 ![Chasing the pack on Green Hills, 4th of 4 on lap 1](assets/screenshots/green-hills-chase.png)
 
