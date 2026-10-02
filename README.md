@@ -41,7 +41,20 @@ Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the roa
 | Enter | Race again (on the results screen) / start race (menu) |
 | Esc | Back to the track menu |
 
-## Running
+## Download
+
+Prebuilt binaries are on the [releases page](https://github.com/AgentiLoop/GoKart/releases/latest) — no Godot install needed:
+
+| Platform | Download |
+| --- | --- |
+| macOS (universal: Apple silicon and Intel, Developer ID signed and notarized) | `GoKart-<version>-macos-universal.zip` |
+| Windows (x86_64, unsigned — expect a SmartScreen prompt) | `GoKart-<version>-windows-x86_64.zip` |
+| Linux (x86_64) | `GoKart-<version>-linux-x86_64.tar.gz` |
+| Linux (arm64) | `GoKart-<version>-linux-arm64.tar.gz` |
+
+Each download is a single self-contained binary with the game data embedded. `SHA256SUMS.txt` on the release page lists the checksums.
+
+## Running from source
 
 Requires [Godot 4.4+](https://godotengine.org/).
 
