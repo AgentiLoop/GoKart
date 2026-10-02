@@ -8,6 +8,8 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 | --- | --- | --- |
 | ![Drifting through Green Hills in 1st place](assets/screenshots/green-hills-drift.png) | ![Racing the pack on Sunset Speedway](assets/screenshots/sunset-speedway.png) | ![Chasing 2nd place on Frosty Peaks](assets/screenshots/frosty-peaks.png) |
 
+![Chasing the pack on Green Hills, 4th of 4 on lap 1](assets/screenshots/green-hills-chase.png)
+
 Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the road, drifts and fires items at random).
 
 ## Features
