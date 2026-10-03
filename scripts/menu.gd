@@ -1,14 +1,21 @@
 extends Control
 ## Title screen: pick a track with Left/Right (A/D) and press Enter/Space to race.
 ## Selection is stored in TrackLibrary.selected; Esc during a race comes back here.
-## G / Tab toggles Single Race vs Grand Prix (every track in turn, MK64-style cup points).
+## G / Tab cycles the mode: Single Race -> Grand Prix (every track in turn, MK64-style cup points)
+## -> Time Trial (solo, 100cc, triple mushroom, race the ghost of your best run).
 ## Z / C step the MK64 engine class (50cc / 100cc / 150cc).
 
 const TrackLibrary := preload("res://scripts/track_library.gd")
 const GrandPrix := preload("res://scripts/grand_prix.gd")
+const TimeTrial := preload("res://scripts/time_trial.gd")
 const RaceMain := preload("res://scripts/main.gd")
 const Minimap := preload("res://scripts/minimap.gd")
 const RACE_SCENE := "res://scenes/main.tscn"
+
+const MODE_SINGLE := 0
+const MODE_GP := 1
+const MODE_TT := 2
+const MODE_COUNT := 3
 
 var selected := 0
 var name_label: Label
@@ -21,7 +28,7 @@ var difficulty := 1
 var engine_label: Label
 var engine_class := 2
 var mode_label: Label
-var grand_prix := false
+var mode := MODE_SINGLE
 var stage: Control   # fixed 1280x720 layout area, kept centred when the window is wider/taller
 var preview: Minimap
 var bg: ColorRect
@@ -71,14 +78,21 @@ static func engine_text(i: int) -> String:
 static func laps_text(n: int) -> String:
 	return "Laps: %d  (W / S)" % n
 
-## True for the keys that toggle Single Race / Grand Prix.
+## True for the keys that cycle Single Race / Grand Prix / Time Trial.
 static func is_mode_key(keycode: int) -> bool:
 	return keycode == KEY_G or keycode == KEY_TAB
 
-static func mode_text(gp: bool, track_count: int) -> String:
-	if gp:
-		return "Mode: GRAND PRIX - %d races, cup points  (G)" % track_count
+static func mode_text(m: int, track_count: int) -> String:
+	match m:
+		MODE_GP:
+			return "Mode: GRAND PRIX - %d races, cup points  (G)" % track_count
+		MODE_TT:
+			return "Mode: TIME TRIAL - solo, 100cc, triple mushroom, race your ghost  (G)"
 	return "Mode: Single Race  (G)"
+
+## Next mode in the G / Tab cycle (wraps around).
+static func next_mode(m: int) -> int:
+	return posmod(m + 1, MODE_COUNT)
 
 ## Cup order for a Grand Prix: every track once, starting from the highlighted one.
 static func cup_order(first: int, track_count: int) -> Array:
@@ -99,6 +113,7 @@ func _ready() -> void:
 	laps = TrackLibrary.laps
 	difficulty = TrackLibrary.difficulty
 	engine_class = TrackLibrary.engine_class
+	mode = MODE_TT if TimeTrial.active else MODE_SINGLE
 	bg = ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
@@ -144,10 +159,16 @@ func _refresh() -> void:
 	name_label.text = info.name
 	blurb_label.text = info.blurb
 	index_label.text = counter_text(selected, TrackLibrary.count())
-	laps_label.text = laps_text(laps)
-	difficulty_label.text = difficulty_text(difficulty)
-	engine_label.text = engine_text(engine_class)
-	mode_label.text = mode_text(grand_prix, TrackLibrary.count())
+	if mode == MODE_TT:
+		# MK64 time trials: always 3 laps, no AI, 100cc
+		laps_label.text = "Laps: %d  (Time Trial)" % TimeTrial.LAPS
+		difficulty_label.text = "AI: none  (Time Trial)"
+		engine_label.text = "Class: %s  (Time Trial)" % TrackLibrary.engine_info(TimeTrial.ENGINE_CLASS).name
+	else:
+		laps_label.text = laps_text(laps)
+		difficulty_label.text = difficulty_text(difficulty)
+		engine_label.text = engine_text(engine_class)
+	mode_label.text = mode_text(mode, TrackLibrary.count())
 	bg.color = info.sky_top.darkened(0.45)
 	preview.setup(TrackLibrary.make_data(selected).points, Vector2(280, 195))
 
@@ -166,9 +187,9 @@ func move_difficulty(dir: int) -> void:
 	difficulty = TrackLibrary.step_difficulty(difficulty, dir)
 	_refresh()
 
-## Flip between a single race and a Grand Prix cup.
+## Step the mode: Single Race -> Grand Prix -> Time Trial -> Single Race.
 func toggle_mode() -> void:
-	grand_prix = not grand_prix
+	mode = next_mode(mode)
 	_refresh()
 
 ## Change the engine class (wraps around 50cc / 100cc / 150cc).
@@ -181,7 +202,8 @@ func start_race() -> void:
 	TrackLibrary.difficulty = difficulty
 	TrackLibrary.engine_class = engine_class
 	TrackLibrary.laps = laps
-	if grand_prix:
+	TimeTrial.active = mode == MODE_TT
+	if mode == MODE_GP:
 		GrandPrix.start(cup_order(selected, TrackLibrary.count()), RaceMain.RACER_COUNT)
 	else:
 		GrandPrix.stop()

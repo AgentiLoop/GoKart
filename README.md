@@ -21,6 +21,7 @@ Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the roa
 - **Engine classes** 50cc / 100cc / 150cc like Mario Kart 64 (Z / C on the title menu): the class scales every kart's top speed and acceleration, player and AI alike (`TrackLibrary.ENGINE_CLASSES`, `KartPhysics.apply_engine_class`)
 - **Title menu** to pick the track (A / D or arrows) and the lap count (W / S, 1/2/3/5/7 laps), Enter to race; Esc in a race returns to it (`scripts/menu.gd`)
 - **Grand Prix cup** (G on the menu): every track is raced in turn, Mario Kart 64 points (9 / 6 / 3 / 1) add up after each race, the standings follow the results and the cup ends with a gold, silver or bronze trophy (`scripts/grand_prix.gd`)
+- **Time Trials** (G again on the menu), Mario Kart 64 style: race alone for 3 laps at 100cc with a triple mushroom and no item boxes; the five best times and the best lap of each track are saved (`user://time_trials.cfg`) and your fastest run comes back as a see-through, untouchable ghost kart that drives the exact same path on the next attempt (`scripts/time_trial.gd`, `scripts/ghost_recording.gd`, `scripts/ghost_kart.gd`)
 - **3-lap races** with ordered checkpoints and live race ranking (`scripts/lap_tracker.gd`, `scripts/race_ranking.gd`)
 - **Start countdown** (3-2-1-GO) with a rocket-start boost for well-timed throttle (`scripts/race_start.gd`)
 - **AI opponents** — a Mario Kart 64 field of 8 racers on a two-column grid (you start at the back) — using pure-pursuit steering, corner speed limiting, stuck recovery and item use (`scripts/ai_driver.gd`, grid in `scripts/main.gd`)
@@ -41,8 +42,8 @@ Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the roa
 | E, Enter or Ctrl | Use the held item (a hint shows under the item name) |
 | Q / E (menu) | AI difficulty: Easy / Medium (default) / Hard |
 | Z / C (menu) | Engine class: 50cc / 100cc / 150cc (default) |
-| G or Tab (menu) | Mode: Single Race / Grand Prix |
-| Enter | Race again or next cup race (on the results screen) / start race (menu) |
+| G or Tab (menu) | Mode: Single Race / Grand Prix / Time Trial |
+| Enter | Race again (or your ghost) or next cup race (on the results screen) / start race (menu) |
 | Esc | Back to the track menu |
 
 ## Download
@@ -75,7 +76,9 @@ godot --path .          # run the game (opens the title menu: scenes/menu.tscn)
 godot --headless --path . -s tools/smoke.gd -- 1  # headless race smoke test with AI karts (arg = track index)
 godot --headless --path . -s tools/menu_check.gd  # menu -> race -> Esc flow check
 godot --headless --path . -s tools/gp_check.gd    # Grand Prix flow check (menu -> cup race 1 -> results -> race 2 -> Esc)
+godot --headless --path . -s tools/tt_check.gd    # Time Trial flow check (menu -> solo run -> record + ghost saved -> race the ghost -> Esc)
 godot --path . -s tools/screenshot.gd           # visual check, writes /tmp/gokart_*.png
+godot --path . -s tools/tt_shot.gd              # Time Trial with a synthetic ghost on the course -> /tmp/gokart_tt_*.png
 godot --path . -s tools/random_drive.gd -- 1    # random drive, 3 screenshots -> /tmp/gokart_random_*.png (arg = track index, random if omitted)
 ```
 

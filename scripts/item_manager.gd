@@ -37,13 +37,16 @@ var blasts: Array = []   # live blue shell explosion visuals
 var boos: Array = []   # live Boo flights: {thief, victim, t, item, charges, node}
 var time := 0.0
 
-func setup(track_data, all_karts, seed_value := 0) -> void:
+## `course_items` false (time trials) leaves out the item boxes and the pre-placed hazards.
+func setup(track_data, all_karts, seed_value := 0, course_items := true) -> void:
 	track = track_data
 	karts = all_karts if all_karts is Array else [all_karts]
 	kart = karts[0]
 	for i in karts.size():
 		holders.append(ItemHolder.new(seed_value + i if seed_value != 0 else 0))
 	holder = holders[0]
+	if not course_items:
+		return
 	for p in track.item_box_positions:
 		var b := ItemBox.new()
 		b.position = p

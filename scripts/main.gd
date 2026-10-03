@@ -17,6 +17,10 @@ const GameAudio := preload("res://scripts/game_audio.gd")
 const AiEngineAudio := preload("res://scripts/ai_engine_audio.gd")
 const TrackLibrary := preload("res://scripts/track_library.gd")
 const GrandPrix := preload("res://scripts/grand_prix.gd")
+const TimeTrial := preload("res://scripts/time_trial.gd")
+const GhostRecording := preload("res://scripts/ghost_recording.gd")
+const GhostKart := preload("res://scripts/ghost_kart.gd")
+const Items := preload("res://scripts/items.gd")
 
 ## Seconds after the player crosses the line before the results panel appears.
 const RESULTS_DELAY := 2.0
@@ -57,6 +61,10 @@ var finish_timer := 0.0
 var results_shown := false
 var audio
 var finish_played := false
+## Time trial only: the run being recorded, the ghost of the best run (if any) and the filed result.
+var recording = null
+var ghost = null
+var tt_result := {}
 
 func _ready() -> void:
 	var env := WorldEnvironment.new()
@@ -99,14 +107,18 @@ func _ready() -> void:
 	track = Track.new(TrackLibrary.make_data(TrackLibrary.selected))
 	add_child(track)
 	var data: TrackData = track.data
-	tracker = LapTracker.new(data.count, 8, TrackLibrary.laps)
+	# MK64 time trials: solo, 3 laps, 100cc, a triple mushroom and no items on the course
+	var time_trial: bool = TimeTrial.active
+	var laps: int = TimeTrial.LAPS if time_trial else TrackLibrary.laps
+	tracker = LapTracker.new(data.count, 8, laps)
 
-	var engine: Dictionary = TrackLibrary.engine_info(TrackLibrary.engine_class)
+	var engine: Dictionary = TrackLibrary.engine_info(TimeTrial.ENGINE_CLASS if time_trial else TrackLibrary.engine_class)
 	kart = Kart.new()
 	kart.model.apply_engine_class(engine.speed, engine.accel)
 	# the player starts in the right slot of the back row, just behind the line, facing along the track
-	var start_idx := data.count - 10
-	var start_pos: Vector3 = data.points[start_idx] + data.right_of(start_idx) * GRID_LANE + Vector3(0, 0.1, 0)
+	# (alone on the front row's centre in a time trial)
+	var start_idx := data.count - 1 if time_trial else data.count - 10
+	var start_pos: Vector3 = data.points[start_idx] + data.right_of(start_idx) * (0.0 if time_trial else GRID_LANE) + Vector3(0, 0.1, 0)
 	kart.position = start_pos
 	kart.heading = data.heading_at(start_idx)
 	kart.tracker = tracker
@@ -114,14 +126,14 @@ func _ready() -> void:
 	add_child(kart)
 	kart_index = start_idx
 	karts.append(kart)
-	for spec in AI_SPECS:
+	for spec in (AI_SPECS if not time_trial else []):
 		var ai := Kart.new()
 		var gi: int = start_idx - spec[0]
 		ai.body_color = spec[3]
 		ai.position = data.points[gi] + data.right_of(gi) * spec[1] + Vector3(0, 0.1, 0)
 		ai.heading = data.heading_at(gi)
 		ai.driver = AiDriver.new(data, spec[1], 1.0 + 0.7 * karts.size())
-		ai.tracker = LapTracker.new(data.count, 8, TrackLibrary.laps)
+		ai.tracker = LapTracker.new(data.count, 8, laps)
 		ai.track_index = gi
 		ai.kart_id = karts.size()
 		add_child(ai)
@@ -135,7 +147,16 @@ func _ready() -> void:
 
 	items = ItemManager.new()
 	add_child(items)
-	items.setup(data, karts)
+	items.setup(data, karts, 0, not time_trial)
+	if time_trial:
+		TimeTrial.ensure_loaded()
+		items.holder.receive(Items.Type.TRIPLE_MUSHROOM, Items.charges_for(Items.Type.TRIPLE_MUSHROOM))
+		recording = GhostRecording.new()
+		var best = TimeTrial.ghost_for(_track_name())
+		if best != null:
+			ghost = GhostKart.new()
+			ghost.setup(best)
+			add_child(ghost)
 
 	cam = Camera3D.new()
 	cam.current = true
@@ -147,7 +168,10 @@ func _ready() -> void:
 	hud = Hud.new()
 	add_child(hud)
 	hud.setup_minimap(data.points)
-	hud.show_cup(GrandPrix.race_label() if GrandPrix.active else "")
+	if time_trial:
+		hud.show_cup(TimeTrial.hud_text(_track_name()))
+	else:
+		hud.show_cup(GrandPrix.race_label() if GrandPrix.active else "")
 	audio = GameAudio.new()
 	add_child(audio)
 	audio.setup(kart, items)
@@ -222,10 +246,13 @@ func _physics_process(delta: float) -> void:
 	if banner != track.banner_text:
 		track.set_banner(banner)
 	audio.update_audio(delta, race_start)
+	_update_time_trial(delta)
 	if tracker.is_finished:
 		if not finish_played:
 			finish_played = true
 			audio.play_finish()
+			if recording != null:
+				_finish_time_trial()
 		if kart.driver == null:
 			# the finished player is taken over by the autopilot so the kart keeps rolling
 			kart.driver = AiDriver.new(data, 0.0, 999.0)
@@ -236,7 +263,9 @@ func _physics_process(delta: float) -> void:
 			for i in karts.size():
 				names.append(RACER_NAMES[i % RACER_NAMES.size()])
 			var rows := RaceResults.rows(names, progresses, finish_times)
-			if GrandPrix.active:
+			if recording != null:
+				hud.show_results(TimeTrial.results_text(_track_name(), tracker.race_time, tracker.lap_times, tt_result))
+			elif GrandPrix.active:
 				GrandPrix.add_race(rows)
 				hud.show_results(RaceResults.table_text(rows, 0, GrandPrix.standings_text(names, 0)))
 			else:
@@ -249,7 +278,29 @@ func _physics_process(delta: float) -> void:
 	for k in karts:
 		marker_pos.append(k.global_position)
 		marker_col.append(k.body_color)
+	if ghost != null:
+		marker_pos.append(ghost.global_position)
+		marker_col.append(GhostKart.COLOR)
 	hud.update_minimap(marker_pos, marker_col)
+
+## Time trial: record the player's pose from GO to the line and replay the ghost alongside.
+func _update_time_trial(delta: float) -> void:
+	if recording == null or not race_start.started:
+		return
+	if not tracker.is_finished:
+		recording.add(delta, kart.global_position, kart.heading)
+	if ghost != null:
+		ghost.update_ghost(delta)
+
+## The player finished a time trial: file the time and the ghost, remember the outcome for the panel.
+func _finish_time_trial() -> void:
+	recording.finish(kart.global_position, kart.heading)
+	tt_result = TimeTrial.submit(_track_name(), tracker.race_time, tracker.best_lap(), recording)
+	TimeTrial.save()
+	hud.show_cup(TimeTrial.hud_text(_track_name()))
+
+func _track_name() -> String:
+	return TrackLibrary.info(TrackLibrary.selected).name
 
 func _process(delta: float) -> void:
 	var target := kart.global_position + _back() * 6.0 + Vector3(0, 3.0, 0)

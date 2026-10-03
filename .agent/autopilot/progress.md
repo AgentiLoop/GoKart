@@ -775,3 +775,29 @@ Cycle 6: added two more Mario Kart 64 items — the **Fake Item Box** and the **
 - `ai_driver.gd`: Boo used after the hold delay.
 - Tests: test_mk64_boo_item_basics, test_holder_steal_and_receive, test_mk64_boo_steals_item_and_ghosts_user, test_mk64_boo_with_nothing_to_steal, test_mk64_boo_victim_uses_item_before_it_is_taken, test_ai_uses_boo, test_hud_shows_boo_state; roll/count tests updated (13 items, mushroom share 5/26.5); test_audio effect list has "boo". Suite 5888 passed, 0 failed. smoke 7/7. Windowed temp script: Boo fired -> flight -> player got the stolen triple shells, HUD "BOO!", no errors; /tmp/gokart_boo_flight.png, /tmp/gokart_boo_ghost.png (not visually inspected).
 - Remaining MK64 ideas: mirror mode ("Extra"), time trials with ghost, battle mode, Lakitu rescue, bananas/fake boxes blocking shells.
+## Cycle 7 — 2026-10-03 15:08
+Cycle 7: added the Mario Kart 64 **Boo** item — committed as ce8e7b0 (the pending cycle-6 progress note is included).
+
+**What I did**
+- `scripts/items.gd`: `Type.BOO` (weight 1.0; never rolled by the leader, more likely toward the back). 13 items total.
+- `scripts/kart_physics.gd`: ghost state (`apply_ghost()` / `is_ghost()`, 5 s, `ghost_started`/`ghost_ended`): a ghost shrugs off `spin_out()` and lightning's `apply_shrink()`, no speed bonus.
+- `scripts/item_holder.gd`: `locked` slot while the Boo is out (no box pickups), `steal()` (nothing while rolling or while a golden mushroom is running), `receive()`.
+- `scripts/item_manager.gd`: using a Boo ghosts the user and sends a little white ghost (sphere + eyes + grin) 0.7 s out to a random rival holding an item (drawn from the user's seeded rng), takes the item on arrival, 0.7 s back, then hands it over and emits `item_stolen(thief, victim, item)`; nobody eligible → hovers and fades, victim −1. Red shells no longer lock onto ghosts; lightning skips them; shells/bananas pass through (hit path already returns false).
+- `scripts/kart_model.gd` `set_opacity()` + `scripts/kart.gd`: the kart renders at 35 % alpha while ghosted.
+- `scripts/hud.gd`: new static `state_text()` (STAR! > BOO! > BOOST! > SHRUNK! > mini-turbo), `update_hud(..., ghost)`; `main.gd` passes `is_ghost()`.
+- Audio: "boo" sweep in `sound_synth.gd`; played on the player's ghost start and when the player is robbed. `ai_driver.gd`: AI uses Boo after its hold delay.
+- Tests: 7 new tests in `tests/test_items.gd` (item/weights/physics, holder steal/receive/lock, full manager flight incl. red-shell/lightning immunity, nothing-to-steal, victim fires item before arrival, AI, HUD state); roll/count tests updated; `test_audio.gd` effect list. Suite **5888 passed, 0 failed** (was 4816). `tools/smoke.gd` → 7/7 AI karts racing. A temporary windowed script fired a Boo in the real scene: victim chosen, triple shells delivered to the player, HUD showed "BOO!", no script/shader errors (`/tmp/gokart_boo_flight.png`, `/tmp/gokart_boo_ghost.png` saved, not visually inspected).
+
+**Assumptions**: 5 s ghost duration, 0.7 s flight each way and the weights are my tuning; a Boo returns empty-handed if the victim uses its item in flight; a running golden mushroom can't be stolen. ObjectDB leak warning in the test run rose 36 → 44 orphan Node3Ds — same frameless-test `remove_child`+`queue_free` pattern as the pre-existing 36, not seen in the windowed run.
+
+**Remaining MK64 parity ideas**: mirror mode ("Extra"), time trials with a ghost, battle mode, Lakitu rescue when far off-road, dropped bananas/fake boxes blocking shells.
+
+**Blockers**: none. No parity folders were given, so nothing was mirrored.
+
+
+## Cycle 8 (session 5) — MK64 Time Trials with ghost
+- `scripts/time_trial.gd` (static state: `active`, records per track name = five best times + best lap, ghosts; `submit`, `record_rank`, `save`/`load_records` to `user://time_trials.cfg` via ConfigFile, `hud_text`, `results_text`), `scripts/ghost_recording.gd` (pure: 30 Hz pose sampling from GO, `pose_at(t)` lerp/lerp_angle, `finish`, to/from dict), `scripts/ghost_kart.gd` (Node3D + KartModel at 40 % alpha, no body; `setup(rec)`, `update_ghost(delta)`).
+- `scripts/menu.gd`: `mode` MODE_SINGLE/GP/TT cycled by G/Tab (`next_mode`, `mode_text(int, n)`), TT shows "Laps: 3 / AI: none / Class: 100cc (Time Trial)"; remembers TT after Esc. `scripts/main.gd`: in TT no AI karts, 100cc, 3 laps, player on the front-row centre, `ItemManager.setup(..., course_items=false)` (no boxes/hazards), triple mushroom granted, recording from GO, ghost replayed + on the minimap, finish → submit+save, TT results panel.
+- `tools/tt_check.gd` (headless flow, stashes/restores the real records) and `tools/tt_shot.gd` (windowed, synthetic ghost); `tools/gp_check.gd` updated to `mode`.
+- Tests: `tests/test_time_trial.gd` (10 tests); `test_grand_prix` menu test updated. Suite 5966 passed, 0 failed. tt_check OK, gp_check OK, menu_check OK, smoke 7/7. Windowed tt_shot: ghost on course, no errors (/tmp/gokart_tt_ghost.png not inspected).
+- Remaining MK64 ideas: mirror mode ("Extra"), battle mode, Lakitu rescue, staff ghosts, bananas/fake boxes blocking shells.

@@ -34,12 +34,12 @@ func _process(_d: float) -> bool:
 		return false
 	if stage == 0:
 		_check(cs.name == "Menu", "menu scene loaded")
-		_check(not cs.grand_prix, "single race by default")
+		_check(cs.mode == cs.MODE_SINGLE, "single race by default")
 		_key(KEY_G)
 		stage = 1
 		frames = 0
 	elif stage == 1 and frames > 3:
-		_check(cs.grand_prix and "GRAND PRIX" in cs.mode_label.text, "G enables Grand Prix: " + cs.mode_label.text)
+		_check(cs.mode == cs.MODE_GP and "GRAND PRIX" in cs.mode_label.text, "G enables Grand Prix: " + cs.mode_label.text)
 		_key(KEY_ENTER)
 		stage = 2
 		frames = 0
