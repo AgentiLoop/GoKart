@@ -14,14 +14,17 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 
 ![Waiting at the level crossing on Dusty Canyon as the train rolls through](assets/screenshots/dusty-canyon-train.png)
 
+![Stuck behind a bus and a truck in the traffic on Sunset Speedway](assets/screenshots/sunset-speedway-traffic.png)
+
 ![The results table on its navy panel after a race](assets/screenshots/race-results.png)
 
-Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the road, drifts and fires items at random), `tools/train_shot.gd`, `tools/menu_shot.gd` and `tools/hud_shot.gd`.
+Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the road, drifts and fires items at random), `tools/train_shot.gd`, `tools/traffic_shot.gd`, `tools/menu_shot.gd` and `tools/hud_shot.gd`.
 
 ## Features
 
 
 - **The train** (Mario Kart 64 Kalimari Desert): Dusty Canyon has a railway loop that crosses the road at two level crossings, and two steam trains (locomotive with a smoking chimney and a "64" plate, tender, three coaches) circle it without end. A crossbuck signal before each crossing flashes its red lamps and a bell rings while a train is close or passing; drive into a car and you are **thrown into the air**, spun out and shoved along the train (a Star or Boo goes straight through). CPU karts always stop and wait at a blocked crossing, like MK64's; the walls open where the rails cross and the minimap shows the railway (`scripts/train.gd`, `scripts/railway.gd`, `TrackData` `rail` layout / `crossings`, `Kart.launch`, `AiDriver.wait`)
+- **Traffic** (Mario Kart 64 Toad's Turnpike): Sunset Speedway is a public road — white cars, yellow buses, red box trucks and cyan tankers with lit headlights drive round it without end in two lanes (the fast lane on the left, the slow lane on the right), the same way as the racers, crawling in 50cc and quick in 150cc; in the **Extra** class they come **towards you** at 150cc speed like MK64's mirror mode. The traffic sets off at GO, items fly straight through it, and touching any vehicle **throws you into the air**, spins you out and shoves you along (a Star or Boo passes through). CPU karts look ahead and weave round the vehicles in their lane — through the gap between the lanes or into the other lane — and the minimap shows every vehicle as a grey dot (`scripts/traffic.gd`, `scripts/highway.gd`, `TrackData` `traffic` layout, `AiDriver.dodge_lane`)
 
 - **Arcade kart physics** with drifting and mini-turbo boosts (release a drift to boost), off-road slowdown and wall collisions (`scripts/kart_physics.gd`)
 - **Procedural closed-circuit tracks** with meshes, walls and animated boost pads; four tracks — a Mario Kart 64 cup's worth — (Green Hills, Sunset Speedway, Frosty Peaks and the desert course Dusty Canyon with its sweepers, hairpin and oasis) with their own layout, item boxes, hazards and sky/ground colours (`scripts/track_data.gd`, `scripts/track.gd`, `scripts/track_library.gd`)
@@ -94,6 +97,7 @@ godot --headless --path . -s tools/lakitu_check.gd  # Lakitu flow check (start s
 godot --headless --path . -s tools/battle_check.gd  # Battle flow check (menu -> G G G -> Block Fort -> balloons popped -> bomb kart explodes on the player -> player wins -> Esc)
 godot --headless --path . -s tools/start_check.gd   # Rocket start / false start check (throttle held all countdown -> stall + smoke + burnout sound, window press -> boost; race + battle)
 godot --headless --path . -s tools/block_check.gd   # Shell blocking check (dangling banana stops a red shell, green shell wipes out a road banana, orbiting triple shells stop a shell, triple red shells orbit red and home in one by one)
+godot --headless --path . -s tools/traffic_check.gd -- 2  # Traffic check on Sunset Speedway (vehicles built, still through the countdown, off at GO; an AI kart dodges a bus in its lane; the player is thrown into the air by a truck; arg = engine class, 3 = Extra / oncoming)
 godot --headless --path . -s tools/train_check.gd   # Train check on Dusty Canyon (railway + signals built, AI kart waits at a blocked crossing while the lamps flash and the bell rings, then pulls away; the player is thrown into the air by the locomotive -> Esc)
 godot --headless --path . -s tools/battle_smoke.gd -- 1  # headless battle smoke test, every kart on the battle AI (arg = arena index)
 godot --headless --path . -s tools/gp_check.gd    # Grand Prix flow check (menu -> cup race 1 -> results -> race 2 from pole -> rank out 6th -> retry the same race -> Esc)
@@ -104,6 +108,7 @@ godot --path . -s tools/mirror_shot.gd          # Extra class: mirrored menu pre
 godot --path . -s tools/battle_shot.gd -- 1       # Battle: menu, start pads with balloons, a Mini Bomb Kart -> /tmp/gokart_battle_*.png
 godot --path . -s tools/lakitu_shot.gd          # Lakitu: start signal, water edge, rescue, REVERSE sign -> /tmp/gokart_lakitu_*.png
 godot --path . -s tools/train_shot.gd           # Dusty Canyon train: waiting at the crossing, thrown by the locomotive -> /tmp/gokart_train_*.png
+godot --path . -s tools/traffic_shot.gd         # Sunset Speedway traffic: behind a bus and a truck, thrown by a truck -> /tmp/gokart_traffic_*.png
 godot --path . -s tools/hud_shot.gd             # restyled HUD: gold countdown sign, results table on its panel, pixel-sampled for the palette / no black outline -> /tmp/gokart_hud_*.png
 godot --path . -s tools/random_drive.gd -- 1    # random drive, 3 screenshots -> /tmp/gokart_random_*.png (arg = track index, random if omitted)
 ```

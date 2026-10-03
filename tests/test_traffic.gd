@@ -143,7 +143,7 @@ func test_ai_steers_round_the_traffic() -> void:
 	var hi: float = bus.lane + bus.half_width + Traffic.DODGE_MARGIN
 	runner.check(tr.clear_lane(50, 2.4) == 2.4, "right lane unaffected")
 	var dodge := tr.clear_lane(50, -2.4)
-	runner.check(dodge != -2.4 and (dodge < lo or dodge > hi), "left lane blocked: dodges to %.1f" % dodge)
+	runner.check(dodge != -2.4 and (dodge <= lo or dodge >= hi), "left lane blocked: dodges to %.1f" % dodge)
 	runner.check(is_equal_approx(dodge, hi), "...to the bus's inner edge (nearest free spot)")
 	runner.check(absf(dodge) <= d.width * 0.5 - Traffic.EDGE_MARGIN, "still well on the road")
 	runner.check(tr.clear_lane(50, -2.4, dodge) == dodge, "keeps the dodge it is on")

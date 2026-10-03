@@ -124,8 +124,9 @@ func clear_lane(idx: int, lane: float, current: float = NAN) -> float:
 			best = c
 	return best
 
+## True when x lies strictly inside one of the [lo, hi] spans (the edges themselves are free).
 static func _in_any(x: float, spans: Array) -> bool:
 	for s in spans:
-		if x >= s[0] and x <= s[1]:
+		if x > s[0] and x < s[1]:
 			return true
 	return false

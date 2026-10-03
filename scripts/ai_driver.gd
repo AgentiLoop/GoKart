@@ -11,6 +11,7 @@ const REVERSE_TIME := 0.9
 const CORNER_SAMPLES := 12     # samples ahead used to measure how sharp the upcoming bend is
 const CORNER_TURN_RATE := 1.5  # rad/s the AI is willing to turn at when picking a corner speed
 const MIN_CORNER_SPEED := 14.0
+const DODGE_LOOKAHEAD := 4     # samples ahead aimed at while steering round traffic (sharper than lookahead)
 ## Mario Kart 64 rubber-banding: gaps inside BAND_DEAD metres leave the AI alone; from there the
 ## top-speed bonus (behind the player) or penalty (ahead) grows linearly to its full value at BAND_RANGE.
 const BAND_DEAD := 10.0
@@ -42,7 +43,7 @@ func _init(track_data, lane := 0.0, delay := 1.5) -> void:
 ## the kart is spinning out (stuck detection is paused then).
 func decide(delta: float, pos: Vector3, heading: float, speed: float, controllable := true) -> Dictionary:
 	idx = track.nearest_index(pos, idx)
-	var ti: int = (idx + lookahead) % track.count
+	var ti: int = (idx + (DODGE_LOOKAHEAD if dodging else lookahead)) % track.count
 	var target: Vector3 = track.points[ti] + track.right_of(ti) * (dodge_lane if dodging else lane_offset)
 	var want := atan2(-(target.x - pos.x), -(target.z - pos.z))
 	var err := wrapf(want - heading, -PI, PI)
