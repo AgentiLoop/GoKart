@@ -16,6 +16,14 @@ const DEFAULT_BOX_ROWS := [0.1, 0.33, 0.58, 0.8]
 const ITEM_BOX_OFFSETS := [-4.5, -1.5, 1.5, 4.5]
 ## Pre-placed banana hazards: [fraction of lap, lateral offset]
 const DEFAULT_HAZARDS := [[0.27, 2.0], [0.52, -2.5]]
+## Water beside the road (Mario Kart 64 style hazard): [start fraction, end fraction, side (+1 = right)].
+## The wall is missing along the span on that side; a kart that drives off the edge there falls in
+## and Lakitu fishes it out.
+const DEFAULT_WATER := [[0.13, 0.21, -1], [0.62, 0.69, -1]]
+## Lateral distance beyond the road edge where the water starts (where the wall would stand).
+const WATER_EDGE := 1.2
+## How far the water stretches out from the road edge.
+const WATER_WIDTH := 18.0
 
 var width := 16.0
 var spacing := 3.0
@@ -27,9 +35,12 @@ var length := 0.0
 var pad_specs: Array = DEFAULT_PADS
 var box_rows: Array = DEFAULT_BOX_ROWS
 var hazard_specs: Array = DEFAULT_HAZARDS
+var water_specs: Array = DEFAULT_WATER
 var pads: Array = []
 var item_box_positions: Array[Vector3] = []
 var hazard_positions: Array[Vector3] = []
+## Water spans as sample ranges: {"start": first sample, "end": last sample (inclusive), "side": +-1}
+var water: Array = []
 ## Mario Kart 64 "Extra" (mirror) mode: the whole course is flipped left-to-right.
 var mirrored := false
 
@@ -41,11 +52,13 @@ func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout :=
 	pad_specs = layout.get("pads", DEFAULT_PADS)
 	box_rows = layout.get("box_rows", DEFAULT_BOX_ROWS)
 	hazard_specs = layout.get("hazards", DEFAULT_HAZARDS)
+	water_specs = layout.get("water", DEFAULT_WATER)
 	mirrored = layout.get("mirror", false)
 	if mirrored:
 		control = mirror_control(ctrl)
 		pad_specs = mirror_specs(pad_specs)
 		hazard_specs = mirror_specs(hazard_specs)
+		water_specs = mirror_water(water_specs)
 	_build()
 
 ## Control points flipped left-to-right (x negated); the start line stays on x = 0.
@@ -61,6 +74,13 @@ static func mirror_specs(specs: Array) -> Array:
 	var out: Array = []
 	for s in specs:
 		out.append([s[0], -s[1]])
+	return out
+
+## [start, end, side] water specs with the side swapped (mirrored course).
+static func mirror_water(specs: Array) -> Array:
+	var out: Array = []
+	for s in specs:
+		out.append([s[0], s[1], -s[2]])
 	return out
 
 static func _catmull(p0: Vector2, p1: Vector2, p2: Vector2, p3: Vector2, t: float) -> Vector2:
@@ -111,6 +131,36 @@ func _build() -> void:
 	for spec in hazard_specs:
 		var hi: int = int(spec[0] * count) % count
 		hazard_positions.append(points[hi] + right_of(hi) * spec[1])
+	water.clear()
+	for spec in water_specs:
+		water.append({"start": int(spec[0] * count) % count, "end": int(spec[1] * count) % count, "side": signi(spec[2])})
+
+## The water span (dict) that sample i lies in on `side` (+1 right / -1 left), or null.
+func water_at(i: int, side: int):
+	var k := posmod(i, count)
+	for w in water:
+		if w.side == side and k >= w.start and k <= w.end:
+			return w
+	return null
+
+## True when the segment from sample i to i + 1 has a wall on `side`; false along a water span.
+func has_wall(i: int, side: int) -> bool:
+	return water_at(i, side) == null
+
+## True when pos lies in the water beside sample idx (nearest sample): past the road edge where the
+## wall is missing, within the span's stretch.
+func in_water(pos: Vector3, idx: int) -> bool:
+	var k := posmod(idx, count)
+	var lateral: float = (pos - points[k]).dot(right_of(k))
+	var side := 1 if lateral > 0.0 else -1
+	if water_at(k, side) == null:
+		return false
+	var edge := width * 0.5 + WATER_EDGE
+	return absf(lateral) > edge and absf(lateral) < edge + WATER_WIDTH
+
+## Where Lakitu drops a kart fished out beside sample idx: on the centerline, facing along the track.
+func rescue_point(idx: int) -> Vector3:
+	return points[posmod(idx, count)] + Vector3(0, 0.1, 0)
 
 ## Unit vector to the right of travel direction at sample i.
 func right_of(i: int) -> Vector3:

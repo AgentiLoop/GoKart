@@ -34,6 +34,7 @@ func _init(track_data: TrackData = null) -> void:
 func _ready() -> void:
 	_build_road()
 	_build_walls()
+	_build_water()
 	_build_start_gate()
 	_build_pads()
 
@@ -85,6 +86,8 @@ func _build_walls() -> void:
 			outer.append(c + r * half)
 		for i in data.count:
 			var j := (i + 1) % data.count
+			if not data.has_wall(i, int(side)):
+				continue   # water span: no wall, the road edge is open
 			var red := (i / 2) % 2 == 0
 			var col := Color(0.85, 0.02, 0.02) if red else Color(1.0, 1.0, 1.0)
 			var rn: Vector3 = data.right_of(i)
@@ -117,6 +120,41 @@ func _wall_quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3,
 		st.set_color(col)
 		st.set_normal(n)
 		st.add_vertex(v)
+
+## Water beside the road along every water span (Mario Kart 64 hazard): a blue ribbon from the
+## open road edge out to WATER_WIDTH, with a sandy bank strip where the wall would have stood.
+func _build_water() -> void:
+	if data.water.is_empty():
+		return
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var near := data.width * 0.5 + TrackData.WATER_EDGE
+	var far := near + TrackData.WATER_WIDTH
+	var bank := data.width * 0.5
+	for w in data.water:
+		for i in range(w.start, w.end + 1):
+			var j := (i + 1) % data.count
+			var ri: Vector3 = data.right_of(i) * w.side
+			var rj: Vector3 = data.right_of(j) * w.side
+			var a: Vector3 = data.points[i]
+			var b: Vector3 = data.points[j]
+			# bank
+			_wall_quad(st, a + ri * bank, b + rj * bank, b + rj * near, a + ri * near, Vector3.UP, Color(0.85, 0.75, 0.45))
+			# water (lighter near the shore)
+			var shade := 0.75 if i % 2 == 0 else 0.7
+			_wall_quad(st, a + ri * near, b + rj * near, b + rj * far, a + ri * far, Vector3.UP, Color(0.15, 0.45 * shade + 0.1, 0.9 * shade + 0.1))
+	var mi := MeshInstance3D.new()
+	mi.name = "Water"
+	mi.mesh = st.commit()
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.roughness = 0.15
+	mat.metallic = 0.2
+	mi.material_override = mat
+	mi.position.y = 0.015
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
 
 func _build_start_gate() -> void:
 	var p: Vector3 = data.points[0]

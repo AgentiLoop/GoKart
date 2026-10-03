@@ -136,6 +136,21 @@ func spin_out() -> bool:
 	spin_started.emit()
 	return true
 
+## Dead stop (fished out of the water by Lakitu): speed, boost and drift are all gone.
+func stop() -> void:
+	speed = 0.0
+	if boost_time > 0.0:
+		boost_time = 0.0
+		boost_level = 0
+		boost_from_drift = false
+		boost_ended.emit()
+	drifting = false
+	drift_direction = 0
+	drift_charge = 0.0
+	if drift_level != 0:
+		drift_level = 0
+		drift_level_changed.emit(0)
+
 ## Instant boost (mushroom, boost pad, start boost).
 func apply_boost(duration: float, level: int = 1, from_drift: bool = false) -> void:
 	var was := is_boosting()

@@ -5,6 +5,7 @@ const KartPhysics := preload("res://scripts/kart_physics.gd")
 const KartEffects := preload("res://scripts/kart_effects.gd")
 const KartModel := preload("res://scripts/kart_model.gd")
 const KartWeight := preload("res://scripts/kart_weight.gd")
+const Lakitu := preload("res://scripts/lakitu.gd")
 
 const SHRUNK_SCALE := 0.5
 const GHOST_ALPHA := 0.35   # how see-through a Boo makes the kart
@@ -30,6 +31,47 @@ var size_scale := 1.0
 var push := Vector3.ZERO      # sideways shove from a bump, decays over a few tenths of a second
 var bump_cooldown := 0.0
 var bumps := 0                # number of kart-to-kart bumps taken (for checks/tests)
+## Lakitu rescue (fell in the water): seconds into the rescue (-1 = not being rescued), where it
+## started, where it ends and the heading the kart is set down with.
+var rescue_time := -1.0
+var rescue_from := Vector3.ZERO
+var rescue_to := Vector3.ZERO
+var rescue_heading := 0.0
+var rescues := 0              # number of times Lakitu fished this kart out
+
+func is_rescued() -> bool:
+	return rescue_time >= 0.0
+
+## Lakitu hooks the kart: it stops dead, is lifted, carried over `to` and set down facing `to_heading`.
+func start_rescue(to: Vector3, to_heading: float) -> void:
+	if is_rescued():
+		return
+	rescue_time = 0.0
+	rescue_from = position
+	rescue_to = to
+	rescue_heading = to_heading
+	rescues += 1
+	model.stop()
+	push = Vector3.ZERO
+	velocity = Vector3.ZERO
+
+## Advances a rescue in progress; returns true while the kart hangs from the line (no driving).
+func _update_rescue(delta: float) -> bool:
+	if not is_rescued():
+		return false
+	rescue_time += delta
+	if rescue_time >= Lakitu.RESCUE_TIME:
+		position = rescue_to
+		heading = rescue_heading
+		rotation.y = heading
+		rescue_time = -1.0
+		return true
+	position = Lakitu.rescue_pose(rescue_time, rescue_from, rescue_to)
+	if rescue_time > Lakitu.LIFT_TIME:
+		heading = lerp_angle(heading, rescue_heading, clampf(4.0 * delta, 0.0, 1.0))
+	rotation.y = heading
+	velocity = Vector3.ZERO
+	return true
 
 ## Applies a KartWeight class: speed/accel on the model, mass and body size on the node.
 ## Call once after creation (after the engine class).
@@ -62,6 +104,10 @@ func _ready() -> void:
 	model.ghost_ended.connect(func(): body_mesh.set_opacity(1.0))
 
 func _physics_process(delta: float) -> void:
+	if _update_rescue(delta):
+		body_mesh.update_wheels(delta, 0.0, 0.0)
+		effects.update_fx(delta, false)
+		return
 	var throttle := Input.get_action_strength("accelerate")
 	var brake := Input.get_action_strength("brake")
 	var steer := Input.get_action_strength("steer_right") - Input.get_action_strength("steer_left")

@@ -34,7 +34,7 @@ func _process(_d: float) -> bool:
 		var line := "f=%d" % f
 		for i in main.karts.size():
 			var kk = main.karts[i]
-			line += " | k%d lap=%d idx=%d v=%.1f" % [i, kk.tracker.lap, kk.track_index, kk.model.speed]
+			line += " | k%d lap=%d idx=%d v=%.1f r=%d" % [i, kk.tracker.lap, kk.track_index, kk.model.speed, kk.rescues]
 		print(line, " | place ", main.hud.place_label.text)
 	if f >= FRAMES:
 		var moving := 0

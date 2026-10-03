@@ -25,11 +25,12 @@ Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the roa
 - **Time Trials** (G again on the menu), Mario Kart 64 style: race alone for 3 laps at 100cc with a triple mushroom and no item boxes; the five best times and the best lap of each track are saved (`user://time_trials.cfg`) and your fastest run comes back as a see-through, untouchable ghost kart that drives the exact same path on the next attempt (`scripts/time_trial.gd`, `scripts/ghost_recording.gd`, `scripts/ghost_kart.gd`)
 - **3-lap races** with ordered checkpoints and live race ranking (`scripts/lap_tracker.gd`, `scripts/race_ranking.gd`)
 - **Start countdown** (3-2-1-GO) with a rocket-start boost for well-timed throttle (`scripts/race_start.gd`)
+- **Lakitu**, the Mario Kart 64 referee on his cloud: he hovers ahead of your kart holding the start signal on his fishing rod (lamps light red, red, then blue at GO), holds up a green "LAP 2" / "FINAL LAP" sign as you cross the line, waves the checkered flag when you finish, and flashes a red **REVERSE** sign if you drive the wrong way for a second. Every course has **water** beside the road along two open stretches (no wall there, on the outside of a bend; mirrored with the Extra class): drive off the edge and you splash in, Lakitu fishes you out on his line (lifted, carried over the centreline and set down facing the right way, speed gone — a few seconds lost, AI karts too) (`scripts/lakitu.gd`, `TrackData` `water` layout / `in_water` / `has_wall`, `Kart.start_rescue`)
 - **AI opponents** — a Mario Kart 64 field of 8 racers on a two-column grid (you start at the back) — using pure-pursuit steering, corner speed limiting, stuck recovery and item use (`scripts/ai_driver.gd`, grid in `scripts/main.gd`)
 - **Items** from rainbow `?` item boxes with a roulette: mushroom, triple mushrooms (three boosts, "x3" counter on the HUD), golden mushroom (Mario Kart 64 style: unlimited boosts for 7.5 s after the first press, never rolled by the leader), banana, banana bunch (five bananas trailing the kart, dropped one at a time), fake item box (Mario Kart 64 decoy: an upside-down "¿" box dropped behind the kart that spins out whoever drives into it, rolled mostly by the front of the pack), green shell (ricochets), red homing shell, triple shells (three orbiting green shells fired one by one), blue spiny shell (hunts the leader along the road and explodes), star, lightning and Boo (Mario Kart 64 ghost: the kart turns see-through and untouchable for 5 s while a little ghost flies to a random rival, takes its item and brings it back; never rolled by the leader) (`scripts/items.gd`, `item_holder.gd`, `item_manager.gd`, `item_projectile.gd`). Getting hit spins the kart out; lightning shrinks and slows every rival (`lightning_bolt.gd`).
 - **Visual effects**: drift sparks, boost flames, tire trails, speed lines / boost blur, and custom shaders in `shaders/`
 - **Results screen**: after you finish, an autopilot takes over and a standings table with MK64 points appears; Enter restarts, or moves on to the next cup race (`scripts/race_results.gd`)
-- **Procedural audio**: synthesized engine loop (pitch follows speed), tire screech while drifting, countdown beeps, boost / mini-turbo / item / hit / explosion / lightning / star / Boo sounds and a finish jingle, plus positional 3D engine hum on each AI kart, with no audio files (`scripts/ai_engine_audio.gd`, `scripts/sound_synth.gd`, `scripts/game_audio.gd`)
+- **Procedural audio**: synthesized engine loop (pitch follows speed), tire screech while drifting, countdown beeps, boost / mini-turbo / item / hit / explosion / lightning / star / Boo / splash sounds and a finish jingle, plus positional 3D engine hum on each AI kart, with no audio files (`scripts/ai_engine_audio.gd`, `scripts/sound_synth.gd`, `scripts/game_audio.gd`)
 - **HUD** with place, lap, item slot and a track minimap (`scripts/hud.gd`, `scripts/minimap.gd`)
 - **Procedural kart model** with steering front wheels and spinning wheels (`scripts/kart_model.gd`)
 
@@ -79,11 +80,13 @@ godot --headless --path . -s tools/smoke.gd -- 1  # headless race smoke test wit
 godot --headless --path . -s tools/menu_check.gd  # menu -> race -> Esc flow check
 godot --headless --path . -s tools/mirror_check.gd  # Extra (mirror) flow check (menu -> C -> mirrored race with 8 karts -> Esc)
 godot --headless --path . -s tools/weight_check.gd  # weight class flow check (menu -> V -> Heavy -> race; a heavy player rams a parked light kart -> Esc)
+godot --headless --path . -s tools/lakitu_check.gd  # Lakitu flow check (start signal lamps -> player dunked in the water -> rescued -> REVERSE sign -> Esc)
 godot --headless --path . -s tools/gp_check.gd    # Grand Prix flow check (menu -> cup race 1 -> results -> race 2 -> Esc)
 godot --headless --path . -s tools/tt_check.gd    # Time Trial flow check (menu -> solo run -> record + ghost saved -> race the ghost -> Esc)
 godot --path . -s tools/screenshot.gd           # visual check, writes /tmp/gokart_*.png
 godot --path . -s tools/tt_shot.gd              # Time Trial with a synthetic ghost on the course -> /tmp/gokart_tt_*.png
 godot --path . -s tools/mirror_shot.gd          # Extra class: mirrored menu preview + race -> /tmp/gokart_mirror_*.png
+godot --path . -s tools/lakitu_shot.gd          # Lakitu: start signal, water edge, rescue, REVERSE sign -> /tmp/gokart_lakitu_*.png
 godot --path . -s tools/random_drive.gd -- 1    # random drive, 3 screenshots -> /tmp/gokart_random_*.png (arg = track index, random if omitted)
 ```
 

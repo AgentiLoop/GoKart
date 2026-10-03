@@ -22,6 +22,7 @@ const GhostRecording := preload("res://scripts/ghost_recording.gd")
 const GhostKart := preload("res://scripts/ghost_kart.gd")
 const Items := preload("res://scripts/items.gd")
 const KartWeight := preload("res://scripts/kart_weight.gd")
+const Lakitu := preload("res://scripts/lakitu.gd")
 
 ## Seconds after the player crosses the line before the results panel appears.
 const RESULTS_DELAY := 2.0
@@ -63,6 +64,7 @@ var finish_timer := 0.0
 var results_shown := false
 var audio
 var finish_played := false
+var lakitu
 ## Time trial only: the run being recorded, the ghost of the best run (if any) and the filed result.
 var recording = null
 var ghost = null
@@ -182,6 +184,12 @@ func _ready() -> void:
 	audio = GameAudio.new()
 	add_child(audio)
 	audio.setup(kart, items)
+	# MK64 Lakitu: start signal, lap signs, REVERSE sign, checkered flag and water rescues
+	lakitu = Lakitu.new()
+	add_child(lakitu)
+	lakitu.setup(kart, data)
+	tracker.lap_completed.connect(func(lap, _t): lakitu.on_lap(lap + 1, tracker.total_laps))
+	tracker.finished.connect(lakitu.on_finish)
 	for k in karts:
 		k.frozen = true
 	race_start.go.connect(_on_go)
@@ -240,6 +248,11 @@ func _physics_process(delta: float) -> void:
 			k.tracker.update(delta, k.track_index)
 		if data.pad_at(kp) != null:
 			k.model.apply_boost(PAD_BOOST_TIME, 1)
+		# fell in the water: Lakitu fishes the kart out and sets it down on the road
+		if not k.is_rescued() and data.in_water(kp, k.track_index):
+			k.start_rescue(data.rescue_point(k.track_index), data.heading_at(k.track_index))
+			if k == kart:
+				audio.play("splash")
 		var frac: float = (kp - data.points[k.track_index]).dot(data.tangents[k.track_index]) / data.spacing
 		progresses.append(RaceRanking.progress(k.tracker.lap, k.track_index, data.count, frac))
 		finish_times.append(k.tracker.race_time if k.tracker.is_finished else -1.0)
@@ -253,6 +266,7 @@ func _physics_process(delta: float) -> void:
 	if banner != track.banner_text:
 		track.set_banner(banner)
 	audio.update_audio(delta, race_start)
+	lakitu.update_lakitu(delta, race_start.remaining, race_start.started, race_start.since_go)
 	_update_time_trial(delta)
 	if tracker.is_finished:
 		if not finish_played:
