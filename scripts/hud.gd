@@ -112,11 +112,12 @@ func _make_label(h_align: HorizontalAlignment, v_align: VerticalAlignment, inset
 	add_child(l)
 	return l
 
-## Corner minimap of the track centerline; call update_minimap each frame with kart positions/colours.
-func setup_minimap(points: PackedVector3Array) -> void:
+## Corner minimap of the track centerline (and the railway, if any); call update_minimap each frame
+## with kart positions/colours.
+func setup_minimap(points: PackedVector3Array, rail := PackedVector3Array()) -> void:
 	minimap = Minimap.new()
 	add_child(minimap)
-	minimap.setup(points, Vector2(220, 220))
+	minimap.setup(points, Vector2(220, 220), rail)
 	# pinned to the bottom-left corner, above the state text
 	minimap.anchor_left = 0.0
 	minimap.anchor_right = 0.0

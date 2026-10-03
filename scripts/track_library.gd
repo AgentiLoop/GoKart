@@ -112,10 +112,17 @@ const TRACKS := [
 			Vector2(0, 125),
 		],
 		"width": 16.0,
-		"pads": [[0.1, 0.0], [0.4, 3.0], [0.58, -3.0], [0.86, 0.0]],
+		"pads": [[0.14, 0.0], [0.4, 3.0], [0.58, -3.0], [0.8, 0.0]],
 		"box_rows": [0.05, 0.3, 0.52, 0.76],
 		"hazards": [[0.17, -2.5], [0.46, 2.0], [0.7, -2.0]],
 		"water": [[0.21, 0.28, 1], [0.5, 0.56, -1]],
+		# Kalimari Desert style railway: a loop that crosses the road twice (the opening straight
+		# and the run back to the line); two steam trains circle it (see scripts/train.gd)
+		"rail": [
+			Vector2(-30, -40), Vector2(0, -40), Vector2(50, -50), Vector2(95, 0), Vector2(105, 80),
+			Vector2(80, 150), Vector2(30, 200), Vector2(-10, 205), Vector2(-40, 165), Vector2(-70, 125),
+			Vector2(-65, 70), Vector2(-50, 10),
+		],
 		"ground": Color(0.86, 0.7, 0.44),
 		"sky_top": Color(0.4, 0.58, 0.9),
 		"sky_horizon": Color(0.98, 0.86, 0.62),

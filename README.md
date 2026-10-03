@@ -10,9 +10,14 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 
 ![Chasing the pack on Green Hills, 4th of 4 on lap 1](assets/screenshots/green-hills-chase.png)
 
-Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the road, drifts and fires items at random).
+![Waiting at the level crossing on Dusty Canyon as the train rolls through](assets/screenshots/dusty-canyon-train.png)
+
+Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the road, drifts and fires items at random) and `tools/train_shot.gd`.
 
 ## Features
+
+
+- **The train** (Mario Kart 64 Kalimari Desert): Dusty Canyon has a railway loop that crosses the road at two level crossings, and two steam trains (locomotive with a smoking chimney and a "64" plate, tender, three coaches) circle it without end. A crossbuck signal before each crossing flashes its red lamps and a bell rings while a train is close or passing; drive into a car and you are **thrown into the air**, spun out and shoved along the train (a Star or Boo goes straight through). CPU karts always stop and wait at a blocked crossing, like MK64's; the walls open where the rails cross and the minimap shows the railway (`scripts/train.gd`, `scripts/railway.gd`, `TrackData` `rail` layout / `crossings`, `Kart.launch`, `AiDriver.wait`)
 
 - **Arcade kart physics** with drifting and mini-turbo boosts (release a drift to boost), off-road slowdown and wall collisions (`scripts/kart_physics.gd`)
 - **Procedural closed-circuit tracks** with meshes, walls and animated boost pads; four tracks — a Mario Kart 64 cup's worth — (Green Hills, Sunset Speedway, Frosty Peaks and the desert course Dusty Canyon with its sweepers, hairpin and oasis) with their own layout, item boxes, hazards and sky/ground colours (`scripts/track_data.gd`, `scripts/track.gd`, `scripts/track_library.gd`)
@@ -31,8 +36,8 @@ Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the roa
 - **Items** from rainbow `?` item boxes with a roulette: mushroom, triple mushrooms (three boosts, "x3" counter on the HUD), golden mushroom (Mario Kart 64 style: unlimited boosts for 7.5 s after the first press, never rolled by the leader), banana, banana bunch (five bananas trailing the kart, dropped one at a time), fake item box (Mario Kart 64 decoy: an upside-down "¿" box dropped behind the kart that spins out whoever drives into it, rolled mostly by the front of the pack), green shell (ricochets), red homing shell, triple shells (three orbiting green shells fired one by one), triple red shells (Mario Kart 64: three red homing shells orbiting the kart, fired one by one and shielding it meanwhile; 2nd place and back only, never the leader), blue spiny shell (hunts the leader along the road and explodes), star, lightning and Boo (Mario Kart 64 ghost: the kart turns see-through and untouchable for 5 s while a little ghost flies to a random rival, takes its item and brings it back; never rolled by the leader) (`scripts/items.gd`, `item_holder.gd`, `item_manager.gd`, `item_projectile.gd`). Getting hit spins the kart out; lightning shrinks and slows every rival (`lightning_bolt.gd`). **Shell blocking** (Mario Kart 64): a banana, fake item box, shell or banana bunch you hold dangles behind the kart and takes the hit from an incoming green or red shell (both are spent, one charge of a bunch), orbiting triple shells shield the kart the same way, and a shell that runs into a banana or fake box lying on the road wipes it out — a white puff and a "block" clink mark it; blue shells fly over everything.
 - **Visual effects**: drift sparks, boost flames, tire trails, speed lines / boost blur, and custom shaders in `shaders/`
 - **Results screen**: after you finish, an autopilot takes over and a standings table with MK64 points appears; Enter restarts, or moves on to the next cup race (`scripts/race_results.gd`)
-- **Procedural audio**: synthesized engine loop (pitch follows speed), tire screech while drifting, countdown beeps, boost / mini-turbo / item / hit / explosion / lightning / star / Boo / splash / burnout sounds and a finish jingle, plus positional 3D engine hum on each AI kart, with no audio files (`scripts/ai_engine_audio.gd`, `scripts/sound_synth.gd`, `scripts/game_audio.gd`)
-- **HUD** with place, lap, item slot and a track minimap (`scripts/hud.gd`, `scripts/minimap.gd`)
+- **Procedural audio**: synthesized engine loop (pitch follows speed), tire screech while drifting, countdown beeps, boost / mini-turbo / item / hit / explosion / lightning / star / Boo / splash / burnout / crossing-bell / train-crash sounds and a finish jingle, plus positional 3D engine hum on each AI kart, with no audio files (`scripts/ai_engine_audio.gd`, `scripts/sound_synth.gd`, `scripts/game_audio.gd`)
+- **HUD** with place, lap, item slot and a track minimap (with the railway on Dusty Canyon) (`scripts/hud.gd`, `scripts/minimap.gd`)
 - **Procedural kart model** with steering front wheels and spinning wheels (`scripts/kart_model.gd`)
 
 ## Controls
@@ -85,6 +90,7 @@ godot --headless --path . -s tools/lakitu_check.gd  # Lakitu flow check (start s
 godot --headless --path . -s tools/battle_check.gd  # Battle flow check (menu -> G G G -> Block Fort -> balloons popped -> bomb kart explodes on the player -> player wins -> Esc)
 godot --headless --path . -s tools/start_check.gd   # Rocket start / false start check (throttle held all countdown -> stall + smoke + burnout sound, window press -> boost; race + battle)
 godot --headless --path . -s tools/block_check.gd   # Shell blocking check (dangling banana stops a red shell, green shell wipes out a road banana, orbiting triple shells stop a shell, triple red shells orbit red and home in one by one)
+godot --headless --path . -s tools/train_check.gd   # Train check on Dusty Canyon (railway + signals built, AI kart waits at a blocked crossing while the lamps flash and the bell rings, then pulls away; the player is thrown into the air by the locomotive -> Esc)
 godot --headless --path . -s tools/battle_smoke.gd -- 1  # headless battle smoke test, every kart on the battle AI (arg = arena index)
 godot --headless --path . -s tools/gp_check.gd    # Grand Prix flow check (menu -> cup race 1 -> results -> race 2 from pole -> rank out 6th -> retry the same race -> Esc)
 godot --headless --path . -s tools/tt_check.gd    # Time Trial flow check (menu -> solo run -> record + ghost saved -> race the ghost -> Esc)
@@ -93,6 +99,7 @@ godot --path . -s tools/tt_shot.gd              # Time Trial with a synthetic gh
 godot --path . -s tools/mirror_shot.gd          # Extra class: mirrored menu preview + race -> /tmp/gokart_mirror_*.png
 godot --path . -s tools/battle_shot.gd -- 1       # Battle: menu, start pads with balloons, a Mini Bomb Kart -> /tmp/gokart_battle_*.png
 godot --path . -s tools/lakitu_shot.gd          # Lakitu: start signal, water edge, rescue, REVERSE sign -> /tmp/gokart_lakitu_*.png
+godot --path . -s tools/train_shot.gd           # Dusty Canyon train: waiting at the crossing, thrown by the locomotive -> /tmp/gokart_train_*.png
 godot --path . -s tools/random_drive.gd -- 1    # random drive, 3 screenshots -> /tmp/gokart_random_*.png (arg = track index, random if omitted)
 ```
 

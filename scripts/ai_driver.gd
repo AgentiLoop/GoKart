@@ -25,6 +25,9 @@ var idx := -1
 var hold_time := 0.0
 var stuck_time := 0.0
 var reverse_time := 0.0
+## Set each tick by the race scene: a level crossing just ahead is blocked by the train, so stop
+## and wait for it to pass (MK64 CPU drivers always do).
+var wait := false
 
 func _init(track_data, lane := 0.0, delay := 1.5) -> void:
 	track = track_data
@@ -41,6 +44,9 @@ func decide(delta: float, pos: Vector3, heading: float, speed: float, controllab
 	var err := wrapf(want - heading, -PI, PI)
 	var steer := clampf(-err * steer_gain, -1.0, 1.0)
 
+	if wait:
+		stuck_time = 0.0   # standing at the crossing is not being stuck
+		return {"throttle": 0.0, "brake": 1.0 if speed > 0.0 else 0.0, "steer": steer, "drift": false}
 	if not controllable or absf(speed) >= STUCK_SPEED:
 		stuck_time = 0.0
 	elif reverse_time <= 0.0:

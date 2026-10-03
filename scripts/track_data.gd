@@ -24,6 +24,9 @@ const DEFAULT_WATER := [[0.13, 0.21, -1], [0.62, 0.69, -1]]
 const WATER_EDGE := 1.2
 ## How far the water stretches out from the road edge.
 const WATER_WIDTH := 18.0
+## Railway level crossing: road samples on each side of the crossing centre whose walls are left
+## open so the rails (and the train) pass through.
+const CROSSING_HALF_GAP := 2
 
 var width := 16.0
 var spacing := 3.0
@@ -43,9 +46,16 @@ var hazard_positions: Array[Vector3] = []
 var water: Array = []
 ## Mario Kart 64 "Extra" (mirror) mode: the whole course is flipped left-to-right.
 var mirrored := false
+## Railway (layout "rail": control points of a closed loop, empty = no railway on this course):
+## the rail samples, the loop length and the level crossings (see _build_rail).
+var rail_control: Array[Vector2] = []
+var rail := PackedVector3Array()
+var rail_length := 0.0
+var crossings: Array = []
 
-## layout (optional) may override "pads", "box_rows" and "hazards" (same formats as the DEFAULT_ constants)
-## and set "mirror": true to flip the course left-to-right (MK64 Extra mode).
+## layout (optional) may override "pads", "box_rows", "hazards" and "water" (same formats as the
+## DEFAULT_ constants), add a "rail" loop (Array of Vector2 control points) and set "mirror": true
+## to flip the course left-to-right (MK64 Extra mode).
 func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout := {}) -> void:
 	control = ctrl
 	width = road_width
@@ -53,12 +63,15 @@ func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout :=
 	box_rows = layout.get("box_rows", DEFAULT_BOX_ROWS)
 	hazard_specs = layout.get("hazards", DEFAULT_HAZARDS)
 	water_specs = layout.get("water", DEFAULT_WATER)
+	for v in layout.get("rail", []):
+		rail_control.append(v)
 	mirrored = layout.get("mirror", false)
 	if mirrored:
 		control = mirror_control(ctrl)
 		pad_specs = mirror_specs(pad_specs)
 		hazard_specs = mirror_specs(hazard_specs)
 		water_specs = mirror_water(water_specs)
+		rail_control = mirror_control(rail_control)
 	_build()
 
 ## Control points flipped left-to-right (x negated); the start line stays on x = 0.
@@ -88,29 +101,38 @@ static func _catmull(p0: Vector2, p1: Vector2, p2: Vector2, p3: Vector2, t: floa
 	var t3 := t2 * t
 	return 0.5 * ((2.0 * p1) + (-p0 + p2) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2 + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3)
 
-func _build() -> void:
-	# dense Catmull-Rom spline through the control points
+## Closed Catmull-Rom loop through ctrl, resampled at (about) uniform arc length `step`.
+## Returns {"points": PackedVector3Array (y = 0), "length": float}.
+static func resample_loop(ctrl: Array[Vector2], step: float) -> Dictionary:
 	var dense: Array[Vector2] = []
-	var n := control.size()
+	var n := ctrl.size()
 	for i in n:
 		for s in 40:
-			dense.append(_catmull(control[(i - 1 + n) % n], control[i], control[(i + 1) % n], control[(i + 2) % n], s / 40.0))
-	# resample at uniform arc length
+			dense.append(_catmull(ctrl[(i - 1 + n) % n], ctrl[i], ctrl[(i + 1) % n], ctrl[(i + 2) % n], s / 40.0))
 	var cum := [0.0]
 	for i in dense.size():
 		cum.append(cum[i] + dense[i].distance_to(dense[(i + 1) % dense.size()]))
-	length = cum[dense.size()]
-	count = int(round(length / spacing))
-	points.resize(count)
+	var total: float = cum[dense.size()]
+	var cnt := int(round(total / step))
+	var pts := PackedVector3Array()
+	pts.resize(cnt)
 	var j := 0
-	for k in count:
-		var target := length * k / count
+	for k in cnt:
+		var target := total * k / cnt
 		while cum[j + 1] < target:
 			j += 1
 		var seg: float = cum[j + 1] - cum[j]
 		var f: float = (target - cum[j]) / seg if seg > 0.0 else 0.0
 		var p: Vector2 = dense[j].lerp(dense[(j + 1) % dense.size()], f)
-		points[k] = Vector3(p.x, 0, p.y)
+		pts[k] = Vector3(p.x, 0, p.y)
+	return {"points": pts, "length": total}
+
+func _build() -> void:
+	# dense Catmull-Rom spline through the control points, resampled at uniform arc length
+	var loop := resample_loop(control, spacing)
+	points = loop.points
+	length = loop.length
+	count = points.size()
 	tangents.resize(count)
 	for k in count:
 		tangents[k] = (points[(k + 1) % count] - points[(k - 1 + count) % count]).normalized()
@@ -134,6 +156,67 @@ func _build() -> void:
 	water.clear()
 	for spec in water_specs:
 		water.append({"start": int(spec[0] * count) % count, "end": int(spec[1] * count) % count, "side": signi(spec[2])})
+	_build_rail()
+
+## Railway (Mario Kart 64 Kalimari Desert): the rail loop is resampled like the road and every
+## stretch where it runs over the road becomes a level crossing. A crossing records the road sample
+## at its centre, the road samples whose walls are left open for the rails, and where along the rail
+## (sample index and metres) the centreline is met.
+func _build_rail() -> void:
+	rail = PackedVector3Array()
+	rail_length = 0.0
+	crossings.clear()
+	if rail_control.is_empty():
+		return
+	var loop := resample_loop(rail_control, spacing)
+	rail = loop.points
+	rail_length = loop.length
+	var n := rail.size()
+	var on_road: Array[bool] = []
+	for i in n:
+		on_road.append(is_on_road(rail[i]))
+	# start scanning from a rail sample off the road so a run is never split at the wrap-around
+	var first := 0
+	while first < n and on_road[first]:
+		first += 1
+	if first >= n:
+		return
+	var i := 0
+	while i < n:
+		var k := (first + i) % n
+		if not on_road[k]:
+			i += 1
+			continue
+		var run: Array[int] = []
+		while i < n and on_road[(first + i) % n]:
+			run.append((first + i) % n)
+			i += 1
+		var centre: int = run[0]
+		var best := INF
+		for r in run:
+			var d := distance_to_center(rail[r])
+			if d < best:
+				best = d
+				centre = r
+		var road_idx := nearest_index(rail[centre])
+		var dir: Vector3 = (rail[(centre + 1) % n] - rail[(centre - 1 + n) % n]).normalized()
+		crossings.append({
+			"road": road_idx,
+			"road_start": posmod(road_idx - CROSSING_HALF_GAP, count),
+			"road_end": posmod(road_idx + CROSSING_HALF_GAP, count),
+			"rail": centre,
+			"s": rail_length * centre / n,
+			"pos": rail[centre],
+			"dir": dir,
+		})
+
+## The level crossing whose open stretch of wall contains road sample i, or null.
+func crossing_at(i: int):
+	var k := posmod(i, count)
+	for c in crossings:
+		if posmod(k - c.road_start, count) <= 2 * CROSSING_HALF_GAP:
+			return c
+	return null
 
 ## The water span (dict) that sample i lies in on `side` (+1 right / -1 left), or null.
 func water_at(i: int, side: int):
@@ -143,9 +226,10 @@ func water_at(i: int, side: int):
 			return w
 	return null
 
-## True when the segment from sample i to i + 1 has a wall on `side`; false along a water span.
+## True when the segment from sample i to i + 1 has a wall on `side`; false along a water span
+## and on both sides where a railway crosses the road.
 func has_wall(i: int, side: int) -> bool:
-	return water_at(i, side) == null
+	return water_at(i, side) == null and crossing_at(i) == null
 
 ## True when pos lies in the water beside sample idx (nearest sample): past the road edge where the
 ## wall is missing, within the span's stretch.

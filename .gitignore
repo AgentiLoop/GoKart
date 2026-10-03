@@ -5,3 +5,4 @@ build/
 .agent/index/
 .agent/plans/
 .agent/toolcache/
+.agent/tool_outcomes.json

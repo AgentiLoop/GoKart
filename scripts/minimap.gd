@@ -4,8 +4,10 @@ extends Control
 const ROAD_COLOR := Color(1, 1, 1, 0.85)
 const OUTLINE_COLOR := Color(0, 0, 0, 0.6)
 const BG_COLOR := Color(0, 0, 0, 0.35)
+const RAIL_COLOR := Color(0.55, 0.55, 0.6, 0.9)   # MK64 shows the railway on the Kalimari Desert map
 
 var map_points := PackedVector2Array()
+var rail_points := PackedVector2Array()
 var map_scale := 1.0
 var map_offset := Vector2.ZERO
 var marker_positions := PackedVector2Array()
@@ -30,10 +32,11 @@ static func fit(points: PackedVector3Array, area: Vector2, pad: float) -> Dictio
 static func to_map(p: Vector3, map_scale_: float, offset: Vector2) -> Vector2:
 	return Vector2(p.x, p.z) * map_scale_ + offset
 
-func setup(points: PackedVector3Array, area: Vector2) -> void:
+## rail (optional): the railway loop, drawn under the road; the map is fitted around both.
+func setup(points: PackedVector3Array, area: Vector2, rail := PackedVector3Array()) -> void:
 	custom_minimum_size = area
 	size = area
-	var f := fit(points, area, 14.0)
+	var f := fit(points + rail, area, 14.0)
 	map_scale = f["scale"]
 	map_offset = f["offset"]
 	map_points.clear()
@@ -41,6 +44,11 @@ func setup(points: PackedVector3Array, area: Vector2) -> void:
 		map_points.append(to_map(p, map_scale, map_offset))
 	if not map_points.is_empty():
 		map_points.append(map_points[0])
+	rail_points.clear()
+	for p in rail:
+		rail_points.append(to_map(p, map_scale, map_offset))
+	if not rail_points.is_empty():
+		rail_points.append(rail_points[0])
 	queue_redraw()
 
 ## positions: world positions (player first); colors: matching marker colours.
@@ -54,6 +62,8 @@ func set_markers(positions: Array, colors: Array) -> void:
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), BG_COLOR)
+	if rail_points.size() > 1:
+		draw_polyline(rail_points, RAIL_COLOR, 2.0, true)
 	if map_points.size() > 1:
 		draw_polyline(map_points, OUTLINE_COLOR, 8.0, true)
 		draw_polyline(map_points, ROAD_COLOR, 4.0, true)

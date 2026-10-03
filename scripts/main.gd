@@ -23,6 +23,8 @@ const GhostKart := preload("res://scripts/ghost_kart.gd")
 const Items := preload("res://scripts/items.gd")
 const KartWeight := preload("res://scripts/kart_weight.gd")
 const Lakitu := preload("res://scripts/lakitu.gd")
+const Train := preload("res://scripts/train.gd")
+const Railway := preload("res://scripts/railway.gd")
 
 ## Seconds after the player crosses the line before the results panel appears.
 const RESULTS_DELAY := 2.0
@@ -74,6 +76,9 @@ var results_shown := false
 var audio
 var finish_played := false
 var lakitu
+## MK64 Kalimari Desert railway: the train model (inactive on courses without a rail) and its node.
+var train
+var railway = null
 ## Time trial only: the run being recorded, the ghost of the best run (if any) and the filed result.
 var recording = null
 var ghost = null
@@ -126,6 +131,11 @@ func _ready() -> void:
 	add_child(track)
 	var data: TrackData = track.data
 	tracker = LapTracker.new(data.count, 8, laps)
+	# MK64 Kalimari Desert: two steam trains circle the railway and cross the road at level crossings
+	train = Train.new(data)
+	if train.active():
+		railway = Railway.new(data, train)
+		add_child(railway)
 
 	var engine: Dictionary = TrackLibrary.engine_info(engine_index)
 	kart = Kart.new()
@@ -190,7 +200,7 @@ func _ready() -> void:
 	add_child(speed_fx)
 	hud = Hud.new()
 	add_child(hud)
-	hud.setup_minimap(data.points)
+	hud.setup_minimap(data.points, data.rail)
 	if time_trial:
 		hud.show_cup(TimeTrial.hud_text(_track_name()))
 	else:
@@ -258,6 +268,8 @@ func _back() -> Vector3:
 func _physics_process(delta: float) -> void:
 	var data: TrackData = track.data
 	race_start.update(delta, Input.is_action_pressed("accelerate"))
+	if railway != null:
+		railway.update_train(delta)
 	var progresses: Array = []
 	var finish_times: Array = []
 	for k in karts:
@@ -273,6 +285,13 @@ func _physics_process(delta: float) -> void:
 			k.start_rescue(data.rescue_point(k.track_index), data.heading_at(k.track_index))
 			if k == kart:
 				audio.play("splash")
+		if train.active():
+			# MK64: CPU karts stop at a crossing while the train is there; anyone it meets is thrown into the air
+			if k.driver != null:
+				k.driver.wait = train.must_wait(k.track_index)
+			var strike: Vector3 = train.hit_dir(kp)
+			if strike != Vector3.ZERO and not k.is_rescued() and k.launch(Train.LAUNCH_SPEED, strike * Train.SHOVE) and k == kart:
+				audio.play("crash")
 		var frac: float = (kp - data.points[k.track_index]).dot(data.tangents[k.track_index]) / data.spacing
 		progresses.append(RaceRanking.progress(k.tracker.lap, k.track_index, data.count, frac))
 		finish_times.append(k.tracker.race_time if k.tracker.is_finished else -1.0)
@@ -286,6 +305,7 @@ func _physics_process(delta: float) -> void:
 	if banner != track.banner_text:
 		track.set_banner(banner)
 	audio.update_audio(delta, race_start)
+	audio.update_crossing(delta, train.active() and train.bell_near(kart.track_index))
 	lakitu.update_lakitu(delta, race_start.remaining, race_start.started, race_start.since_go)
 	_update_time_trial(delta)
 	if tracker.is_finished:

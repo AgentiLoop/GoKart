@@ -21,6 +21,9 @@ var last_count := 4
 var was_rolling := false
 var last_projectiles := 0
 var played: Array = []       # names of the effects triggered so far (for tests)
+## Level-crossing bell: rings every BELL_PERIOD while the player is near a blocked crossing.
+const BELL_PERIOD := 0.55
+var bell_timer := 0.0
 
 func _ready() -> void:
 	for name in SoundSynth.effect_library():
@@ -112,3 +115,14 @@ func update_audio(delta: float, race_start) -> void:
 
 func play_finish() -> void:
 	play("finish")
+
+## MK64 railway crossing: the bell rings steadily while `ringing` (a train is at or near the crossing
+## the player is approaching); the first ring comes at once.
+func update_crossing(delta: float, ringing: bool) -> void:
+	if not ringing:
+		bell_timer = 0.0
+		return
+	bell_timer -= delta
+	if bell_timer <= 0.0:
+		bell_timer = BELL_PERIOD
+		play("bell", -8.0)

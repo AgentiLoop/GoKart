@@ -42,9 +42,23 @@ var rescue_from := Vector3.ZERO
 var rescue_to := Vector3.ZERO
 var rescue_heading := 0.0
 var rescues := 0              # number of times Lakitu fished this kart out
+## Upward speed applied on the next physics frame (hit by the train); 0 = none pending.
+var hop := 0.0
+var launches := 0             # number of times this kart was thrown into the air (for checks/tests)
 
 func is_rescued() -> bool:
 	return rescue_time >= 0.0
+
+## Run over by the train (MK64 Kalimari Desert): the kart spins out, is thrown `up` m/s into the air
+## and shoved along `shove`. Returns false (nothing happens) when the kart is already spinning,
+## still immune, a star or a Boo ghost — a Star drives straight through the train like in MK64.
+func launch(up: float, shove: Vector3) -> bool:
+	if not model.spin_out():
+		return false
+	hop = up
+	push += shove
+	launches += 1
+	return true
 
 ## Lakitu hooks the kart: it stops dead, is lifted, carried over `to` and set down facing `to_heading`.
 func start_rescue(to: Vector3, to_heading: float) -> void:
@@ -143,7 +157,11 @@ func _physics_process(delta: float) -> void:
 	push = push.move_toward(Vector3.ZERO, KartWeight.PUSH_DECAY * delta)
 	velocity.x = forward.x * model.speed + push.x
 	velocity.z = forward.z * model.speed + push.z
-	velocity.y = 0.0 if is_on_floor() else velocity.y - gravity * delta
+	if hop > 0.0:
+		velocity.y = hop
+		hop = 0.0
+	else:
+		velocity.y = 0.0 if is_on_floor() else velocity.y - gravity * delta
 	move_and_slide()
 	var kart_hit := false
 	for i in get_slide_collision_count():
