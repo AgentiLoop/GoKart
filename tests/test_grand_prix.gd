@@ -159,3 +159,27 @@ func test_menu_mode_keys_and_cup_order() -> void:
 	runner.check(m.mode == Menu.MODE_SINGLE)
 	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.weight_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
 		n.free()
+
+func test_mk64_cup_has_four_courses() -> void:
+	## Mario Kart 64 cups are four courses long; the library's cup runs every course once.
+	var L = load("res://scripts/track_library.gd")
+	runner.check(L.count() == 4, "four courses: %d" % L.count())
+	runner.check(L.info(3).name == "Dusty Canyon" and "desert" in L.info(3).blurb, L.info(3).name)
+	var order: Array = Menu.cup_order(0, L.count())
+	runner.check(order == [0, 1, 2, 3], str(order))
+	runner.check(Menu.cup_order(3, L.count()) == [3, 0, 1, 2], "the cup starts on the selected course and wraps")
+	runner.check("4 races" in Menu.mode_text(Menu.MODE_GP, L.count()))
+	GrandPrix.start(order, 8)
+	runner.check(GrandPrix.race_label() == "RACE 1 / 4", GrandPrix.race_label())
+	for i in 3:
+		runner.check(GrandPrix.advance(), "race %d -> %d" % [i + 1, i + 2])
+	runner.check(GrandPrix.is_last_race() and GrandPrix.current_track() == 3 and GrandPrix.race_label() == "RACE 4 / 4")
+	runner.check(not GrandPrix.advance(), "no fifth race")
+	GrandPrix.stop()
+	# the desert course is a distinct, drivable circuit with its own theme
+	var d = L.make_data(3)
+	runner.check(d.length > 900.0 and d.length < 1200.0, "lap length %.0f m" % d.length)
+	runner.check(d.water.size() == 2, "an oasis on each side: %d spans" % d.water.size())
+	runner.check(L.info(3).ground != L.info(1).ground and L.info(3).sky_horizon != L.info(1).sky_horizon, "its own desert palette")
+	for i in 3:
+		runner.check(L.info(i).control != L.info(3).control, "layout differs from course %d" % i)

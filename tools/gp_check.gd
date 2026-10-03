@@ -47,8 +47,8 @@ func _process(_d: float) -> bool:
 		frames = 0
 	elif stage == 2 and frames > 10:
 		_check(cs.name == "Main", "race scene loaded: " + cs.name)
-		_check(gp.active and gp.race_index == 0 and gp.order == [0, 1, 2], "cup started on track 0: %s" % str(gp.order))
-		_check(cs.hud.cup_label.text == "RACE 1 / 3", "HUD cup label: " + cs.hud.cup_label.text)
+		_check(gp.active and gp.race_index == 0 and gp.order == [0, 1, 2, 3], "cup started on track 0: %s" % str(gp.order))
+		_check(cs.hud.cup_label.text == "RACE 1 / 4", "HUD cup label: " + cs.hud.cup_label.text)
 		var back_idx: int = cs.track.data.count - 10
 		_check(cs.kart.track_index == back_idx and cs.karts[1].track_index == back_idx + 9, "first race: player on the back row (8th), BLUE on pole")
 		# force the player over the line in 1st
@@ -60,7 +60,7 @@ func _process(_d: float) -> bool:
 	elif stage == 3 and (cs.results_shown or Time.get_ticks_msec() - t0 > 6000):
 		_check(cs.results_shown, "results shown after the delay")
 		var txt: String = cs.hud.results_label.text
-		_check("CUP STANDINGS" in txt and "RACE 1 / 3" in txt, "results carry the cup standings")
+		_check("CUP STANDINGS" in txt and "RACE 1 / 4" in txt, "results carry the cup standings")
 		_check("next race" in txt, "prompt for the next race")
 		_check(gp.totals[0] == 9, "player got 9 points: %s" % str(gp.totals))
 		_check(gp.grid.size() == 8 and gp.grid[0] == 0 and not gp.retry, "the winner takes pole in the next grid: %s" % str(gp.grid))
@@ -72,7 +72,7 @@ func _process(_d: float) -> bool:
 		_check(gp.active and gp.race_index == 1 and lib.selected == 1, "cup moved to track 1 (race_index %d, selected %d)" % [gp.race_index, lib.selected])
 		_check(cs.track.data.count == lib.make_data(1).count, "race 2 uses track 1 geometry")
 		_check(gp.totals[0] == 9, "points carried over: %s" % str(gp.totals))
-		_check(cs.hud.cup_label.text == "RACE 2 / 3", "HUD cup label: " + cs.hud.cup_label.text)
+		_check(cs.hud.cup_label.text == "RACE 2 / 4", "HUD cup label: " + cs.hud.cup_label.text)
 		# MK64 grid rule: the player won race 1, so it starts race 2 from pole
 		var data = cs.track.data
 		var back_idx: int = data.count - 10
@@ -111,7 +111,7 @@ func _process(_d: float) -> bool:
 	elif stage == 6 and frames > 10:
 		_check(cs.name == "Main", "retry scene loaded: " + cs.name)
 		_check(gp.active and gp.race_index == 1 and lib.selected == 1 and not gp.retry and gp.retries == 1, "same race again (race_index %d, retries %d)" % [gp.race_index, gp.retries])
-		_check(cs.hud.cup_label.text == "RACE 2 / 3  RETRY", "HUD cup label: " + cs.hud.cup_label.text)
+		_check(cs.hud.cup_label.text == "RACE 2 / 4  RETRY", "HUD cup label: " + cs.hud.cup_label.text)
 		_check(gp.totals[0] == 9, "points untouched: %s" % str(gp.totals))
 		_check(cs.kart.track_index == cs.track.data.count - 10 + 9, "retry keeps the grid of the race that counted (player on pole)")
 		_key(KEY_ESCAPE)

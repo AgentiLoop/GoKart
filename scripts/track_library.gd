@@ -101,6 +101,25 @@ const TRACKS := [
 		"sky_top": Color(0.12, 0.15, 0.32),
 		"sky_horizon": Color(0.6, 0.72, 0.9),
 	},
+	{
+		"name": "Dusty Canyon",
+		"blurb": "Sun-baked desert sweepers, a hairpin and an oasis",
+		"control": [
+			Vector2(0, 70), Vector2(0, -70), Vector2(-30, -130), Vector2(-90, -150),
+			Vector2(-150, -130), Vector2(-180, -80), Vector2(-160, -30), Vector2(-110, -10),
+			Vector2(-80, 30), Vector2(-110, 80), Vector2(-170, 100), Vector2(-200, 150),
+			Vector2(-170, 200), Vector2(-110, 205), Vector2(-60, 180), Vector2(-20, 150),
+			Vector2(0, 125),
+		],
+		"width": 16.0,
+		"pads": [[0.1, 0.0], [0.4, 3.0], [0.58, -3.0], [0.86, 0.0]],
+		"box_rows": [0.05, 0.3, 0.52, 0.76],
+		"hazards": [[0.17, -2.5], [0.46, 2.0], [0.7, -2.0]],
+		"water": [[0.21, 0.28, 1], [0.5, 0.56, -1]],
+		"ground": Color(0.86, 0.7, 0.44),
+		"sky_top": Color(0.4, 0.58, 0.9),
+		"sky_horizon": Color(0.98, 0.86, 0.62),
+	},
 ]
 
 static func count() -> int:
