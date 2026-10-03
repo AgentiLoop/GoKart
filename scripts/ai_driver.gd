@@ -83,7 +83,7 @@ func wants_use(delta: float, item: int, gap_ahead: float, gap_behind: float) -> 
 		return false
 	var use := false
 	match item:
-		Items.Type.MUSHROOM:
+		Items.Type.MUSHROOM, Items.Type.TRIPLE_MUSHROOM, Items.Type.GOLDEN_MUSHROOM:
 			use = true
 		Items.Type.SHELL, Items.Type.TRIPLE_SHELL:
 			use = gap_ahead < 50.0 or hold_time > 10.0

@@ -691,3 +691,29 @@ Cycle 3: added Mario Kart 64–style **AI rubber-banding**, committed as 950cccb
 - `scripts/menu.gd`: Z / C step the class, "Class: 150cc  (Z / C)" label in a third column on the laps/AI row (26 px, 266 wide each), hint updated.
 - Tests: `test_mk64_engine_classes` in tests/test_tracks.gd (+ engine_label wired into the menu stubs in test_tracks/test_grand_prix); suite 3646 passed, 0 failed. menu_check.gd now presses Z and verifies 100cc reaches the race (player 26.4 m/s, AI scaled) and the menu remembers it; smoke 7/7 at 150cc and at 50cc (temp copy); gp_check OK.
 - Not seen on screen. Remaining MK64 ideas: mirror mode ("Extra"), time trials with ghost, battle mode, Lakitu rescue, fake item box / golden mushroom / banana bunch.
+## Cycle 4 — 2026-10-03 14:46
+Cycle 4: added Mario Kart 64 **engine classes (50cc / 100cc / 150cc)**, committed as 11a2b35.
+
+**What I did**
+- `scripts/track_library.gd`: `ENGINE_CLASSES` — 50cc (speed ×0.75, accel ×0.8), 100cc (×0.88, ×0.9), 150cc (×1.0, ×1.0); static `engine_class` (default 150cc = the existing tuning), `engine_info()`, `step_engine()`.
+- `scripts/kart_physics.gd`: `apply_engine_class(speed_scale, accel_scale)` scales `max_speed`, `reverse_max_speed`, `acceleration`, `boost_acceleration`.
+- `scripts/main.gd`: the class is applied to the player and all 7 AI karts (before the grid/difficulty speed scaling and the rubber-band base speed), so the whole field slows down or speeds up together like MK64.
+- `scripts/menu.gd`: Z / C step the class; a third "Class: 150cc  (Z / C)" column joins the Laps / AI row; hint text updated.
+- Tests: new `test_mk64_engine_classes` in `tests/test_tracks.gd` (names, order, default, wraps, keys, text, a 50cc kart accelerates slower and tops out at 75 % of 150cc, menu stepping); menu stubs in `test_tracks.gd` / `test_grand_prix.gd` gained `engine_label`. Suite: **3646 passed, 0 failed** (was 3626).
+- Headless checks: `tools/menu_check.gd` extended — presses Z, verifies 100cc reaches the race (player 26.4 m/s, AI scaled below) and the menu remembers it → all PASS; `tools/smoke.gd` 7/7 AI racing at 150cc and at 50cc (temporary copy, removed); `tools/gp_check.gd` OK.
+- README feature bullet + controls row; progress log appended.
+
+**Assumptions**: 150cc kept as default so current balance is unchanged (MK64 starts its cursor on 50cc, but that would slow the default game); class multipliers are my tuning. Not seen on screen.
+
+**Remaining MK64 parity ideas**: mirror mode ("Extra" class), time trials with a ghost, battle mode, Lakitu rescue when far off-road, fake item box / golden mushroom / banana bunch.
+
+**Blockers**: none. No parity folders were given, so nothing was mirrored.
+
+
+## Cycle 5 (session 5) — MK64 triple mushrooms + golden mushroom
+- `scripts/items.gd`: `Type.TRIPLE_MUSHROOM` (weight 2.0) and `Type.GOLDEN_MUSHROOM` (weight 1.0) appended to the enum; `GOLDEN_DURATION` 7.5 s; helpers `is_mushroom()` / `is_triple()`; rank weights: triple mushrooms favour the back of the pack (0.4 + 1.2 f), golden mushroom never for the leader (0 / 2.5 f).
+- `scripts/item_holder.gd`: `golden_time` + `is_golden_active()`; `use()` on a golden mushroom starts the clock on the first press and keeps the item in the slot (every press boosts), `update()` drops it when the clock runs out; triple mushrooms share the triple-shell charge logic; `clear()` also kills an active golden.
+- `scripts/item_manager.gd` / `scripts/ai_driver.gd`: the two new items boost like a mushroom; AI fires them as soon as the hold delay passes.
+- `scripts/hud.gd`: `item_text(item, charges, golden_left)` shows "x3" for triple items and "6.5s" for an active golden mushroom; `update_hud` takes `charges` / `golden_left`, `scripts/main.gd` passes them.
+- Tests: `test_mk64_triple_mushrooms`, `test_mk64_golden_mushroom_boosts_repeatedly_then_expires`, `test_mk64_mushroom_items_follow_race_position`, `test_ai_fires_mushroom_items` in tests/test_items.gd; existing roll/count/charges tests updated (10 items, mushroom share 5/22). Suite 4756 passed, 0 failed. smoke 7/7 AI racing with no script errors.
+- Not seen on screen. Remaining MK64 ideas: fake item box, banana bunch, Boo (ghost), mirror mode ("Extra"), time trials with ghost, battle mode, Lakitu rescue.

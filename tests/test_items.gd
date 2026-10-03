@@ -13,15 +13,15 @@ const DT := 1.0 / 60.0
 
 func test_roll_covers_all_items_in_weight_order() -> void:
 	runner.check(Items.roll(0.0) == Items.Type.MUSHROOM)
-	runner.check(Items.roll(0.999) == Items.Type.BLUE_SHELL)
+	runner.check(Items.roll(0.999) == Items.Type.GOLDEN_MUSHROOM)
 	var seen := {}
 	for i in 100:
 		seen[Items.roll(i / 100.0)] = true
 	runner.check(seen.size() == Items.count(), "seen=%s" % seen)
-	# mushroom has weight 5/19
+	# mushroom has weight 5/22
 	var m := 0
-	for i in 1900:
-		if Items.roll(i / 1900.0) == Items.Type.MUSHROOM:
+	for i in 2200:
+		if Items.roll(i / 2200.0) == Items.Type.MUSHROOM:
 			m += 1
 	runner.check(absi(m - 500) <= 2, "mushroom share=%d" % m)
 
@@ -202,7 +202,7 @@ func test_new_item_names_and_roulette_preview() -> void:
 	runner.check(Items.name_of(Items.Type.RED_SHELL) == "RED SHELL")
 	runner.check(Items.name_of(Items.Type.STAR) == "STAR")
 	runner.check(Items.name_of(Items.Type.LIGHTNING) == "LIGHTNING")
-	runner.check(Items.count() == 8)
+	runner.check(Items.count() == 10)
 	var h := ItemHolder.new(5)
 	h.pickup()
 	var seen := {}
@@ -410,7 +410,7 @@ func test_roulette_grants_charges_only_for_triple() -> void:
 		var h := ItemHolder.new(seed_value)
 		h.pickup()
 		h.update(h.roulette_duration + 0.1)
-		if h.held == Items.Type.TRIPLE_SHELL:
+		if Items.is_triple(h.held):
 			seen_triple = true
 			runner.check(h.charges == 3)
 		else:
@@ -658,3 +658,103 @@ func test_item_and_arrow_keys_are_bound() -> void:
 	runner.check(KEY_RIGHT in keys["steer_right"] and KEY_D in keys["steer_right"])
 	runner.check(KEY_ENTER in keys["use_item"] and KEY_E in keys["use_item"] and KEY_CTRL in keys["use_item"])
 	runner.check(KEY_SPACE in keys["drift"] and KEY_SHIFT in keys["drift"])
+
+func test_mk64_triple_mushrooms() -> void:
+	runner.check(Items.name_of(Items.Type.TRIPLE_MUSHROOM) == "TRIPLE MUSHROOMS")
+	runner.check(Items.is_mushroom(Items.Type.MUSHROOM) and Items.is_mushroom(Items.Type.TRIPLE_MUSHROOM) and Items.is_mushroom(Items.Type.GOLDEN_MUSHROOM))
+	runner.check(not Items.is_mushroom(Items.Type.SHELL) and not Items.is_mushroom(Items.Type.NONE))
+	runner.check(Items.is_triple(Items.Type.TRIPLE_MUSHROOM) and Items.is_triple(Items.Type.TRIPLE_SHELL) and not Items.is_triple(Items.Type.MUSHROOM))
+	runner.check(Hud.item_text(Items.Type.TRIPLE_MUSHROOM, 3) == "[ TRIPLE MUSHROOMS x3 ]")
+	runner.check(Hud.item_text(Items.Type.TRIPLE_SHELL, 2) == "[ TRIPLE SHELLS x2 ]")
+	runner.check(Hud.item_text(Items.Type.MUSHROOM, 3) == "[ MUSHROOM ]", "charges only shown for triples")
+	var h := ItemHolder.new(1)
+	h.held = Items.Type.TRIPLE_MUSHROOM
+	h.charges = Items.TRIPLE_CHARGES
+	for left in [2, 1]:
+		runner.check(h.use() == Items.Type.TRIPLE_MUSHROOM)
+		runner.check(h.held == Items.Type.TRIPLE_MUSHROOM and h.charges == left, "charges=%d" % h.charges)
+	runner.check(h.use() == Items.Type.TRIPLE_MUSHROOM)
+	runner.check(h.held == Items.Type.NONE and h.charges == 0, "emptied after third")
+	# the manager boosts the kart on every charge
+	var r = _make_manager(2)
+	var m = r[0]
+	var k = r[1][0]
+	m.holders[0].held = Items.Type.TRIPLE_MUSHROOM
+	m.holders[0].charges = 3
+	for i in 3:
+		k.model.boost_time = 0.0
+		runner.check(m.use_item(0) == Items.Type.TRIPLE_MUSHROOM, "boost %d" % i)
+		runner.check(k.model.is_boosting(), "boosting %d" % i)
+	runner.check(m.holders[0].held == Items.Type.NONE)
+	runner.check(m.use_item(0) == Items.Type.NONE)
+	runner.check(not m.orbits.has(0), "mushrooms do not orbit")
+	_free_manager(r)
+
+func test_mk64_golden_mushroom_boosts_repeatedly_then_expires() -> void:
+	runner.check(Items.name_of(Items.Type.GOLDEN_MUSHROOM) == "GOLDEN MUSHROOM")
+	runner.check(Items.GOLDEN_DURATION > 5.0)
+	var h := ItemHolder.new(1)
+	h.held = Items.Type.GOLDEN_MUSHROOM
+	runner.check(not h.is_golden_active())
+	runner.check(h.use() == Items.Type.GOLDEN_MUSHROOM)
+	runner.check(h.is_golden_active() and h.held == Items.Type.GOLDEN_MUSHROOM, "stays in the slot")
+	runner.check(is_equal_approx(h.golden_time, Items.GOLDEN_DURATION))
+	h.update(1.0)
+	runner.check(h.use() == Items.Type.GOLDEN_MUSHROOM, "second boost")
+	runner.check(absf(h.golden_time - (Items.GOLDEN_DURATION - 1.0)) < 0.001, "re-using does not reset the clock")
+	runner.check(Hud.item_text(Items.Type.GOLDEN_MUSHROOM, 0, h.golden_time) == "[ GOLDEN MUSHROOM 6.5s ]")
+	runner.check(Hud.item_text(Items.Type.GOLDEN_MUSHROOM) == "[ GOLDEN MUSHROOM ]", "no timer before the first use")
+	runner.check(not h.pickup(), "cannot take a box while it is active")
+	for i in int(Items.GOLDEN_DURATION / DT) + 2:
+		h.update(DT)
+	runner.check(not h.is_golden_active())
+	runner.check(h.held == Items.Type.NONE, "gone when the clock runs out")
+	runner.check(h.use() == Items.Type.NONE)
+	runner.check(h.pickup(), "slot free again")
+	# clear() (lightning) also kills an active golden mushroom
+	var h2 := ItemHolder.new(1)
+	h2.held = Items.Type.GOLDEN_MUSHROOM
+	h2.use()
+	h2.clear()
+	runner.check(not h2.is_golden_active() and h2.held == Items.Type.NONE)
+	# manager: every use while active boosts the kart
+	var r = _make_manager(2)
+	var m = r[0]
+	var k = r[1][0]
+	m.holders[0].held = Items.Type.GOLDEN_MUSHROOM
+	var boosts := 0
+	for i in 4:
+		k.model.boost_time = 0.0
+		if m.use_item(0) == Items.Type.GOLDEN_MUSHROOM and k.model.is_boosting():
+			boosts += 1
+		m._physics_process(DT)
+	runner.check(boosts == 4, "boosts=%d" % boosts)
+	runner.check(m.holders[0].held == Items.Type.GOLDEN_MUSHROOM, "still held while the clock runs")
+	_free_manager(r)
+
+func test_mk64_mushroom_items_follow_race_position() -> void:
+	var lead := Items.weights_for(1, 8)
+	var last := Items.weights_for(8, 8)
+	runner.check(lead[Items.Type.GOLDEN_MUSHROOM] == 0.0, "leader never gets a golden mushroom")
+	runner.check(last[Items.Type.GOLDEN_MUSHROOM] > 0.0)
+	runner.check(last[Items.Type.TRIPLE_MUSHROOM] > lead[Items.Type.TRIPLE_MUSHROOM])
+	for i in 1000:
+		runner.check(Items.roll(i / 1000.0, 1, 8) != Items.Type.GOLDEN_MUSHROOM, "leader rolled golden")
+	var seen := {}
+	for seed_value in range(1, 300):
+		var h := ItemHolder.new(seed_value)
+		h.pickup(8, 8)
+		h.update(h.roulette_duration + 0.1)
+		seen[h.held] = true
+		if h.held == Items.Type.TRIPLE_MUSHROOM:
+			runner.check(h.charges == 3, "triple mushrooms come with 3 charges")
+		elif h.held == Items.Type.GOLDEN_MUSHROOM:
+			runner.check(h.charges == 0 and not h.is_golden_active(), "golden idle until used")
+	runner.check(seen.has(Items.Type.TRIPLE_MUSHROOM) and seen.has(Items.Type.GOLDEN_MUSHROOM), "last place rolls both, seen=%s" % [seen.keys()])
+
+func test_ai_fires_mushroom_items() -> void:
+	var d = load("res://scripts/ai_driver.gd").new(TrackData.new(), 0.0, 0.5)
+	runner.check(not d.wants_use(0.4, Items.Type.TRIPLE_MUSHROOM, INF, INF), "before delay")
+	runner.check(d.wants_use(0.2, Items.Type.TRIPLE_MUSHROOM, INF, INF), "triple mushroom after delay")
+	runner.check(not d.wants_use(0.4, Items.Type.GOLDEN_MUSHROOM, INF, INF), "before delay")
+	runner.check(d.wants_use(0.2, Items.Type.GOLDEN_MUSHROOM, INF, INF), "golden mushroom after delay")

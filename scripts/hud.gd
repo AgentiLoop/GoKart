@@ -22,8 +22,17 @@ static func format_time(t: float) -> String:
 	var total_ms := int(round(t * 1000.0))
 	return "%d:%02d.%03d" % [total_ms / 60000, (total_ms / 1000) % 60, total_ms % 1000]
 
-static func item_text(item: int) -> String:
-	return "" if item == Items.Type.NONE else "[ %s ]" % Items.name_of(item)
+## Held item label; triple items show the charges left ("x3"), a fired golden mushroom
+## its remaining seconds.
+static func item_text(item: int, charges := 0, golden_left := 0.0) -> String:
+	if item == Items.Type.NONE:
+		return ""
+	var extra := ""
+	if Items.is_triple(item) and charges > 0:
+		extra = " x%d" % charges
+	elif item == Items.Type.GOLDEN_MUSHROOM and golden_left > 0.0:
+		extra = " %.1fs" % golden_left
+	return "[ %s%s ]" % [Items.name_of(item), extra]
 
 ## Tells the player how to release a held item (empty when nothing is held).
 static func item_hint_text(item: int) -> String:
@@ -121,9 +130,9 @@ func show_cup(text: String) -> void:
 func show_countdown(text: String) -> void:
 	countdown_label.text = text
 
-func update_hud(tracker, speed: float, boosting: bool, drift_level: int, item := 0, place := "", star := false, shrunk := false) -> void:
+func update_hud(tracker, speed: float, boosting: bool, drift_level: int, item := 0, place := "", star := false, shrunk := false, charges := 0, golden_left := 0.0) -> void:
 	place_label.text = place
-	item_label.text = item_text(item)
+	item_label.text = item_text(item, charges, golden_left)
 	hint_label.text = item_hint_text(item)
 	lap_label.text = lap_text(tracker.lap, tracker.total_laps) if tracker.lap > 0 else "READY"
 	time_label.text = "TIME %s\nLAP  %s" % [format_time(tracker.race_time), format_time(tracker.lap_time)]

@@ -11,7 +11,8 @@ var roulette_time := 0.0
 var roulette_duration := 1.5
 var rank := 0      # race position when the box was hit (0 = unknown), biases the roll
 var racers := 0
-var charges := 0   # uses left of a multi-use item (triple shells)
+var charges := 0   # uses left of a multi-use item (triple shells / triple mushrooms)
+var golden_time := 0.0   # seconds of unlimited boosts left once a golden mushroom is fired
 var rng := RandomNumberGenerator.new()
 
 func _init(seed_value := 0) -> void:
@@ -23,6 +24,10 @@ func _init(seed_value := 0) -> void:
 func is_rolling() -> bool:
 	return roulette_time > 0.0
 
+## A golden mushroom has been fired and is still handing out boosts.
+func is_golden_active() -> bool:
+	return golden_time > 0.0
+
 ## Item box touched. Ignored while holding or rolling. Returns true if a roulette started.
 func pickup(at_rank := 0, field_size := 0) -> bool:
 	if held != Items.Type.NONE or is_rolling():
@@ -33,18 +38,29 @@ func pickup(at_rank := 0, field_size := 0) -> bool:
 	return true
 
 func update(delta: float) -> void:
+	if golden_time > 0.0:
+		golden_time -= delta
+		if golden_time <= 0.0:
+			golden_time = 0.0
+			if held == Items.Type.GOLDEN_MUSHROOM:
+				held = Items.Type.NONE
 	if roulette_time > 0.0:
 		roulette_time -= delta
 		if roulette_time <= 0.0:
 			roulette_time = 0.0
 			held = Items.roll(rng.randf(), rank, racers)
-			charges = Items.TRIPLE_CHARGES if held == Items.Type.TRIPLE_SHELL else 0
+			charges = Items.TRIPLE_CHARGES if Items.is_triple(held) else 0
 			roulette_finished.emit(held)
 
-## Consume the held item (NONE if empty or still rolling).
+## Consume the held item (NONE if empty or still rolling). Triple items spend one charge;
+## a golden mushroom stays in the slot and keeps boosting until GOLDEN_DURATION runs out.
 func use() -> int:
 	var t := held
-	if t == Items.Type.TRIPLE_SHELL and charges > 1:
+	if t == Items.Type.GOLDEN_MUSHROOM:
+		if golden_time <= 0.0:
+			golden_time = Items.GOLDEN_DURATION
+		return t
+	if Items.is_triple(t) and charges > 1:
 		charges -= 1
 		return t
 	held = Items.Type.NONE
@@ -55,6 +71,7 @@ func use() -> int:
 func clear() -> void:
 	held = Items.Type.NONE
 	charges = 0
+	golden_time = 0.0
 	roulette_time = 0.0
 
 ## What the HUD should show: the held item, or a cycling preview while rolling.

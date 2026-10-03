@@ -74,7 +74,7 @@ func use_item(id := 0) -> int:
 	var pos: Vector3 = k.global_position
 	var fwd := Vector3(-sin(k.heading), 0, -cos(k.heading))
 	match t:
-		Items.Type.MUSHROOM:
+		Items.Type.MUSHROOM, Items.Type.TRIPLE_MUSHROOM, Items.Type.GOLDEN_MUSHROOM:
 			k.model.apply_boost(MUSHROOM_BOOST_TIME, 2)
 		Items.Type.BANANA:
 			_add_projectile(ItemProjectile.make_banana(pos - fwd * 2.4 + Vector3(0, 0.3, 0), id))
