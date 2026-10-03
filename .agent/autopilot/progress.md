@@ -939,3 +939,30 @@ Cycle 12: added Mario Kart 64 **Battle mode (Balloon Battle)** — committed as 
 - Tests: `tests/test_start.gd` + `test_false_start_rules`, `test_stall_holds_the_kart_still_then_releases_it`, false-start checks in the early-hold test; `tests/test_effects.gd` `test_false_start_tire_smoke`; `tests/test_audio.gd` library includes "burnout". Suite **6856 passed, 0 failed** (was 6829).
 - Tools: new `tools/start_check.gd` (headless: race with the throttle held all countdown → false start / stalled / no boost / burnout played / no movement / smoke / engine 2.40 pitch / 89 stalled frames / smoke off / drives off; press at ≤ 0.4 s → boost, never stalled; same stall in Block Fort battle) 24/24 PASS; `tools/start_shot.gd` windowed on Metal, no errors, `/tmp/gokart_false_start.png` saved mid-stall (not inspected). `tools/smoke.gd`, `screenshot.gd`, `play_lap.gd`, `random_drive.gd` now press the throttle only once the boost window opens (rocket start) so they don't false-start. smoke 7/7, menu / lakitu / weight / battle / tt / gp / mirror checks all OK.
 - Remaining MK64 ideas: staff ghosts, bananas/fake boxes blocking shells, a visible Lakitu for AI rescues, Double Deck arena, triple red shells, AI false starts on Easy.
+## Cycle 13 — 2026-10-03 17:03
+Cycle 13: added Mario Kart 64's **false start (dud rocket start)** — committed as 525472d.
+
+**What I did**
+- Verified the MK64 rule by web search: pressing the throttle just before the blue light = rocket start; holding it too early = the tires burn out and the kart goes nowhere for a moment.
+- `scripts/race_start.gd`: `STALL_TIME` 1.5 s, pure `stalls_for_press(remaining_at_press, held_at_go)` and `false_start()` — throttle pressed before the 0.8 s boost window and still held at GO is a false start; releasing before GO or never pressing gives nothing (as before); a window press still gives the boost. Removed the unused `_held_from_early` while rewriting the file.
+- `scripts/kart_physics.gd`: `stall(duration)`, `is_stalled()`, `stall_duration/stall_time`, `stall_started/stall_ended` signals; `step()` pins speed and yaw to 0 while stalled.
+- `scripts/kart.gd`: wheels spin at `STALL_WHEEL_SPEED` (24 m/s) while the kart sits still. `scripts/kart_effects.gd`: grey tire-smoke GPUParticles3D per rear wheel (MIX blend, grows and rises) toggled by the stall signals.
+- `scripts/main.gd` and `scripts/battle_main.gd` `_on_go`: false start → `stall(STALL_TIME)` instead of a boost. New "burnout" hiss in `sound_synth.gd`, played by `game_audio.gd` on `stall_started`; the engine pitch revs flat out during the stall.
+- Tests: `test_start.gd` (+2 tests, early-hold test extended), `test_effects.gd` `test_false_start_tire_smoke`, `test_audio.gd` library check includes "burnout". Suite **6856 passed, 0 failed** (was 6829).
+- Tools: new `tools/start_check.gd` (headless: race with the throttle held through the countdown → false start, stalled, no boost, burnout played, no movement, smoke on, engine pitch 2.40, 89 stalled frames, smoke off, drives off; press at ≤ 0.4 s → boost and never stalled; same stall in a Block Fort battle) **24/24 PASS**; `tools/start_shot.gd` windowed on Metal with no errors, `/tmp/gokart_false_start.png` saved mid-stall (not visually inspected). `smoke.gd`, `screenshot.gd`, `play_lap.gd`, `random_drive.gd` now press the throttle only once the boost window opens so they rocket-start instead of stalling. Race smoke 7/7; menu / lakitu / weight / battle / tt / gp / mirror checks all OK. README, progress log and project index (rebuilt, 89 files) updated.
+
+**Assumptions**: stall length 1.5 s (MK64 is "a few seconds"), no on-screen text (MK64 shows none), AI karts never false-start, the burnout sound/smoke look are my own designs; a stall in battle mode works the same as in a race.
+
+**Remaining MK64 parity ideas**: staff ghosts, bananas/fake boxes blocking shells, a visible Lakitu for AI rescues, Double Deck arena, triple red shells, AI false starts on Easy.
+
+**Blockers**: none. No parity folders were given, so nothing was mirrored (folder-wise).
+
+
+## Cycle 14 (session 5) — MK64 shell blocking (dangling items / orbiting shells / road hazards)
+- `scripts/items.gd`: `is_shield(t)` (banana, fake box, green/red shell, banana bunch, triple shells), `is_blockable_shell(t)` (green + red; blue flies over).
+- `scripts/item_projectile.gd`: `TRAIL_BEHIND` 2.2, `SHIELD_RADIUS` 0.9, `ORBIT_RADIUS` 1.5, `ORBIT_SHIELD` 1.9; `destroys(hazard)` (shell vs banana / fake box on the road), `shield_of(held, pos, heading)` → [centre, radius] or [], `blocked_by(shield, kart_id)` (owner grace respected).
+- `scripts/item_manager.gd`: `signal shell_blocked(shell, id, item)` (id -1 = road hazard), `_block_shell` runs after `step` and before kart hits: hazard → both removed; shield → shell spent + `holders[id].use()` (one charge of a bunch / triple); `_puff` white 1.6 m flash (`BlueBlast.build(..., tint)`); trails/orbit now use the shared constants. `blue_blast.gd` `build(at, radius, tint)`.
+- `sound_synth.gd` "block" clink; `game_audio.gd` plays it on `shell_blocked` (quieter for AI blocks).
+- Tests: `test_items.gd` +6 (shield/blockable sets + geometry, pure blocked_by/destroys incl. grace/blue/dead, manager: banana blocks red shell, bunch + triple lose one charge, road banana + shell both vanish + puff, head-on shell still hits), `test_audio.gd` library has "block". Suite 6913 passed, 0 failed (was 6856).
+- Tools: new `tools/block_check.gd` (real race scene after GO, karts parked: A banana blocks AI red shell → sound, puff, slot empty; B player shell wipes a road banana; C orbiting triple shells stop an AI shell → 2 left) 19/19 PASS; smoke 7/7, start/battle/lakitu/gp/tt checks + battle smoke OK. README updated.
+- Remaining MK64 ideas: staff ghosts, a visible Lakitu for AI rescues, Double Deck arena, triple red shells, AI false starts on Easy, AI holding a shield when a red shell is coming.

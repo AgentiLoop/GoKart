@@ -2,3 +2,6 @@
 *.import
 .DS_Store
 build/
+.agent/index/
+.agent/plans/
+.agent/toolcache/

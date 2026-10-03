@@ -53,6 +53,7 @@ func setup(player_kart, item_manager) -> void:
 	kart.model.ghost_started.connect(func(): play("boo"))
 	kart.model.stall_started.connect(func(): play("burnout"))
 	items.kart_hit.connect(_on_kart_hit)
+	items.shell_blocked.connect(func(_s, id, _i): play("block", 0.0 if id == 0 else -6.0))
 	items.item_stolen.connect(_on_item_stolen)
 	items.lightning_struck.connect(func(_u, _v): play("lightning"))
 

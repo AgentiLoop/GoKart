@@ -20,6 +20,10 @@ const BLUE_LOOKAHEAD := 8
 const BLUE_BLAST_RADIUS := 7.0    # karts this close to the impact are also spun out
 const BLUE_HEIGHT := 1.6          # it hovers above the road
 const OWNER_GRACE := 0.6   # seconds before the thrower can be hit by their own item
+const TRAIL_BEHIND := 2.2   # metres behind the kart where a held banana / shell / fake box dangles
+const SHIELD_RADIUS := 0.9  # hit radius of that dangling item
+const ORBIT_RADIUS := 1.5   # triple shells circle the kart at this distance
+const ORBIT_SHIELD := 1.9   # a shell inside this ring is stopped by one of the orbiting shells
 
 var kind := Items.Type.BANANA
 var position := Vector3.ZERO
@@ -177,3 +181,31 @@ func hits(pos: Vector3, kart_radius: float, kart_id: int) -> bool:
 	if kart_id == owner_id and age < OWNER_GRACE:
 		return false
 	return Vector2(pos.x - position.x, pos.z - position.z).length() <= radius + kart_radius
+
+## Mario Kart 64: a green or red shell that runs into a banana or fake item box lying on the
+## road takes it out and is spent itself. True when this shell and `hazard` collide.
+func destroys(hazard) -> bool:
+	if not alive or not hazard.alive or not Items.is_blockable_shell(kind) or not Items.is_dropped(hazard.kind):
+		return false
+	return Vector2(hazard.position.x - position.x, hazard.position.z - position.z).length() <= radius + hazard.radius
+
+## Where the item a kart holds shields it: [centre, radius] — the dangling spot behind
+## the kart for bananas / shells / fake boxes / a banana bunch, the orbit ring for triple
+## shells — or an empty array when `held` is not a shield.
+static func shield_of(held: int, pos: Vector3, heading: float) -> Array:
+	if not Items.is_shield(held):
+		return []
+	if held == Items.Type.TRIPLE_SHELL:
+		return [pos, ORBIT_SHIELD]
+	var fwd := Vector3(-sin(heading), 0, -cos(heading))
+	return [pos - fwd * TRAIL_BEHIND, SHIELD_RADIUS]
+
+## True when this green / red shell is stopped by the shield of kart `kart_id` (see shield_of).
+## A kart's own shell is never caught by its own shield while the owner grace lasts.
+func blocked_by(shield: Array, kart_id: int) -> bool:
+	if shield.is_empty() or not alive or not Items.is_blockable_shell(kind):
+		return false
+	if kart_id == owner_id and age < OWNER_GRACE:
+		return false
+	var c: Vector3 = shield[0]
+	return Vector2(c.x - position.x, c.z - position.z).length() <= radius + shield[1]

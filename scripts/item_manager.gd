@@ -16,8 +16,12 @@ const STAR_HIT_RADIUS := 2.2
 const BUNCH_GAP := 1.0   # metres between the bananas trailing a banana-bunch holder
 const BOO_FLIGHT := 0.7  # seconds the Boo takes to reach its victim (and as long again to come back)
 const BOO_HOVER := Vector3(0, 2.2, 0)   # where the Boo floats relative to a kart
+const BLOCK_PUFF_RADIUS := 1.6   # flash where a shell was stopped by a held item or a road hazard
 
 signal kart_hit(kind: int, id: int)
+## A green / red shell was stopped: by the item kart `id` was holding (`item`, one charge spent),
+## or by a banana / fake box lying on the road (`id` -1, both destroyed).
+signal shell_blocked(shell: int, id: int, item: int)
 signal lightning_struck(user: int, victims: Array)
 ## A Boo came back: victim is -1 and item NONE when nobody had anything to take.
 signal item_stolen(thief: int, victim: int, item: int)
@@ -268,7 +272,7 @@ func _update_orbits() -> void:
 		var n := orbit.get_child_count()
 		for c in n:
 			var a := time * 4.0 + TAU * c / n
-			orbit.get_child(c).position = Vector3(cos(a), 0.0, sin(a)) * 1.5
+			orbit.get_child(c).position = Vector3(cos(a), 0.0, sin(a)) * ItemProjectile.ORBIT_RADIUS
 		orbit.position = karts[id].global_position + Vector3(0, 0.9, 0)
 
 func _make_banana_node() -> Node3D:
@@ -374,7 +378,7 @@ func _update_trails() -> void:
 		var k = karts[id]
 		var fwd := Vector3(-sin(k.heading), 0, -cos(k.heading))
 		var node: Node3D = entry[1]
-		node.position = k.global_position - fwd * 2.2 + Vector3(0, 0.5, 0)
+		node.position = k.global_position - fwd * ItemProjectile.TRAIL_BEHIND + Vector3(0, 0.5, 0)
 		if kind == Items.Type.BANANA_BUNCH:
 			var want: int = holders[id].charges
 			while node.get_child_count() > want:
@@ -387,6 +391,35 @@ func _update_trails() -> void:
 				node.get_child(c).position = -fwd * (BUNCH_GAP * c)
 		elif kind != Items.Type.BANANA:
 			node.rotation.y = time * 12.0 if kind != Items.Type.FAKE_ITEM_BOX else time * 1.6
+## Mario Kart 64 shell blocking: a live green / red shell is spent when it runs into a banana or
+## fake item box lying on the road (the hazard goes too) or into the item a kart is holding
+## behind / around it (one charge of that item is used up). Emits shell_blocked.
+func _block_shell(p, positions: Array, headings: Array) -> void:
+	if not Items.is_blockable_shell(p.kind) or not p.alive:
+		return
+	for q in projectiles:
+		if q != p and p.destroys(q):
+			p.alive = false
+			q.alive = false
+			_remove_projectile(q)
+			_puff(p.position)
+			shell_blocked.emit(p.kind, -1, q.kind)
+			return
+	for id in karts.size():
+		var shield: Array = ItemProjectile.shield_of(holders[id].held, positions[id], headings[id])
+		if p.blocked_by(shield, id):
+			p.alive = false
+			var item: int = holders[id].use()
+			_puff(p.position)
+			shell_blocked.emit(p.kind, id, item)
+			return
+
+## Small white flash where a shell was stopped.
+func _puff(at: Vector3) -> void:
+	var puff := BlueBlast.new()
+	add_child(puff)
+	puff.build(at, BLOCK_PUFF_RADIUS, Color(1.0, 1.0, 0.9))
+	blasts.append(puff)
 
 func _add_projectile(p) -> void:
 	projectiles.append(p)
@@ -457,6 +490,7 @@ func _physics_process(delta: float) -> void:
 		if p.kind == Items.Type.BLUE_SHELL:
 			p.target_pos = positions[p.target_id] if p.target_id >= 0 else null
 		p.step(delta, track)
+		_block_shell(p, positions, headings)
 		for id in karts.size():
 			if not p.hits(positions[id], KART_RADIUS, id):
 				continue

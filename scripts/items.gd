@@ -42,6 +42,16 @@ static func charges_for(t: int) -> int:
 static func is_dropped(t: int) -> bool:
 	return t == Type.BANANA or t == Type.FAKE_ITEM_BOX
 
+## Held items that shield the kart (Mario Kart 64): a banana, fake item box or shell dangling
+## behind the kart, a banana bunch trailing it, or triple shells orbiting it take the hit from
+## an incoming green or red shell — the shell and one of the held items are destroyed.
+static func is_shield(t: int) -> bool:
+	return is_dropped(t) or t == Type.SHELL or t == Type.RED_SHELL or t == Type.BANANA_BUNCH or t == Type.TRIPLE_SHELL
+
+## Shells that a shield or a hazard on the road can stop (blue shells fly over everything).
+static func is_blockable_shell(t: int) -> bool:
+	return t == Type.SHELL or t == Type.RED_SHELL
+
 ## Items that never turn up in a Mario Kart 64 battle: no blue shell (there is no leader to
 ## chase), no lightning, no golden / triple mushrooms.
 const BATTLE_EXCLUDED := [Type.BLUE_SHELL, Type.LIGHTNING, Type.GOLDEN_MUSHROOM, Type.TRIPLE_MUSHROOM]

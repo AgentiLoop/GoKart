@@ -15,7 +15,8 @@ static func radius_at(age_s: float, final_radius: float) -> float:
 	var t := clampf(age_s / LIFETIME, 0.0, 1.0)
 	return lerpf(START_RADIUS, final_radius, 1.0 - (1.0 - t) * (1.0 - t))
 
-func build(at: Vector3, final_radius := 7.0) -> void:
+## `tint` recolours the sphere (default blue; a small white puff marks a blocked shell).
+func build(at: Vector3, final_radius := 7.0, tint := Color(0.3, 0.6, 1.0)) -> void:
 	end_radius = final_radius
 	position = at
 	mesh = SphereMesh.new()
@@ -24,9 +25,9 @@ func build(at: Vector3, final_radius := 7.0) -> void:
 	material = StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.albedo_color = Color(0.3, 0.6, 1.0, 0.9)
+	material.albedo_color = Color(tint.r, tint.g, tint.b, 0.9)
 	material.emission_enabled = true
-	material.emission = Color(0.2, 0.5, 1.0)
+	material.emission = tint * 0.8
 	material.emission_energy_multiplier = 4.0
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh

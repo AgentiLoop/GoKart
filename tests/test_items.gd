@@ -1021,3 +1021,164 @@ func test_hud_shows_boo_state() -> void:
 	runner.check(Hud.state_text(false, 0, false, true) == "SHRUNK!")
 	runner.check(Hud.state_text(false, 3) == "ULTRA MINI-TURBO")
 	runner.check(Hud.state_text(false, 0) == "")
+
+func test_mk64_shield_items_and_blockable_shells() -> void:
+	for t in [Items.Type.BANANA, Items.Type.FAKE_ITEM_BOX, Items.Type.SHELL, Items.Type.RED_SHELL, Items.Type.BANANA_BUNCH, Items.Type.TRIPLE_SHELL]:
+		runner.check(Items.is_shield(t), "shield %d" % t)
+	for t in [Items.Type.NONE, Items.Type.MUSHROOM, Items.Type.STAR, Items.Type.LIGHTNING, Items.Type.BLUE_SHELL, Items.Type.BOO, Items.Type.TRIPLE_MUSHROOM, Items.Type.GOLDEN_MUSHROOM]:
+		runner.check(not Items.is_shield(t), "not a shield %d" % t)
+	runner.check(Items.is_blockable_shell(Items.Type.SHELL) and Items.is_blockable_shell(Items.Type.RED_SHELL))
+	runner.check(not Items.is_blockable_shell(Items.Type.BLUE_SHELL) and not Items.is_blockable_shell(Items.Type.BANANA))
+	# shield geometry: dangling items hang TRAIL_BEHIND metres behind the kart, triple shells ring it
+	var pos := Vector3(10, 0, 10)
+	var heading := 0.0   # facing -Z
+	runner.check(ItemProjectile.shield_of(Items.Type.MUSHROOM, pos, heading).is_empty(), "no shield")
+	var s: Array = ItemProjectile.shield_of(Items.Type.BANANA, pos, heading)
+	runner.check(s.size() == 2 and s[0].distance_to(Vector3(10, 0, 10 + ItemProjectile.TRAIL_BEHIND)) < 0.001 and s[1] == ItemProjectile.SHIELD_RADIUS, "banana shield %s" % [s])
+	var o: Array = ItemProjectile.shield_of(Items.Type.TRIPLE_SHELL, pos, heading)
+	runner.check(o[0] == pos and o[1] == ItemProjectile.ORBIT_SHIELD and o[1] > ItemProjectile.ORBIT_RADIUS, "orbit shield %s" % [o])
+
+func test_shell_blocked_by_dangling_item_and_destroys_road_hazards() -> void:
+	var shield := [Vector3(0, 0, 5), ItemProjectile.SHIELD_RADIUS]
+	var p = ItemProjectile.make_shell(Vector3(0, 0.6, 5.5), 0.0, 1)
+	runner.check(p.blocked_by(shield, 0), "green shell inside the shield is stopped")
+	runner.check(not p.blocked_by([], 0), "no shield")
+	runner.check(not p.blocked_by(shield, 1), "own shell is not caught by the thrower's shield during grace")
+	p.age = ItemProjectile.OWNER_GRACE + 0.1
+	runner.check(p.blocked_by(shield, 1), "after the grace it is")
+	var far = ItemProjectile.make_shell(Vector3(0, 0.6, 9.0), 0.0, 1)
+	runner.check(not far.blocked_by(shield, 0), "out of reach")
+	var red = ItemProjectile.make_red_shell(Vector3(0, 0.6, 5.5), 0.0, 1)
+	runner.check(red.blocked_by(shield, 0), "red shells are stopped too")
+	var blue = ItemProjectile.make_blue_shell(Vector3(0, 1.6, 5.5), 0.0, 1, 0)
+	runner.check(not blue.blocked_by(shield, 0), "blue shells fly over")
+	p.alive = false
+	runner.check(not p.blocked_by(shield, 0), "dead shells do nothing")
+	# hazards on the road
+	var banana = ItemProjectile.make_banana(Vector3(3, 0.3, 3), 0)
+	var shell = ItemProjectile.make_shell(Vector3(3.5, 0.6, 3), 0.0, 1)
+	runner.check(shell.destroys(banana), "shell takes out a banana")
+	runner.check(not banana.destroys(shell), "a banana destroys nothing")
+	runner.check(not shell.destroys(ItemProjectile.make_shell(Vector3(3.5, 0.6, 3), 0.0, 2)), "shells pass each other")
+	runner.check(shell.destroys(ItemProjectile.make_fake_box(Vector3(3.5, 0, 4.0), 0)), "and a fake item box")
+	runner.check(not shell.destroys(ItemProjectile.make_banana(Vector3(8, 0.3, 3), 0)), "too far")
+	banana.alive = false
+	runner.check(not shell.destroys(banana), "already gone")
+
+func test_manager_dangling_banana_blocks_red_shell() -> void:
+	var r = _make_manager(2)
+	var m = r[0]
+	var ks: Array = r[1]
+	_place(r, 0, 6)    # shooter
+	_place(r, 1, 12)   # target 6 samples ahead, holding a banana behind it
+	m.holders[1].held = Items.Type.BANANA
+	m.holders[0].held = Items.Type.RED_SHELL
+	var blocked := []
+	m.shell_blocked.connect(func(s, id, item): blocked.append([s, id, item]))
+	var hits := []
+	m.kart_hit.connect(func(kind, id): hits.append([kind, id]))
+	runner.check(m.use_item(0) == Items.Type.RED_SHELL)
+	var shell = m.projectiles[-1]
+	for i in 240:
+		m._physics_process(DT)
+		if not blocked.is_empty():
+			break
+	runner.check(blocked == [[Items.Type.RED_SHELL, 1, Items.Type.BANANA]], "blocked=%s" % [blocked])
+	runner.check(hits.is_empty(), "the kart was never hit")
+	runner.check(not ks[1].model.is_spinning(), "no spin-out")
+	runner.check(m.holders[1].held == Items.Type.NONE, "the banana is used up")
+	runner.check(not m.projectiles.has(shell), "shell consumed")
+	m._physics_process(DT)
+	runner.check(not m.trails.has(1), "dangling visual gone")
+	_free_manager(r)
+
+func test_manager_bunch_and_triple_shells_lose_one_charge_per_block() -> void:
+	var r = _make_manager(2)
+	var m = r[0]
+	var ks: Array = r[1]
+	_place(r, 0, 6)
+	_place(r, 1, 12)
+	m.holders[1].held = Items.Type.BANANA_BUNCH
+	m.holders[1].charges = 5
+	m.holders[0].held = Items.Type.TRIPLE_SHELL
+	m.holders[0].charges = 3
+	var blocked := []
+	m.shell_blocked.connect(func(s, id, item): blocked.append([s, id, item]))
+	m.use_item(0)
+	for i in 120:
+		m._physics_process(DT)
+		if not blocked.is_empty():
+			break
+	runner.check(blocked == [[Items.Type.SHELL, 1, Items.Type.BANANA_BUNCH]], "blocked=%s" % [blocked])
+	runner.check(m.holders[1].held == Items.Type.BANANA_BUNCH and m.holders[1].charges == 4, "one banana of the bunch spent, charges=%d" % m.holders[1].charges)
+	runner.check(not ks[1].model.is_spinning())
+	# orbiting triple shells shield the kart that holds them from a shell fired at it
+	var r2 = _make_manager(2)
+	var m2 = r2[0]
+	_place(r2, 0, 6)
+	_place(r2, 1, 12)
+	m2.holders[1].held = Items.Type.TRIPLE_SHELL
+	m2.holders[1].charges = 3
+	m2.holders[0].held = Items.Type.SHELL
+	var blocked2 := []
+	m2.shell_blocked.connect(func(s, id, item): blocked2.append([s, id, item]))
+	m2.use_item(0)
+	for i in 120:
+		m2._physics_process(DT)
+		if not blocked2.is_empty():
+			break
+	runner.check(blocked2 == [[Items.Type.SHELL, 1, Items.Type.TRIPLE_SHELL]], "blocked2=%s" % [blocked2])
+	runner.check(m2.holders[1].charges == 2, "one orbiting shell gone, charges=%d" % m2.holders[1].charges)
+	runner.check(not r2[1][1].model.is_spinning())
+	m2._physics_process(DT)
+	runner.check(m2.orbits[1].get_child_count() == 2, "orbit visual follows")
+	_free_manager(r2)
+	_free_manager(r)
+
+func test_manager_shell_hits_road_banana_and_both_vanish() -> void:
+	var r = _make_manager(2)
+	var m = r[0]
+	_place(r, 0, 6)
+	_place(r, 1, 60)   # far away: not involved
+	var fwd := Vector3(-sin(r[1][0].heading), 0, -cos(r[1][0].heading))
+	var banana = ItemProjectile.make_banana(r[1][0].global_position + fwd * 8.0 + Vector3(0, 0.3, 0), 1)
+	m._add_projectile(banana)
+	var n: int = m.projectiles.size()
+	m.holders[0].held = Items.Type.SHELL
+	var blocked := []
+	m.shell_blocked.connect(func(s, id, item): blocked.append([s, id, item]))
+	m.use_item(0)
+	var shell = m.projectiles[-1]
+	for i in 60:
+		m._physics_process(DT)
+		if not blocked.is_empty():
+			break
+	runner.check(blocked == [[Items.Type.SHELL, -1, Items.Type.BANANA]], "blocked=%s" % [blocked])
+	runner.check(not m.projectiles.has(banana) and not m.projectiles.has(shell), "both gone")
+	runner.check(m.projectiles.size() == n - 1, "count=%d" % m.projectiles.size())
+	runner.check(not m.nodes.has(banana) and not m.nodes.has(shell), "visuals removed")
+	runner.check(m.blasts.size() == 1 and m.blasts[0].end_radius == m.BLOCK_PUFF_RADIUS, "white puff where the shell was stopped")
+	_free_manager(r)
+
+func test_shield_does_not_stop_a_shell_hitting_the_kart_head_on() -> void:
+	var r = _make_manager(2)
+	var m = r[0]
+	var ks: Array = r[1]
+	_place(r, 0, 12)
+	_place(r, 1, 6)
+	ks[0].heading += PI   # the shooter faces back down the road at the rival
+	m.holders[1].held = Items.Type.BANANA   # dangles behind the rival, i.e. away from the shooter
+	m.holders[0].held = Items.Type.SHELL
+	var blocked := []
+	m.shell_blocked.connect(func(s, id, item): blocked.append([s, id, item]))
+	var hits := []
+	m.kart_hit.connect(func(kind, id): hits.append([kind, id]))
+	m.use_item(0)
+	for i in 120:
+		m._physics_process(DT)
+		if not hits.is_empty() or not blocked.is_empty():
+			break
+	runner.check(hits == [[Items.Type.SHELL, 1]], "hit from the front, hits=%s blocked=%s" % [hits, blocked])
+	runner.check(blocked.is_empty())
+	runner.check(m.holders[1].held == Items.Type.BANANA, "the banana is still there")
+	_free_manager(r)
