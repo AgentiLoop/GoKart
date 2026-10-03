@@ -28,19 +28,21 @@ const MODE_TT := 2
 const MODE_BATTLE := 3
 const MODE_COUNT := 4
 
-# MK64 palette: gold highlights, cream body text, navy panels with a gold rim, a red logo
-const GOLD := Color(1.0, 0.82, 0.22)
-const GOLD_DIM := Color(0.95, 0.78, 0.35, 0.85)
-const CREAM := Color(0.98, 0.97, 0.92)
-const GREY := Color(0.72, 0.76, 0.86)
-const LOGO_RED := Color(0.9, 0.14, 0.1)
-const LOGO_RIM := Color(1.0, 0.86, 0.3)
-const PANEL_FILL := Color(0.05, 0.07, 0.2, 0.84)
-const PANEL_RIM := Color(1.0, 0.8, 0.25, 0.95)
-const SHADOW := Color(0, 0, 0, 0.55)
+# MK64 palette (shared with the race HUD in UiStyle): gold highlights, cream body text, navy
+# panels with a gold rim, a red logo
+const UiStyle := preload("res://scripts/ui_style.gd")
+const GOLD := UiStyle.GOLD
+const GOLD_DIM := UiStyle.GOLD_DIM
+const CREAM := UiStyle.CREAM
+const GREY := UiStyle.GREY
+const LOGO_RED := UiStyle.LOGO_RED
+const LOGO_RIM := UiStyle.LOGO_RIM
+const PANEL_FILL := UiStyle.PANEL_FILL
+const PANEL_RIM := UiStyle.PANEL_RIM
+const SHADOW := UiStyle.SHADOW
 const PREVIEW_AREA := Vector2(300, 186)   # map window inside the right panel
 ## Rounded fonts in MK64's spirit; Godot falls back to its default font when none is installed.
-const FONT_NAMES := ["Arial Rounded MT Bold", "Avenir Next", "Verdana"]
+const FONT_NAMES := UiStyle.FONT_NAMES
 
 var selected := 0
 var arena_selected := 0
@@ -197,11 +199,7 @@ static func counter_text(i: int, total: int) -> String:
 	return "< %d / %d >" % [i + 1, total]
 
 static func make_font() -> Font:
-	var f := SystemFont.new()
-	f.font_names = FONT_NAMES
-	f.font_weight = 700
-	f.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
-	return f
+	return UiStyle.make_font()
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -323,15 +321,7 @@ func _panel(rect: Rect2, fill: Color, rim: Color, radius: int) -> Panel:
 	var p := Panel.new()
 	p.position = rect.position
 	p.size = rect.size
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = fill
-	sb.border_color = rim
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(radius)
-	sb.shadow_color = Color(0, 0, 0, 0.35)
-	sb.shadow_size = 6
-	sb.shadow_offset = Vector2(0, 3)
-	p.add_theme_stylebox_override("panel", sb)
+	p.add_theme_stylebox_override("panel", UiStyle.panel_style(fill, rim, radius))
 	stage.add_child(p)
 	return p
 
@@ -340,13 +330,7 @@ func _label(pos: Vector2, font_size: int, w: float, col: Color, align := HORIZON
 	l.position = pos
 	l.size = Vector2(w, font_size * 1.4)
 	l.horizontal_alignment = align
-	l.add_theme_font_override("font", font)
-	l.add_theme_font_size_override("font_size", font_size)
-	l.add_theme_color_override("font_color", col)
-	l.add_theme_color_override("font_shadow_color", SHADOW)
-	var off := 3 if font_size >= 30 else 2
-	l.add_theme_constant_override("shadow_offset_x", off)
-	l.add_theme_constant_override("shadow_offset_y", off)
+	UiStyle.style_label(l, font, font_size, col)
 	stage.add_child(l)
 	return l
 
