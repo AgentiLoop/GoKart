@@ -620,3 +620,27 @@ Budget: no time limit, unlimited cycles
 - Menu: G / Tab toggles Single Race / Grand Prix (cup = every track once, starting from the highlighted one); layout shifted up to fit the mode line. HUD shows "RACE n / 3" in a cup. `main.gd`: results in a cup append the standings, Enter loads the next track (or returns to the menu with the trophy after the last), Esc cancels the cup.
 - Tests: `tests/test_grand_prix.gd` (6 tests); suite 3383 passed, 0 failed. `tools/gp_check.gd` headless flow passes (menu -> G -> race 1 -> forced finish -> standings 9 pts -> Enter -> race 2 on track 1 -> Esc clears cup). `tools/menu_check.gd` still passes.
 - Not seen on screen. Remaining MK64 parity ideas: 8 racers, engine classes 50/100/150cc naming, mirror mode, time trials with ghost, battle mode, Lakitu rescue when far off-road, fake item box / golden mushroom / banana bunch, AI rubber-banding.
+## Cycle 1 — 2026-10-03 14:28
+Cycle 1: added a Mario Kart 64–style **Grand Prix cup** and committed it (e903c60).
+
+**What I did**
+- `scripts/grand_prix.gd` (new): static cup state that survives scene changes — track order, race index, per-racer point totals using the MK64 table (9 / 6 / 3 / 1), standings (player wins ties), cup rank, gold/silver/bronze trophy text, and a "CUP STANDINGS (RACE n / 3)" block.
+- `scripts/race_results.gd`: points table switched to MK64's 9/6/3/1 (was 15/12/10/8); `table_text` takes a footer so the cup standings replace the "race again" prompt.
+- `scripts/menu.gd`: G or Tab toggles "Single Race" / "GRAND PRIX – 3 races, cup points"; a cup races every track once starting from the highlighted one. Menu layout shifted up to fit the new mode line; hint updated.
+- `scripts/main.gd`: in a cup the results add the race's points and show the standings; Enter loads the next track (or returns to the menu with the trophy after the last race); Esc cancels the cup.
+- `scripts/hud.gd`: "RACE n / 3" cup label under the timers.
+- Tests: new `tests/test_grand_prix.gd` (6 tests); `test_results.gd`/`test_tracks.gd` updated for the new points and menu label. Suite: **3383 passed, 0 failed**.
+- `tools/gp_check.gd` (new headless flow check) passes: menu → G → cup race 1 → forced finish → results with standings and 9 pts → Enter → race 2 on track 1 with points carried → Esc clears the cup. `tools/menu_check.gd` still passes.
+- README: feature, controls and testing lines added. Progress log updated.
+
+**Assumptions**: cup = all 3 tracks in rotation from the selected one; G/Tab as the mode key; points 9/6/3/1 also apply to single races. Not seen on screen.
+
+**Remaining MK64 parity ideas** (for later cycles): 8 racers on the grid, 50/100/150cc engine-class naming, mirror mode, time trials with a ghost, battle mode, Lakitu rescue when stuck off-road, fake item box / golden mushroom / banana bunch, AI rubber-banding.
+
+**Blockers**: none. No parity folders were given, so nothing was mirrored.
+
+
+## Cycle 2 (session 5) — 8-racer MK64 field
+- `scripts/main.gd`: RACER_COUNT 8, RACER_NAMES (YOU, BLUE, GREEN, PURPLE, YELLOW, ORANGE, PINK, TEAL), 7 AI_SPECS on a two-column, four-row grid (GRID_LANE 2.4, rows 3 samples apart, faster karts in front, player right slot of the back row), 7 AI_START_BOOSTS. `menu.gd` starts cups with RaceMain.RACER_COUNT. `hud.gd` results font 30 -> 24 (8 rows + 8 standings fit 720 px).
+- Tests: `test_mk64_eight_racer_grid` in tests/test_tracks.gd (slots on road / behind the line / no overlap on every track); suite 3528 passed, 0 failed. smoke 7/7 AI racing (all reached lap 3 or late lap 2 in 60 s); gp_check (points [9,6,3,1,0,0,0,0]) and menu_check pass.
+- Not seen on screen. Remaining MK64 ideas: engine classes 50/100/150cc, mirror mode, time trials with ghost, battle mode, Lakitu rescue, fake item box / golden mushroom / banana bunch, AI rubber-banding.

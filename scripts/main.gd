@@ -20,17 +20,26 @@ const GrandPrix := preload("res://scripts/grand_prix.gd")
 
 ## Seconds after the player crosses the line before the results panel appears.
 const RESULTS_DELAY := 2.0
-const RACER_NAMES := ["YOU", "BLUE", "GREEN", "PURPLE"]
+## Mario Kart 64 fields eight racers; the player is racer 0, the rest follow AI_SPECS order.
+const RACER_NAMES := ["YOU", "BLUE", "GREEN", "PURPLE", "YELLOW", "ORANGE", "PINK", "TEAL"]
+const RACER_COUNT := 8
 
 const OFFROAD_SCALE := 0.5
 const PAD_BOOST_TIME := 1.2
 ## Rocket-start boost durations the AI karts get at GO (by AI_SPECS order; 0 = a bad start).
-const AI_START_BOOSTS := [0.9, 0.5, 0.0]
+const AI_START_BOOSTS := [0.9, 0.5, 0.0, 0.7, 0.0, 0.3, 0.6]
+## Half the lane spacing of the two-column MK64 grid.
+const GRID_LANE := 2.4
 ## AI grid: [samples before the player's slot (negative = ahead), lane offset, speed scale, body colour]
+## Two columns, four rows (3 samples = 9 m apart); the player takes the right slot of the back row.
 const AI_SPECS := [
-	[-6, -3.0, 0.97, Color(0.15, 0.3, 0.95)],
-	[-6, 3.0, 0.94, Color(0.15, 0.75, 0.25)],
-	[-3, 0.0, 0.91, Color(0.65, 0.2, 0.85)],
+	[-9, -GRID_LANE, 0.98, Color(0.15, 0.3, 0.95)],    # BLUE   front row
+	[-9, GRID_LANE, 0.96, Color(0.15, 0.75, 0.25)],    # GREEN
+	[-6, -GRID_LANE, 0.95, Color(0.65, 0.2, 0.85)],    # PURPLE
+	[-6, GRID_LANE, 0.94, Color(0.95, 0.85, 0.15)],    # YELLOW
+	[-3, -GRID_LANE, 0.92, Color(0.95, 0.5, 0.1)],     # ORANGE
+	[-3, GRID_LANE, 0.90, Color(0.95, 0.4, 0.7)],      # PINK
+	[0, -GRID_LANE, 0.88, Color(0.1, 0.75, 0.75)],     # TEAL   back row, beside the player
 ]
 
 var kart: CharacterBody3D
@@ -92,9 +101,9 @@ func _ready() -> void:
 	tracker = LapTracker.new(data.count, 8, TrackLibrary.laps)
 
 	kart = Kart.new()
-	# the player starts at the back of the grid, just behind the line, facing along the track
+	# the player starts in the right slot of the back row, just behind the line, facing along the track
 	var start_idx := data.count - 10
-	var start_pos: Vector3 = data.points[start_idx] + Vector3(0, 0.1, 0)
+	var start_pos: Vector3 = data.points[start_idx] + data.right_of(start_idx) * GRID_LANE + Vector3(0, 0.1, 0)
 	kart.position = start_pos
 	kart.heading = data.heading_at(start_idx)
 	kart.tracker = tracker

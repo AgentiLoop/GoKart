@@ -22,7 +22,7 @@ Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the roa
 - **Grand Prix cup** (G on the menu): every track is raced in turn, Mario Kart 64 points (9 / 6 / 3 / 1) add up after each race, the standings follow the results and the cup ends with a gold, silver or bronze trophy (`scripts/grand_prix.gd`)
 - **3-lap races** with ordered checkpoints and live race ranking (`scripts/lap_tracker.gd`, `scripts/race_ranking.gd`)
 - **Start countdown** (3-2-1-GO) with a rocket-start boost for well-timed throttle (`scripts/race_start.gd`)
-- **AI opponents** using pure-pursuit steering, corner speed limiting, stuck recovery and item use (`scripts/ai_driver.gd`)
+- **AI opponents** — a Mario Kart 64 field of 8 racers on a two-column grid (you start at the back) — using pure-pursuit steering, corner speed limiting, stuck recovery and item use (`scripts/ai_driver.gd`, grid in `scripts/main.gd`)
 - **Items** from rainbow `?` item boxes with a roulette: mushroom, banana, green shell (ricochets), red homing shell, triple shells (three orbiting green shells fired one by one), blue spiny shell (hunts the leader along the road and explodes), star and lightning (`scripts/items.gd`, `item_holder.gd`, `item_manager.gd`, `item_projectile.gd`). Getting hit spins the kart out; lightning shrinks and slows every rival (`lightning_bolt.gd`).
 - **Visual effects**: drift sparks, boost flames, tire trails, speed lines / boost blur, and custom shaders in `shaders/`
 - **Results screen**: after you finish, an autopilot takes over and a standings table with MK64 points appears; Enter restarts, or moves on to the next cup race (`scripts/race_results.gd`)

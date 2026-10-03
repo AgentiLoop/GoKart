@@ -51,15 +51,16 @@ func _ready() -> void:
 	place_label = _make_label(HORIZONTAL_ALIGNMENT_RIGHT, VERTICAL_ALIGNMENT_TOP, Vector2(24, 16), 48)
 	countdown_label = _make_label(HORIZONTAL_ALIGNMENT_CENTER, VERTICAL_ALIGNMENT_CENTER, Vector2(0, -110), 160)
 	banner_label = _make_label(HORIZONTAL_ALIGNMENT_CENTER, VERTICAL_ALIGNMENT_CENTER, Vector2(0, -30), 72)
-	results_label = _make_label(HORIZONTAL_ALIGNMENT_LEFT, VERTICAL_ALIGNMENT_CENTER, Vector2(0, -60), 30)
-	# a block sized to its text and centred on screen (lines stay left-aligned in the monospace table)
+	results_label = _make_label(HORIZONTAL_ALIGNMENT_LEFT, VERTICAL_ALIGNMENT_CENTER, Vector2(0, -20), 24)
+	# a block sized to its text and centred on screen (lines stay left-aligned in the monospace table);
+	# 24 px keeps an 8-racer results table plus the cup standings inside a 720 px window
 	results_label.set_anchors_preset(Control.PRESET_CENTER)
 	results_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	results_label.grow_vertical = Control.GROW_DIRECTION_BOTH
 	results_label.offset_left = 0.0
 	results_label.offset_right = 0.0
-	results_label.offset_top = -60.0
-	results_label.offset_bottom = -60.0
+	results_label.offset_top = -20.0
+	results_label.offset_bottom = -20.0
 	results_label.add_theme_font_override("font", _mono_font())
 	results_label.visible = false
 

@@ -5,6 +5,7 @@ extends Control
 
 const TrackLibrary := preload("res://scripts/track_library.gd")
 const GrandPrix := preload("res://scripts/grand_prix.gd")
+const RaceMain := preload("res://scripts/main.gd")
 const Minimap := preload("res://scripts/minimap.gd")
 const RACE_SCENE := "res://scenes/main.tscn"
 
@@ -157,7 +158,7 @@ func start_race() -> void:
 	TrackLibrary.difficulty = difficulty
 	TrackLibrary.laps = laps
 	if grand_prix:
-		GrandPrix.start(cup_order(selected, TrackLibrary.count()), 4)
+		GrandPrix.start(cup_order(selected, TrackLibrary.count()), RaceMain.RACER_COUNT)
 	else:
 		GrandPrix.stop()
 	get_tree().change_scene_to_file(RACE_SCENE)

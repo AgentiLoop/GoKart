@@ -1,6 +1,6 @@
 extends SceneTree
 ## Headless race smoke test: godot --headless --path . -s tools/smoke.gd
-## The player holds the throttle and the pursuit bot steers; 3 AI karts race alongside.
+## The player holds the throttle and the pursuit bot steers; the 7 AI karts of the MK64 field race alongside.
 ## Prints each kart's lap/place periodically and errors out if an AI kart is stuck.
 
 var main: Node

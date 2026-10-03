@@ -193,3 +193,28 @@ func test_ai_difficulty_levels() -> void:
 	runner.check(Menu.difficulty_direction_for_key(KEY_Q) == -1 and Menu.difficulty_direction_for_key(KEY_E) == 1)
 	runner.check(Menu.difficulty_direction_for_key(KEY_A) == 0 and Menu.difficulty_direction_for_key(KEY_ENTER) == 0)
 	runner.check(Menu.difficulty_text(0) == "AI: Easy  (Q / E)")
+
+func test_mk64_eight_racer_grid() -> void:
+	## Mario Kart 64 fields 8 racers on a two-column grid; every slot must sit on the road
+	## behind the line on every track, with no two karts sharing a slot.
+	var Main := load("res://scripts/main.gd")
+	runner.check(Main.RACER_COUNT == 8 and Main.RACER_NAMES.size() == 8, "8 racers")
+	runner.check(Main.AI_SPECS.size() == 7 and Main.AI_START_BOOSTS.size() == 7, "7 AI karts")
+	var seen := {}
+	for n in Main.RACER_NAMES:
+		runner.check(not seen.has(n) and n.length() <= 8, "name %s" % n)
+		seen[n] = true
+	for n in TrackLibrary.count():
+		var t := TrackLibrary.make_data(n)
+		var start_idx := t.count - 10
+		var slots: Array = [t.points[start_idx] + t.right_of(start_idx) * Main.GRID_LANE]
+		for spec in Main.AI_SPECS:
+			var gi: int = start_idx - spec[0]
+			runner.check(gi >= start_idx and gi < t.count, "track %d slot %d is behind the line" % [n, gi])
+			slots.append(t.points[gi] + t.right_of(gi) * spec[1])
+		for i in slots.size():
+			runner.check(t.is_on_road(slots[i]), "track %d grid slot %d on road" % [n, i])
+			for j in range(i + 1, slots.size()):
+				runner.check(slots[i].distance_to(slots[j]) > 3.5, "track %d slots %d/%d overlap" % [n, i, j])
+	for i in range(1, Main.AI_SPECS.size()):
+		runner.check(Main.AI_SPECS[i][2] <= Main.AI_SPECS[i - 1][2], "front rows are the faster karts")
