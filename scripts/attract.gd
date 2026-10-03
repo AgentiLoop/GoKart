@@ -17,8 +17,8 @@ const LANE := 2.4            # half the lane spacing of the two-column grid
 const ROW_GAP := 3           # samples (9 m) between grid rows
 const BACK_ROW := 10         # samples before the line the back row starts at
 const CAM_HOLD := 7.0        # seconds the camera stays on one kart
-const CAM_BACK := 8.0
-const CAM_UP := 3.4
+const CAM_BACK := 7.0
+const CAM_UP := 3.0
 const CAM_LERP := 3.0
 const OFFROAD_SCALE := 0.5
 
@@ -46,7 +46,7 @@ static func next_target(current: int, count: int) -> int:
 	return posmod(current + 1, maxi(count, 1))
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stretch = true
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	viewport = SubViewport.new()
@@ -92,8 +92,8 @@ func show_course(i: int, mirror := false) -> void:
 	cam.current = true
 	cam_target = 0
 	cam_timer = 0.0
-	cam.global_position = chase_pose(karts[0].global_position, karts[0].heading)
-	cam.look_at(karts[0].global_position + Vector3(0, 1.0, 0))
+	# local coordinates: the world node sits at the origin (and may not be in the tree yet)
+	cam.look_at_from_position(chase_pose(karts[0].position, karts[0].heading), karts[0].position + Vector3(0, 1.0, 0))
 
 ## Sky, sun and ground like the race scene, in the course's colours.
 func _build_environment(theme: Dictionary) -> void:

@@ -1163,3 +1163,12 @@ Cycle 19: added **Mario Kart 64 Toad's Turnpike traffic** to Sunset Speedway —
 
 **Blockers**: none for this cycle. No parity folders were given, so nothing was mirrored folder-wise. `screenshot.png` at the repo root (not mine) left alone.
 
+
+## Cycle 3 (menus) — 2026-10-03
+Title screen with a live attract demo, like MK64's title (logo over racing karts):
+- New `scripts/attract.gd` (SubViewportContainer, own 3D world): sky / sun / ground in the course colours, the highlighted `Track`, 4 CPU karts (red, blue, green, yellow) on a two-column grid driven by `AiDriver`, a chase camera (7 m back, 3 m up) that hops to the next kart every 7 s; `show_course(i, mirror)` rebuilds only on a change. No HUD / items / sound.
+- `scripts/menu.gd`: node order bg -> attract -> backdrop -> stage; `select_box` holds every panel/label (hidden on the title); `set_title(on)` / `dismiss_title()`: logo at (240,150) ×1.3 + gold PRESS ENTER sign (40 px) over the full-view demo, then the select screen with the demo dimmed (`Backdrop.dim`: shade alpha 0 -> 0.45 on the title, 0.55 -> 0.9 behind the panels). `static var title_seen` shows the title once per launch; Esc from a race comes back to the select screen. Any key leaves the title and option keys are applied as well.
+- Checks: `tools/menu_check.gd` (+6 checks: title first, D brings up the select screen, demo switches course, all 4 demo karts driving, Esc -> select screen) OK; gp_check / tt_check OK; new `tests/test_attract.gd` (3 tests) — suite 10207 passed, 0 failed.
+- `tools/menu_shot.gd` -> title.png (5 s in) + menu0/menu1; pixel-sampled: sky across the top band, red logo (×1.3), gold PRESS ENTER, road / ground / kart colours in the lower half, 0 black pixels. `assets/screenshots/title.png` (new) + `title-menu.png` (now over the dimmed demo); README updated.
+- Gotcha: `set_anchors_preset(FULL_RECT)` inside `_ready` keeps the (0,0) rect -> viewport 2×2 and nothing rendered; use `set_anchors_and_offsets_preset`. The other /auto's checkpoints (c90d91b, 0140ef8, 75a021d) swept my in-progress attract.gd / menu.gd / probe_png.gd into its commits; finished here.
+Remaining: 3D in-race labels (Lakitu signs, start banner, train plate) still use thick outlines (in-race, out of scope); the demo does not show battle arenas (keeps the last course).

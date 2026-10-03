@@ -7,3 +7,5 @@
 - A test file with a parse error makes the runner's `script.new()` fail and `_initialize` abort silently (no RESULT line, hangs until the alarm). Check the log for `Failed to load script` first.
 - Another Agent! tab may work in this repo concurrently (menu/HUD restyle, auto-checkpoint commits that sweep ALL working-tree changes). Stage only your own files; check `git status` before committing.
 - Headless tools: `tools/*_check.gd` print PASS/FAIL lines and "<NAME> CHECK: OK"; `_process` runs more than once per physics frame, so one-off checks need a `checked` flag rather than `pf == N`.
+- `Control.set_anchors_preset(PRESET_FULL_RECT)` called inside `_ready` (already in a sized parent) keeps the node's current (0,0) rect by adjusting offsets — a SubViewportContainer then renders a 2×2 viewport. Use `set_anchors_and_offsets_preset` there (before add_child either works).
+- Another Agent! session's auto-checkpoint commits sweep in any uncommitted file in the repo, including probes — delete throwaway `tools/probe_*.gd` as soon as they are done.

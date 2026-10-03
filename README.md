@@ -8,7 +8,9 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 | --- | --- | --- | --- |
 | ![Hitting a boost pad on Green Hills](assets/screenshots/green-hills-boost.png) | ![Racing the pack on Sunset Speedway](assets/screenshots/sunset-speedway.png) | ![Chasing 2nd place on Frosty Peaks](assets/screenshots/frosty-peaks.png) | ![Racing through the desert on Dusty Canyon](assets/screenshots/dusty-canyon.png) |
 
-![The title menu: course list, map window and option cells](assets/screenshots/title-menu.png)
+![The title screen: the logo over the attract demo, four CPU karts lapping the course](assets/screenshots/title.png)
+
+![The select screen: course list, map window and option cells over the dimmed demo](assets/screenshots/title-menu.png)
 
 ![Chasing the pack on Green Hills, 4th of 4 on lap 1](assets/screenshots/green-hills-chase.png)
 
@@ -32,7 +34,7 @@ Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the roa
 - **AI difficulty** Easy / Medium / Hard on the title menu (`TrackLibrary.DIFFICULTIES`), with Mario Kart 64–style **rubber-banding**: AI karts that fall behind you get a top-speed bonus and karts far ahead ease off, scaled by difficulty (`AiDriver.rubber_band`)
 - **Engine classes** 50cc / 100cc / 150cc / Extra like Mario Kart 64 (Z / C on the title menu): the class scales every kart's top speed and acceleration, player and AI alike; **Extra** is MK64's mirror mode — 150cc speed on every course flipped left-to-right (the menu preview flips too, pads and hazards swap sides) (`TrackLibrary.ENGINE_CLASSES`, `KartPhysics.apply_engine_class`, `TrackData` `mirror` layout flag)
 - **Weight classes** Light / Medium / Heavy like Mario Kart 64's driver roster (X / V on the title menu): light karts accelerate fastest but get thrown aside, heavy karts have the highest top speed, the slowest pick-up and shove others out of the way; kart-to-kart bumps throw both karts apart along the contact, the lighter one much further and slowed, the heavier one keeping its speed. The 7 AI karts mix all three classes and heavy karts are visibly bigger (`scripts/kart_weight.gd`, `Kart.apply_weight_class`, `Kart._bump`, `Main.AI_SPECS`)
-- **Title menu** laid out like Mario Kart 64's select screens: a slanted red logo with a gold rim, a "SELECT COURSE" banner, the course list on the left with the highlighted row lit in gold, the course map and blurb in a framed window and a row of option cells (laps, CPU, engine, kart, mode) underneath; a rounded system font with soft drop shadows instead of heavy black outlines. A / D or arrows pick the track, W / S the lap count (1/2/3/5/7), Enter races; Esc in a race returns to it (`scripts/menu.gd`)
+- **Title screen** like Mario Kart 64's: the slanted red logo with a gold rim sits over a live **attract demo** — four CPU karts lapping the highlighted course in their own 3D viewport behind the menu, watched by a chase camera that hops from kart to kart — with a blinking PRESS ENTER; any key brings up the **select screen** laid out like MK64's (the demo keeps running, dimmed, behind it): a "SELECT COURSE" banner, the course list on the left with the highlighted row lit in gold, the course map and blurb in a framed window and a row of option cells (laps, CPU, engine, kart, mode) underneath; a rounded system font with soft drop shadows instead of heavy black outlines. A / D or arrows pick the track, W / S the lap count (1/2/3/5/7), Enter races; Esc in a race returns to the select screen (`scripts/menu.gd`, `scripts/attract.gd`)
 - **Grand Prix cup** (G on the menu): all four tracks are raced in turn like an MK64 cup, Mario Kart 64 points (9 / 6 / 3 / 1) add up after each race, the standings follow the results and the cup ends with a gold, silver or bronze trophy. MK64 cup rules: finish **5th or worse and you rank out** — nothing is scored and the same race is run again (unlimited retries, the HUD shows "RACE 2 / 4  RETRY"); and from the second race on **everyone starts where they finished** the last race (win and you take pole, the player starts 8th only in the first race) (`scripts/grand_prix.gd`, `Main.GRID_SLOTS`)
 - **Time Trials** (G again on the menu), Mario Kart 64 style: race alone for 3 laps at 100cc with a triple mushroom and no item boxes; the five best times and the best lap of each track are saved (`user://time_trials.cfg`) and your fastest run comes back as a see-through, untouchable ghost kart that drives the exact same path on the next attempt (`scripts/time_trial.gd`, `scripts/ghost_recording.gd`, `scripts/ghost_kart.gd`)
 - **3-lap races** with ordered checkpoints and live race ranking (`scripts/lap_tracker.gd`, `scripts/race_ranking.gd`)
@@ -90,7 +92,7 @@ godot --path .          # run the game (opens the title menu: scenes/menu.tscn)
 ```sh
 ./run_tests.sh                                  # headless unit tests (tests/)
 godot --headless --path . -s tools/smoke.gd -- 1  # headless race smoke test with AI karts (args = track index 0-3, engine class: `-- 3 3` = Dusty Canyon mirrored)
-godot --headless --path . -s tools/menu_check.gd  # menu -> race -> Esc flow check
+godot --headless --path . -s tools/menu_check.gd  # title -> menu -> race -> Esc flow check (attract demo karts driving)
 godot --headless --path . -s tools/mirror_check.gd  # Extra (mirror) flow check (menu -> C -> mirrored race with 8 karts -> Esc)
 godot --headless --path . -s tools/weight_check.gd  # weight class flow check (menu -> V -> Heavy -> race; a heavy player rams a parked light kart -> Esc)
 godot --headless --path . -s tools/lakitu_check.gd  # Lakitu flow check (start signal lamps -> player dunked in the water -> rescued -> REVERSE sign -> Esc)

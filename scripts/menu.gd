@@ -107,7 +107,7 @@ class Backdrop extends Control:
 		var w := size.x
 		var h := size.y
 		var t := Color(top, lerpf(0.0, 0.55, dim))
-		var b := Color(bottom, lerpf(0.55, 0.9, dim))
+		var b := Color(bottom, lerpf(0.45, 0.9, dim))
 		draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]),
 			PackedColorArray([t, t, b, b]))
 		var stripe := Color(1, 1, 1, 0.035 * dim)
