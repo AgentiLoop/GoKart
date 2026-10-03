@@ -29,6 +29,24 @@ static func difficulty_info(i: int) -> Dictionary:
 static func step_difficulty(current: int, dir: int) -> int:
 	return posmod(current + dir, DIFFICULTIES.size())
 
+## Engine class chosen on the title menu (index into ENGINE_CLASSES; 150cc by default).
+static var engine_class := 2
+
+## Mario Kart 64 engine classes. speed / accel multiply EVERY kart's top speed and acceleration
+## (player and AI alike), so 50cc is a gentle cruise and 150cc the full-speed race.
+const ENGINE_CLASSES := [
+	{"name": "50cc", "speed": 0.75, "accel": 0.8},
+	{"name": "100cc", "speed": 0.88, "accel": 0.9},
+	{"name": "150cc", "speed": 1.0, "accel": 1.0},
+]
+
+static func engine_info(i: int) -> Dictionary:
+	return ENGINE_CLASSES[posmod(i, ENGINE_CLASSES.size())]
+
+## Next/previous engine class (wraps around).
+static func step_engine(current: int, dir: int) -> int:
+	return posmod(current + dir, ENGINE_CLASSES.size())
+
 const TRACKS := [
 	{
 		"name": "Green Hills",

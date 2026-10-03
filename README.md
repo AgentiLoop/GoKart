@@ -18,6 +18,7 @@ Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the roa
 - **Procedural closed-circuit tracks** with meshes, walls and animated boost pads; three tracks (Green Hills, Sunset Speedway, Frosty Peaks) with their own layout, item boxes, hazards and sky/ground colours (`scripts/track_data.gd`, `scripts/track.gd`, `scripts/track_library.gd`)
 - **UI scales with the window** (canvas_items stretch, anchored HUD drawn above the speed effects so it stays sharp); 4x MSAA and steady, shadow-free striped walls
 - **AI difficulty** Easy / Medium / Hard on the title menu (`TrackLibrary.DIFFICULTIES`), with Mario Kart 64–style **rubber-banding**: AI karts that fall behind you get a top-speed bonus and karts far ahead ease off, scaled by difficulty (`AiDriver.rubber_band`)
+- **Engine classes** 50cc / 100cc / 150cc like Mario Kart 64 (Z / C on the title menu): the class scales every kart's top speed and acceleration, player and AI alike (`TrackLibrary.ENGINE_CLASSES`, `KartPhysics.apply_engine_class`)
 - **Title menu** to pick the track (A / D or arrows) and the lap count (W / S, 1/2/3/5/7 laps), Enter to race; Esc in a race returns to it (`scripts/menu.gd`)
 - **Grand Prix cup** (G on the menu): every track is raced in turn, Mario Kart 64 points (9 / 6 / 3 / 1) add up after each race, the standings follow the results and the cup ends with a gold, silver or bronze trophy (`scripts/grand_prix.gd`)
 - **3-lap races** with ordered checkpoints and live race ranking (`scripts/lap_tracker.gd`, `scripts/race_ranking.gd`)
@@ -39,6 +40,7 @@ Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the roa
 | Space or Shift | Drift (release for mini-turbo) |
 | E, Enter or Ctrl | Use the held item (a hint shows under the item name) |
 | Q / E (menu) | AI difficulty: Easy / Medium (default) / Hard |
+| Z / C (menu) | Engine class: 50cc / 100cc / 150cc (default) |
 | G or Tab (menu) | Mode: Single Race / Grand Prix |
 | Enter | Race again or next cup race (on the results screen) / start race (menu) |
 | Esc | Back to the track menu |

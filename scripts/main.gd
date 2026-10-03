@@ -101,7 +101,9 @@ func _ready() -> void:
 	var data: TrackData = track.data
 	tracker = LapTracker.new(data.count, 8, TrackLibrary.laps)
 
+	var engine: Dictionary = TrackLibrary.engine_info(TrackLibrary.engine_class)
 	kart = Kart.new()
+	kart.model.apply_engine_class(engine.speed, engine.accel)
 	# the player starts in the right slot of the back row, just behind the line, facing along the track
 	var start_idx := data.count - 10
 	var start_pos: Vector3 = data.points[start_idx] + data.right_of(start_idx) * GRID_LANE + Vector3(0, 0.1, 0)
@@ -123,6 +125,7 @@ func _ready() -> void:
 		ai.track_index = gi
 		ai.kart_id = karts.size()
 		add_child(ai)
+		ai.model.apply_engine_class(engine.speed, engine.accel)
 		ai.model.max_speed *= spec[2] * TrackLibrary.difficulty_info(TrackLibrary.difficulty).speed
 		ai_base_speed.append(ai.model.max_speed)
 		var engine_sfx := AiEngineAudio.new()

@@ -49,6 +49,14 @@ var shrink_time := 0.0
 func is_boosting() -> bool:
 	return boost_time > 0.0
 
+## Mario Kart 64 engine class: scales this kart's top speed and acceleration (50cc < 100cc < 150cc).
+## Call once, right after creation.
+func apply_engine_class(speed_scale: float, accel_scale: float) -> void:
+	max_speed *= speed_scale
+	reverse_max_speed *= speed_scale
+	acceleration *= accel_scale
+	boost_acceleration *= accel_scale
+
 func is_star() -> bool:
 	return star_time > 0.0
 

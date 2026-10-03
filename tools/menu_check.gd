@@ -42,6 +42,11 @@ func _process(_d: float) -> bool:
 		frames = 0
 	elif stage == 15 and frames > 3:
 		_check(lib.step_laps(3, 1) == 5 and cs.laps == 5, "W raises laps to 5: %d" % cs.laps)
+		_key(KEY_Z)
+		stage = 16
+		frames = 0
+	elif stage == 16 and frames > 3:
+		_check(cs.engine_class == 1 and cs.engine_label.text.contains("100cc"), "Z drops the engine class to 100cc: " + cs.engine_label.text)
 		_key(KEY_ENTER)
 		stage = 2
 		frames = 0
@@ -50,6 +55,8 @@ func _process(_d: float) -> bool:
 		_check(lib.selected == 1, "selected track stored")
 		_check(lib.laps == 5 and cs.tracker.total_laps == 5, "race uses 5 laps")
 		_check(cs.track.data.count == lib.make_data(1).count, "race uses track 1 geometry")
+		_check(lib.engine_class == 1 and is_equal_approx(cs.kart.model.max_speed, 30.0 * lib.engine_info(1).speed), "100cc scales the player's top speed: %f" % cs.kart.model.max_speed)
+		_check(cs.karts[1].model.max_speed < 30.0 * lib.engine_info(1).speed, "100cc scales the AI karts too: %f" % cs.karts[1].model.max_speed)
 		_key(KEY_ESCAPE)
 		stage = 3
 		frames = 0
@@ -57,6 +64,7 @@ func _process(_d: float) -> bool:
 		_check(cs.name == "Menu", "Escape returns to menu")
 		_check(cs.name_label.text == lib.info(1).name, "menu remembers track 1")
 		_check(cs.laps == 5, "menu remembers laps")
+		_check(cs.engine_class == 1, "menu remembers the engine class")
 		print("MENU CHECK: ", "OK" if ok else "FAILED")
 		quit(0 if ok else 1)
 	return false

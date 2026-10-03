@@ -2,6 +2,7 @@ extends Control
 ## Title screen: pick a track with Left/Right (A/D) and press Enter/Space to race.
 ## Selection is stored in TrackLibrary.selected; Esc during a race comes back here.
 ## G / Tab toggles Single Race vs Grand Prix (every track in turn, MK64-style cup points).
+## Z / C step the MK64 engine class (50cc / 100cc / 150cc).
 
 const TrackLibrary := preload("res://scripts/track_library.gd")
 const GrandPrix := preload("res://scripts/grand_prix.gd")
@@ -17,6 +18,8 @@ var laps_label: Label
 var laps := 3
 var difficulty_label: Label
 var difficulty := 1
+var engine_label: Label
+var engine_class := 2
 var mode_label: Label
 var grand_prix := false
 var stage: Control   # fixed 1280x720 layout area, kept centred when the window is wider/taller
@@ -53,6 +56,18 @@ static func difficulty_direction_for_key(keycode: int) -> int:
 static func difficulty_text(i: int) -> String:
 	return "AI: %s  (Q / E)" % TrackLibrary.difficulty_info(i).name
 
+## Key -> engine class step (-1 / +1), 0 for anything else.
+static func engine_direction_for_key(keycode: int) -> int:
+	match keycode:
+		KEY_Z:
+			return -1
+		KEY_C:
+			return 1
+	return 0
+
+static func engine_text(i: int) -> String:
+	return "Class: %s  (Z / C)" % TrackLibrary.engine_info(i).name
+
 static func laps_text(n: int) -> String:
 	return "Laps: %d  (W / S)" % n
 
@@ -83,6 +98,7 @@ func _ready() -> void:
 	selected = TrackLibrary.selected
 	laps = TrackLibrary.laps
 	difficulty = TrackLibrary.difficulty
+	engine_class = TrackLibrary.engine_class
 	bg = ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
@@ -100,14 +116,15 @@ func _ready() -> void:
 	name_label = _label(Vector2(240, 226), 56, 800, Color(1, 1, 1))
 	blurb_label = _label(Vector2(240, 298), 24, 800, Color(0.9, 0.9, 0.9))
 	index_label = _label(Vector2(240, 336), 30, 800, Color(1, 1, 1))
-	laps_label = _label(Vector2(240, 374), 28, 400, Color(1.0, 0.85, 0.15))
-	difficulty_label = _label(Vector2(640, 374), 28, 400, Color(1.0, 0.85, 0.15))
+	laps_label = _label(Vector2(240, 374), 26, 266, Color(1.0, 0.85, 0.15))
+	difficulty_label = _label(Vector2(506, 374), 26, 266, Color(1.0, 0.85, 0.15))
+	engine_label = _label(Vector2(772, 374), 26, 266, Color(1.0, 0.85, 0.15))
 	mode_label = _label(Vector2(240, 412), 28, 800, Color(0.55, 0.9, 1.0))
 	preview = Minimap.new()
 	preview.position = Vector2(500, 452)
 	stage.add_child(preview)
-	var hint := _label(Vector2(90, 662), 22, 1100, Color(1, 1, 1))
-	hint.text = "Arrows / A D: track     Up Down / W S: laps     Q E: AI level     G: mode     Enter: race"
+	var hint := _label(Vector2(40, 662), 20, 1200, Color(1, 1, 1))
+	hint.text = "Arrows / A D: track     Up Down / W S: laps     Q E: AI level     Z C: engine class     G: mode     Enter: race"
 	_refresh()
 
 func _label(pos: Vector2, font_size: int, w: float, col: Color) -> Label:
@@ -129,6 +146,7 @@ func _refresh() -> void:
 	index_label.text = counter_text(selected, TrackLibrary.count())
 	laps_label.text = laps_text(laps)
 	difficulty_label.text = difficulty_text(difficulty)
+	engine_label.text = engine_text(engine_class)
 	mode_label.text = mode_text(grand_prix, TrackLibrary.count())
 	bg.color = info.sky_top.darkened(0.45)
 	preview.setup(TrackLibrary.make_data(selected).points, Vector2(280, 195))
@@ -153,9 +171,15 @@ func toggle_mode() -> void:
 	grand_prix = not grand_prix
 	_refresh()
 
+## Change the engine class (wraps around 50cc / 100cc / 150cc).
+func move_engine(dir: int) -> void:
+	engine_class = TrackLibrary.step_engine(engine_class, dir)
+	_refresh()
+
 func start_race() -> void:
 	TrackLibrary.selected = selected
 	TrackLibrary.difficulty = difficulty
+	TrackLibrary.engine_class = engine_class
 	TrackLibrary.laps = laps
 	if grand_prix:
 		GrandPrix.start(cup_order(selected, TrackLibrary.count()), RaceMain.RACER_COUNT)
@@ -169,10 +193,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	var d := direction_for_key(event.physical_keycode)
 	var ld := lap_direction_for_key(event.physical_keycode)
 	var dd := difficulty_direction_for_key(event.physical_keycode)
+	var ed := engine_direction_for_key(event.physical_keycode)
 	if is_mode_key(event.physical_keycode):
 		toggle_mode()
 	elif dd != 0:
 		move_difficulty(dd)
+	elif ed != 0:
+		move_engine(ed)
 	elif d != 0:
 		move(d)
 	elif ld != 0:

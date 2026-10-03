@@ -131,6 +131,7 @@ func test_lap_options() -> void:
 	m.laps = 3
 	m.laps_label = Label.new()
 	m.difficulty_label = Label.new()
+	m.engine_label = Label.new()
 	m.mode_label = Label.new()
 	m.name_label = Label.new()
 	m.blurb_label = Label.new()
@@ -143,7 +144,7 @@ func test_lap_options() -> void:
 	runner.check(m.difficulty == 2 and m.difficulty_label.text == Menu.difficulty_text(2))
 	m.move_difficulty(1)
 	runner.check(m.difficulty == 0 and m.difficulty_label.text.contains("Easy"), "wraps to Easy")
-	for n in [m.laps_label, m.difficulty_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
+	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
 		n.free()
 	var lt = load("res://scripts/lap_tracker.gd").new(200, 8, 2)
 	runner.check(lt.total_laps == 2)
@@ -223,3 +224,55 @@ func test_mk64_eight_racer_grid() -> void:
 				runner.check(slots[i].distance_to(slots[j]) > 3.5, "track %d slots %d/%d overlap" % [n, i, j])
 	for i in range(1, Main.AI_SPECS.size()):
 		runner.check(Main.AI_SPECS[i][2] <= Main.AI_SPECS[i - 1][2], "front rows are the faster karts")
+
+func test_mk64_engine_classes() -> void:
+	## 50cc / 100cc / 150cc scale every kart's top speed and acceleration; 150cc is the full-speed default.
+	var L := TrackLibrary
+	runner.check(L.ENGINE_CLASSES.size() == 3)
+	runner.check(L.engine_info(0).name == "50cc" and L.engine_info(1).name == "100cc" and L.engine_info(2).name == "150cc")
+	runner.check(L.engine_class == 2, "150cc is the default")
+	runner.check(L.engine_info(0).speed < L.engine_info(1).speed and L.engine_info(1).speed < L.engine_info(2).speed, "faster classes")
+	runner.check(L.engine_info(0).accel < L.engine_info(1).accel and L.engine_info(1).accel < L.engine_info(2).accel, "quicker classes")
+	runner.check(is_equal_approx(L.engine_info(2).speed, 1.0) and is_equal_approx(L.engine_info(2).accel, 1.0), "150cc is the base tuning")
+	runner.check(L.engine_info(0).speed >= 0.7, "50cc is still a race, not a crawl")
+	runner.check(L.step_engine(0, -1) == 2 and L.step_engine(2, 1) == 0 and L.step_engine(1, 1) == 2)
+	runner.check(L.engine_info(-1).name == "150cc" and L.engine_info(3).name == "50cc", "info wraps")
+	runner.check(Menu.engine_direction_for_key(KEY_Z) == -1 and Menu.engine_direction_for_key(KEY_C) == 1)
+	runner.check(Menu.engine_direction_for_key(KEY_Q) == 0 and Menu.engine_direction_for_key(KEY_ENTER) == 0)
+	runner.check(Menu.engine_text(0) == "Class: 50cc  (Z / C)")
+	# a 50cc kart tops out lower and gets there more slowly than a 150cc kart
+	var slow := KartPhysics.new()
+	slow.apply_engine_class(L.engine_info(0).speed, L.engine_info(0).accel)
+	var fast := KartPhysics.new()
+	fast.apply_engine_class(L.engine_info(2).speed, L.engine_info(2).accel)
+	runner.check(is_equal_approx(slow.max_speed, fast.max_speed * L.engine_info(0).speed), "50cc top speed")
+	runner.check(slow.acceleration < fast.acceleration and slow.boost_acceleration < fast.boost_acceleration, "50cc accel")
+	runner.check(slow.reverse_max_speed < fast.reverse_max_speed, "50cc reverse")
+	for i in 30:
+		slow.step(DT, 1.0, 0.0, 0.0, false)
+		fast.step(DT, 1.0, 0.0, 0.0, false)
+	runner.check(slow.speed < fast.speed, "50cc accelerates more slowly: %f vs %f" % [slow.speed, fast.speed])
+	for i in 600:
+		slow.step(DT, 1.0, 0.0, 0.0, false)
+		fast.step(DT, 1.0, 0.0, 0.0, false)
+	runner.check(is_equal_approx(slow.speed, slow.max_speed) and is_equal_approx(fast.speed, fast.max_speed), "both reach their top speed")
+	runner.check(slow.speed < fast.speed * 0.8, "50cc tops out well below 150cc")
+	# the menu steps the class and the title text follows
+	var m = Menu.new()
+	m.laps_label = Label.new()
+	m.difficulty_label = Label.new()
+	m.engine_label = Label.new()
+	m.mode_label = Label.new()
+	m.name_label = Label.new()
+	m.blurb_label = Label.new()
+	m.index_label = Label.new()
+	m.bg = ColorRect.new()
+	m.preview = load("res://scripts/minimap.gd").new()
+	m.engine_class = 2
+	m.move_engine(-1)
+	runner.check(m.engine_class == 1 and m.engine_label.text == Menu.engine_text(1))
+	m.move_engine(1)
+	m.move_engine(1)
+	runner.check(m.engine_class == 0 and m.engine_label.text.contains("50cc"), "wraps to 50cc")
+	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
+		n.free()

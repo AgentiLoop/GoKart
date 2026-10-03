@@ -666,3 +666,28 @@ Cycle 2: GoKart now fields a Mario Kart 64–style **8-racer grid**, committed a
 - `scripts/ai_driver.gd`: static `rubber_band(gap, strength)` (BAND_DEAD 10 m dead zone, linear to full strength at BAND_RANGE 90 m, capped, symmetric: bonus behind the player / penalty ahead). `scripts/track_library.gd`: DIFFICULTIES gain `rubber_band` 0.08 / 0.14 / 0.2. `scripts/main.gd`: `ai_base_speed` per AI kart; every physics frame sets `model.max_speed = base * rubber_band((player_progress - ai_progress) * spacing, band)`.
 - Tests: `test_mk64_rubber_banding` + `test_rubber_banding_keeps_a_slow_ai_in_touch` in tests/test_ai.gd, difficulty test extended in tests/test_tracks.gd; suite 3626 passed, 0 failed. smoke 7/7 AI racing with a tight pack (player 3rd-6th through the run instead of a runaway 1st); gp_check and menu_check pass.
 - Not seen on screen. Remaining MK64 ideas: engine classes 50/100/150cc, mirror mode, time trials with ghost, battle mode, Lakitu rescue, fake item box / golden mushroom / banana bunch.
+## Cycle 3 — 2026-10-03 14:39
+Cycle 3: added Mario Kart 64–style **AI rubber-banding**, committed as 950cccb.
+
+**What I did**
+- `scripts/ai_driver.gd`: new static `rubber_band(gap, strength)` — no change inside a 10 m dead zone (`BAND_DEAD`), then a linear top-speed bonus for AI karts behind the player / penalty for karts ahead, reaching full `strength` at 90 m (`BAND_RANGE`) and capped beyond; strength 0 switches it off.
+- `scripts/track_library.gd`: `DIFFICULTIES` gain `rubber_band` = 0.08 (Easy), 0.14 (Medium), 0.2 (Hard). Easy's full bonus still keeps AI below the player's top speed; Medium/Hard can briefly out-run you when far behind (MK64 feel).
+- `scripts/main.gd`: records each AI kart's base top speed (`ai_base_speed`) and, every physics frame, sets `model.max_speed = base * rubber_band((player_progress − ai_progress) × spacing, band)`.
+- Tests: `test_mk64_rubber_banding` (dead zone, midpoint, caps, monotonic, off switch) and `test_rubber_banding_keeps_a_slow_ai_in_touch` (a 90 %-speed kart drifts > 90 m away unbanded, settles within 90 m banded) in `tests/test_ai.gd`; difficulty test extended in `tests/test_tracks.gd`. Suite: **3626 passed, 0 failed** (was 3528).
+- Headless checks: `tools/smoke.gd` → 7/7 AI racing and the pack now stays tight (player 3rd–6th through the run instead of a runaway 1st); `tools/gp_check.gd` (points [9,6,3,1,0,0,0,0]) and `tools/menu_check.gd` pass.
+- README difficulty line and progress log updated.
+
+**Assumptions**: band strengths and the 10 m / 90 m range are my tuning choices; banding is measured against the player only (not the leader). Not seen on screen.
+
+**Remaining MK64 parity ideas**: engine classes 50/100/150cc, mirror mode, time trials with a ghost, battle mode, Lakitu rescue when far off-road, fake item box / golden mushroom / banana bunch.
+
+**Blockers**: none. No parity folders were given, so nothing was mirrored.
+
+
+## Cycle 4 (session 5) — MK64 engine classes 50cc / 100cc / 150cc
+- `scripts/track_library.gd`: `ENGINE_CLASSES` (50cc speed 0.75 / accel 0.8, 100cc 0.88 / 0.9, 150cc 1.0 / 1.0), static `engine_class` (default 2 = 150cc, the existing tuning), `engine_info()`, `step_engine()`.
+- `scripts/kart_physics.gd`: `apply_engine_class(speed_scale, accel_scale)` scales max_speed, reverse_max_speed, acceleration, boost_acceleration.
+- `scripts/main.gd`: applies the class to the player and every AI kart (before the AI difficulty / grid speed scaling and the rubber-band base speed).
+- `scripts/menu.gd`: Z / C step the class, "Class: 150cc  (Z / C)" label in a third column on the laps/AI row (26 px, 266 wide each), hint updated.
+- Tests: `test_mk64_engine_classes` in tests/test_tracks.gd (+ engine_label wired into the menu stubs in test_tracks/test_grand_prix); suite 3646 passed, 0 failed. menu_check.gd now presses Z and verifies 100cc reaches the race (player 26.4 m/s, AI scaled) and the menu remembers it; smoke 7/7 at 150cc and at 50cc (temp copy); gp_check OK.
+- Not seen on screen. Remaining MK64 ideas: mirror mode ("Extra"), time trials with ghost, battle mode, Lakitu rescue, fake item box / golden mushroom / banana bunch.
