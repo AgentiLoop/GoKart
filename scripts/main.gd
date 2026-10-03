@@ -36,17 +36,26 @@ const PAD_BOOST_TIME := 1.2
 const AI_START_BOOSTS := [0.9, 0.5, 0.0, 0.7, 0.0, 0.3, 0.6]
 ## Half the lane spacing of the two-column MK64 grid.
 const GRID_LANE := 2.4
-## AI grid: [samples before the player's slot (negative = ahead), lane offset, speed scale, body colour, weight class]
-## Two columns, four rows (3 samples = 9 m apart); the player takes the right slot of the back row.
+## The eight grid slots, pole first: [samples ahead of the back row, lane offset]. Two columns,
+## four rows 3 samples (9 m) apart. On the first race AI kart i takes slot i and the player the
+## last slot (8th, as in MK64); later cup races line everyone up where they finished.
+const GRID_SLOTS := [
+	[9, -GRID_LANE], [9, GRID_LANE],
+	[6, -GRID_LANE], [6, GRID_LANE],
+	[3, -GRID_LANE], [3, GRID_LANE],
+	[0, -GRID_LANE], [0, GRID_LANE],
+]
+const PLAYER_SLOT := 7
+## AI karts: [speed scale, body colour, weight class], front row first.
 ## The field mixes MK64 weight classes: three light, two medium and two heavy karts.
 const AI_SPECS := [
-	[-9, -GRID_LANE, 0.98, Color(0.15, 0.3, 0.95), KartWeight.HEAVY],    # BLUE   front row
-	[-9, GRID_LANE, 0.96, Color(0.15, 0.75, 0.25), KartWeight.LIGHT],    # GREEN
-	[-6, -GRID_LANE, 0.95, Color(0.65, 0.2, 0.85), KartWeight.MEDIUM],   # PURPLE
-	[-6, GRID_LANE, 0.94, Color(0.95, 0.85, 0.15), KartWeight.LIGHT],    # YELLOW
-	[-3, -GRID_LANE, 0.92, Color(0.95, 0.5, 0.1), KartWeight.HEAVY],     # ORANGE
-	[-3, GRID_LANE, 0.90, Color(0.95, 0.4, 0.7), KartWeight.LIGHT],      # PINK
-	[0, -GRID_LANE, 0.88, Color(0.1, 0.75, 0.75), KartWeight.MEDIUM],    # TEAL   back row, beside the player
+	[0.98, Color(0.15, 0.3, 0.95), KartWeight.HEAVY],    # BLUE   front row
+	[0.96, Color(0.15, 0.75, 0.25), KartWeight.LIGHT],    # GREEN
+	[0.95, Color(0.65, 0.2, 0.85), KartWeight.MEDIUM],   # PURPLE
+	[0.94, Color(0.95, 0.85, 0.15), KartWeight.LIGHT],    # YELLOW
+	[0.92, Color(0.95, 0.5, 0.1), KartWeight.HEAVY],     # ORANGE
+	[0.90, Color(0.95, 0.4, 0.7), KartWeight.LIGHT],      # PINK
+	[0.88, Color(0.1, 0.75, 0.75), KartWeight.MEDIUM],    # TEAL   back row, beside the player
 ]
 
 var kart: CharacterBody3D
@@ -123,10 +132,13 @@ func _ready() -> void:
 	kart.model.apply_engine_class(engine.speed, engine.accel)
 	# MK64 weight class picked on the menu: light / medium / heavy
 	kart.apply_weight_class(KartWeight.selected)
-	# the player starts in the right slot of the back row, just behind the line, facing along the track
-	# (alone on the front row's centre in a time trial)
-	var start_idx := data.count - 1 if time_trial else data.count - 10
-	var start_pos: Vector3 = data.points[start_idx] + data.right_of(start_idx) * (0.0 if time_trial else GRID_LANE) + Vector3(0, 0.1, 0)
+	# the player starts in the right slot of the back row, just behind the line, facing along the
+	# track — or, from the second cup race on, where it finished the last race (MK64 grid rule);
+	# alone on the front row's centre in a time trial
+	var back_idx := data.count - 10
+	var player_slot: Array = GRID_SLOTS[GrandPrix.grid_slot_for(0, PLAYER_SLOT)]
+	var start_idx := data.count - 1 if time_trial else back_idx + int(player_slot[0])
+	var start_pos: Vector3 = data.points[start_idx] + data.right_of(start_idx) * (0.0 if time_trial else player_slot[1]) + Vector3(0, 0.1, 0)
 	kart.position = start_pos
 	kart.heading = data.heading_at(start_idx)
 	kart.tracker = tracker
@@ -136,18 +148,20 @@ func _ready() -> void:
 	karts.append(kart)
 	for spec in (AI_SPECS if not time_trial else []):
 		var ai := Kart.new()
-		var gi: int = start_idx - spec[0]
-		ai.body_color = spec[3]
-		ai.position = data.points[gi] + data.right_of(gi) * spec[1] + Vector3(0, 0.1, 0)
+		var slot: Array = GRID_SLOTS[GrandPrix.grid_slot_for(karts.size(), karts.size() - 1)]
+		var gi: int = back_idx + int(slot[0])
+		var lane: float = slot[1]
+		ai.body_color = spec[1]
+		ai.position = data.points[gi] + data.right_of(gi) * lane + Vector3(0, 0.1, 0)
 		ai.heading = data.heading_at(gi)
-		ai.driver = AiDriver.new(data, spec[1], 1.0 + 0.7 * karts.size())
+		ai.driver = AiDriver.new(data, lane, 1.0 + 0.7 * karts.size())
 		ai.tracker = LapTracker.new(data.count, 8, laps)
 		ai.track_index = gi
 		ai.kart_id = karts.size()
 		add_child(ai)
 		ai.model.apply_engine_class(engine.speed, engine.accel)
-		ai.apply_weight_class(spec[4])
-		ai.model.max_speed *= spec[2] * TrackLibrary.difficulty_info(TrackLibrary.difficulty).speed
+		ai.apply_weight_class(spec[2])
+		ai.model.max_speed *= spec[0] * TrackLibrary.difficulty_info(TrackLibrary.difficulty).speed
 		ai_base_speed.append(ai.model.max_speed)
 		var engine_sfx := AiEngineAudio.new()
 		engine_sfx.kart = ai
@@ -224,7 +238,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if results_shown and event is InputEventKey and event.pressed and not event.echo \
 			and (event.physical_keycode == KEY_ENTER or event.physical_keycode == KEY_KP_ENTER):
 		if GrandPrix.active:
-			if GrandPrix.advance():
+			if GrandPrix.retry:
+				# MK64: ranked out (5th or worse) — the same race is run again, nothing scored
+				GrandPrix.begin_retry()
+				get_tree().reload_current_scene()
+			elif GrandPrix.advance():
 				# next cup race: the menu's track choice is replaced by the cup order
 				TrackLibrary.selected = GrandPrix.current_track()
 				get_tree().reload_current_scene()
@@ -289,7 +307,7 @@ func _physics_process(delta: float) -> void:
 			if recording != null:
 				hud.show_results(TimeTrial.results_text(_track_name(), tracker.race_time, tracker.lap_times, tt_result))
 			elif GrandPrix.active:
-				GrandPrix.add_race(rows)
+				GrandPrix.add_race(rows, 0)
 				hud.show_results(RaceResults.table_text(rows, 0, GrandPrix.standings_text(names, 0)))
 			else:
 				hud.show_results(RaceResults.table_text(rows, 0))

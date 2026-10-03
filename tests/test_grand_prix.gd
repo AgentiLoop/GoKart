@@ -73,6 +73,69 @@ func test_standings_text() -> void:
 	runner.check(not "race again" in table)
 	GrandPrix.stop()
 
+func test_mk64_rank_out_retries_the_race() -> void:
+	## MK64: 5th or worse scores nothing and the race is run again (unlimited tries).
+	runner.check(GrandPrix.QUALIFY_RANK == 4)
+	runner.check(GrandPrix.qualifies(1) and GrandPrix.qualifies(4))
+	runner.check(not GrandPrix.qualifies(5) and not GrandPrix.qualifies(8) and not GrandPrix.qualifies(0))
+	GrandPrix.start([0, 1, 2], 8)
+	runner.check(not GrandPrix.retry and GrandPrix.retries == 0)
+	var rows := _rows([1, 2, 3, 4, 5, 0, 6, 7])      # player 6th
+	runner.check(GrandPrix.rank_in(rows, 0) == 6 and GrandPrix.rank_in(rows, 1) == 1 and GrandPrix.rank_in(rows, 9) == 0)
+	runner.check(not GrandPrix.add_race(rows, 0), "6th does not count")
+	runner.check(GrandPrix.retry and GrandPrix.last_rank == 6)
+	runner.check(GrandPrix.totals == [0, 0, 0, 0, 0, 0, 0, 0], "no points for anyone: %s" % str(GrandPrix.totals))
+	runner.check(GrandPrix.grid.is_empty(), "the grid is unchanged by a race that did not count")
+	runner.check(GrandPrix.race_index == 0 and GrandPrix.race_label() == "RACE 1 / 3")
+	var names := ["YOU", "BLUE", "GREEN", "PURPLE", "YELLOW", "ORANGE", "PINK", "TEAL"]
+	var txt := GrandPrix.standings_text(names, 0)
+	runner.check("RANK OUT!  6th - finish 4th or better" in txt, txt)
+	runner.check("retry the race" in txt and not "next race" in txt and not "TROPHY" in txt, txt)
+	# Enter: the same race again, flagged on the HUD label
+	GrandPrix.begin_retry()
+	runner.check(not GrandPrix.retry and GrandPrix.retries == 1 and GrandPrix.race_index == 0)
+	runner.check(GrandPrix.race_label() == "RACE 1 / 3  RETRY", GrandPrix.race_label())
+	runner.check("RACE 1 / 3  RETRY" in GrandPrix.standings_text(names, 0))
+	# a second failure on the same race
+	runner.check(not GrandPrix.add_race(_rows([1, 2, 3, 4, 0, 5, 6, 7]), 0) and GrandPrix.retry and GrandPrix.last_rank == 5)
+	GrandPrix.begin_retry()
+	runner.check(GrandPrix.retries == 2)
+	# 4th is enough: points count and the cup moves on
+	runner.check(GrandPrix.add_race(_rows([1, 2, 3, 0, 4, 5, 6, 7]), 0), "4th counts")
+	runner.check(not GrandPrix.retry and GrandPrix.last_rank == 4)
+	runner.check(GrandPrix.totals == [1, 9, 6, 3, 0, 0, 0, 0], str(GrandPrix.totals))
+	runner.check("next race" in GrandPrix.standings_text(names, 0))
+	runner.check(GrandPrix.advance() and GrandPrix.retries == 0 and GrandPrix.race_label() == "RACE 2 / 3")
+	# a rank-out on the last race blocks the trophy
+	GrandPrix.race_index = 2
+	runner.check(not GrandPrix.add_race(_rows([1, 2, 3, 4, 5, 6, 7, 0]), 0))
+	var last := GrandPrix.standings_text(names, 0)
+	runner.check("RANK OUT!  8th" in last and "retry" in last and not "TROPHY" in last, last)
+	GrandPrix.stop()
+	runner.check(not GrandPrix.retry and GrandPrix.retries == 0 and GrandPrix.last_rank == 0 and GrandPrix.grid.is_empty())
+
+func test_mk64_grid_follows_the_last_finish() -> void:
+	## MK64: from the second race on, everyone starts where they finished the last race.
+	var Main := load("res://scripts/main.gd")
+	runner.check(GrandPrix.grid_slot_for(0, 7) == 7 and GrandPrix.grid_slot_for(3, 2) == 2, "defaults with no cup")
+	GrandPrix.start([0, 1, 2], 8)
+	for id in 8:
+		runner.check(GrandPrix.grid_slot_for(id, id) == id, "first race: default slots")
+	GrandPrix.add_race(_rows([3, 0, 7, 1, 2, 4, 5, 6]), 0)
+	runner.check(GrandPrix.grid == [3, 0, 7, 1, 2, 4, 5, 6], str(GrandPrix.grid))
+	runner.check(GrandPrix.grid_slot_for(0, 7) == 1, "player 2nd -> second slot")
+	runner.check(GrandPrix.grid_slot_for(3, 2) == 0, "PURPLE on pole")
+	runner.check(GrandPrix.grid_slot_for(6, 5) == 7, "TEAL at the back")
+	# the slots form the MK64 two-column grid: pole is the front row, the last slot the back row
+	runner.check(Main.GRID_SLOTS[0][0] > Main.GRID_SLOTS[7][0] and Main.GRID_SLOTS[0][1] < 0.0 and Main.GRID_SLOTS[1][1] > 0.0)
+	# a ranked-out retry keeps the grid of the race that counted
+	GrandPrix.advance()
+	GrandPrix.add_race(_rows([1, 2, 3, 4, 5, 6, 7, 0]), 0)
+	runner.check(GrandPrix.grid == [3, 0, 7, 1, 2, 4, 5, 6], "unchanged after a rank-out")
+	GrandPrix.add_race(_rows([0, 1, 2, 3, 4, 5, 6, 7]), 0)
+	runner.check(GrandPrix.grid_slot_for(0, 7) == 0, "the winner takes pole")
+	GrandPrix.stop()
+
 func test_menu_mode_keys_and_cup_order() -> void:
 	runner.check(Menu.is_mode_key(KEY_G) and Menu.is_mode_key(KEY_TAB))
 	runner.check(not Menu.is_mode_key(KEY_ENTER) and not Menu.is_mode_key(KEY_A))

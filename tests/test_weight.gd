@@ -127,8 +127,8 @@ func test_ai_field_mixes_the_weight_classes() -> void:
 	var Main := load("res://scripts/main.gd")
 	var counts := [0, 0, 0]
 	for spec in Main.AI_SPECS:
-		runner.check(spec.size() == 5 and spec[4] >= 0 and spec[4] < KartWeight.count(), "spec has a weight class")
-		counts[spec[4]] += 1
+		runner.check(spec.size() == 3 and spec[2] >= 0 and spec[2] < KartWeight.count(), "spec has a weight class")
+		counts[spec[2]] += 1
 	runner.check(counts[0] >= 2 and counts[1] >= 2 and counts[2] >= 2, "every class is on the grid: %s" % str(counts))
 
 func test_menu_steps_the_weight_class() -> void:
