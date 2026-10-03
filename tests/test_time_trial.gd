@@ -191,7 +191,7 @@ func test_time_trial_has_no_course_items_but_a_triple_mushroom() -> void:
 
 func test_menu_time_trial_mode() -> void:
 	runner.check(Menu.next_mode(Menu.MODE_SINGLE) == Menu.MODE_GP and Menu.next_mode(Menu.MODE_GP) == Menu.MODE_TT)
-	runner.check(Menu.next_mode(Menu.MODE_TT) == Menu.MODE_SINGLE, "G cycles back to a single race")
+	runner.check(Menu.next_mode(Menu.MODE_TT) == Menu.MODE_BATTLE and Menu.next_mode(Menu.MODE_BATTLE) == Menu.MODE_SINGLE, "G cycles on to Battle and back to a single race")
 	runner.check("TIME TRIAL" in Menu.mode_text(Menu.MODE_TT, 3) and "ghost" in Menu.mode_text(Menu.MODE_TT, 3))
 	var m = Menu.new()
 	for prop in ["laps_label", "difficulty_label", "engine_label", "weight_label", "mode_label", "name_label", "blurb_label", "index_label"]:
@@ -206,7 +206,9 @@ func test_menu_time_trial_mode() -> void:
 	runner.check(m.laps_label.text == "Laps: 3  (Time Trial)", m.laps_label.text)
 	runner.check(m.engine_label.text == "Class: 100cc  (Time Trial)", m.engine_label.text)
 	runner.check(m.difficulty_label.text == "AI: none  (Time Trial)", m.difficulty_label.text)
-	m.toggle_mode()
+	m.toggle_mode()   # Battle
+	runner.check(m.laps_label.text.begins_with("Balloons"), m.laps_label.text)
+	m.toggle_mode()   # back to a single race
 	runner.check(m.laps_label.text == Menu.laps_text(7) and m.engine_label.text == Menu.engine_text(2), "race options come back")
 	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.weight_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
 		n.free()

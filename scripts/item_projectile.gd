@@ -87,12 +87,19 @@ static func pick_target(from: Vector3, dir: Vector3, positions: Array, skip: int
 
 ## Turn the velocity toward the desired point, limited by RED_TURN_RATE.
 func _home(delta: float, track, turn_rate := RED_TURN_RATE, lock_range := RED_LOCK_RANGE, lookahead := RED_LOOKAHEAD) -> void:
-	hint = track.nearest_index(position, hint)
-	var aim: Vector3 = track.points[(hint + lookahead) % track.count]
-	if target_pos != null:
-		var to_t: Vector3 = target_pos - position
-		if Vector2(to_t.x, to_t.z).length() < lock_range:
-			aim = target_pos
+	var aim: Vector3
+	if track.get("arena") == true:
+		# battle arena: no road to follow, go straight at the target (or keep going)
+		if target_pos == null:
+			return
+		aim = target_pos
+	else:
+		hint = track.nearest_index(position, hint)
+		aim = track.points[(hint + lookahead) % track.count]
+		if target_pos != null:
+			var to_t: Vector3 = target_pos - position
+			if Vector2(to_t.x, to_t.z).length() < lock_range:
+				aim = target_pos
 	var cur := Vector2(velocity.x, velocity.z)
 	var want := Vector2(aim.x - position.x, aim.z - position.z)
 	if want.length_squared() < 0.0001:
@@ -136,6 +143,18 @@ func step(delta: float, track) -> void:
 	position += velocity * delta
 	if age >= SHELL_LIFE:
 		alive = false
+		return
+	if track.get("arena") == true:
+		# battle arena: ricochet off the outer walls and the forts
+		var hit: Dictionary = track.collide_circle(position, radius)
+		if not hit.is_empty():
+			var an: Vector3 = hit.normal
+			if velocity.dot(an) < 0.0:
+				velocity = velocity - 2.0 * velocity.dot(an) * an
+			position = Vector3(hit.position.x, position.y, hit.position.z)
+			bounces += 1
+			if bounces > SHELL_MAX_BOUNCES:
+				alive = false
 		return
 	var limit: float = track.width * 0.5 - radius
 	var c: Vector3 = track.closest_point(position, hint)

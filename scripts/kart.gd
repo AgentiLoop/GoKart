@@ -10,6 +10,9 @@ const Lakitu := preload("res://scripts/lakitu.gd")
 const SHRUNK_SCALE := 0.5
 const GHOST_ALPHA := 0.35   # how see-through a Boo makes the kart
 
+## A kart-to-kart bump happened (other kart, closing speed in m/s); battle mode pops balloons on hard shoves.
+signal bumped(other, closing: float)
+
 var model := KartPhysics.new()
 var gravity := 30.0
 var heading := 0.0   # yaw in radians
@@ -174,3 +177,4 @@ func _bump(other, n: Vector3, forward: Vector3) -> void:
 	other.bump_cooldown = KartWeight.BUMP_COOLDOWN
 	bumps += 1
 	other.bumps += 1
+	bumped.emit(other, closing)

@@ -2,24 +2,31 @@ extends Control
 ## Title screen: pick a track with Left/Right (A/D) and press Enter/Space to race.
 ## Selection is stored in TrackLibrary.selected; Esc during a race comes back here.
 ## G / Tab cycles the mode: Single Race -> Grand Prix (every track in turn, MK64-style cup points)
-## -> Time Trial (solo, 100cc, triple mushroom, race the ghost of your best run).
+## -> Time Trial (solo, 100cc, triple mushroom, race the ghost of your best run) -> Battle (four
+## karts, three balloons each, in an arena picked with Left/Right).
 ## Z / C step the MK64 engine class (50cc / 100cc / 150cc / Extra = 150cc on mirrored courses).
 ## X / V step the MK64 weight class of the player's kart (Light / Medium / Heavy).
 
 const TrackLibrary := preload("res://scripts/track_library.gd")
 const GrandPrix := preload("res://scripts/grand_prix.gd")
 const TimeTrial := preload("res://scripts/time_trial.gd")
+const Battle := preload("res://scripts/battle.gd")
+const ArenaData := preload("res://scripts/arena_data.gd")
 const RaceMain := preload("res://scripts/main.gd")
 const Minimap := preload("res://scripts/minimap.gd")
 const KartWeight := preload("res://scripts/kart_weight.gd")
 const RACE_SCENE := "res://scenes/main.tscn"
+const BATTLE_SCENE := "res://scenes/battle.tscn"
 
 const MODE_SINGLE := 0
 const MODE_GP := 1
 const MODE_TT := 2
-const MODE_COUNT := 3
+const MODE_BATTLE := 3
+const MODE_COUNT := 4
 
 var selected := 0
+var arena_selected := 0
+var sub_label: Label
 var name_label: Label
 var blurb_label: Label
 var index_label: Label
@@ -109,6 +116,8 @@ static func mode_text(m: int, track_count: int) -> String:
 			return "Mode: GRAND PRIX - %d races, cup points  (G)" % track_count
 		MODE_TT:
 			return "Mode: TIME TRIAL - solo, 100cc, triple mushroom, race your ghost  (G)"
+		MODE_BATTLE:
+			return "Mode: BATTLE - %d karts, %d balloons each, last one standing  (G)" % [Battle.PLAYERS, Battle.BALLOONS]
 	return "Mode: Single Race  (G)"
 
 ## Next mode in the G / Tab cycle (wraps around).
@@ -135,7 +144,8 @@ func _ready() -> void:
 	difficulty = TrackLibrary.difficulty
 	engine_class = TrackLibrary.engine_class
 	weight_class = KartWeight.selected
-	mode = MODE_TT if TimeTrial.active else MODE_SINGLE
+	mode = MODE_BATTLE if Battle.active else (MODE_TT if TimeTrial.active else MODE_SINGLE)
+	arena_selected = Battle.arena
 	bg = ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
@@ -150,6 +160,7 @@ func _ready() -> void:
 	title.text = "GOKART"
 	var sub := _label(Vector2(240, 168), 26, 800, Color(1, 1, 1))
 	sub.text = "Select a track"
+	sub_label = sub
 	name_label = _label(Vector2(240, 226), 56, 800, Color(1, 1, 1))
 	blurb_label = _label(Vector2(240, 298), 24, 800, Color(0.9, 0.9, 0.9))
 	index_label = _label(Vector2(240, 336), 30, 800, Color(1, 1, 1))
@@ -162,7 +173,7 @@ func _ready() -> void:
 	preview.position = Vector2(500, 494)
 	stage.add_child(preview)
 	var hint := _label(Vector2(40, 662), 20, 1200, Color(1, 1, 1))
-	hint.text = "Arrows / A D: track     Up Down / W S: laps     Q E: AI level     Z C: engine class     X V: kart weight     G: mode     Enter: race"
+	hint.text = "Arrows / A D: track or arena     Up Down / W S: laps     Q E: AI level     Z C: engine class     X V: kart weight     G: mode     Enter: go"
 	_refresh()
 
 func _label(pos: Vector2, font_size: int, w: float, col: Color) -> Label:
@@ -178,6 +189,11 @@ func _label(pos: Vector2, font_size: int, w: float, col: Color) -> Label:
 	return l
 
 func _refresh() -> void:
+	if mode == MODE_BATTLE:
+		_refresh_battle()
+		return
+	if sub_label != null:
+		sub_label.text = "Select a track"
 	var info := TrackLibrary.info(selected)
 	name_label.text = info.name
 	index_label.text = counter_text(selected, TrackLibrary.count())
@@ -198,9 +214,28 @@ func _refresh() -> void:
 	bg.color = info.sky_top.darkened(0.45)
 	preview.setup(TrackLibrary.make_data(selected, mirror).points, Vector2(280, 160))
 
-## Change the highlighted track (wraps around).
+## Battle mode: Left/Right pick the arena instead of a track; balloons replace laps.
+func _refresh_battle() -> void:
+	if sub_label != null:
+		sub_label.text = "Select an arena"
+	var info := ArenaData.info(arena_selected)
+	name_label.text = info.name
+	index_label.text = counter_text(arena_selected, ArenaData.arena_count())
+	blurb_label.text = info.blurb
+	laps_label.text = "Balloons: %d  (Battle)" % Battle.BALLOONS
+	difficulty_label.text = difficulty_text(difficulty)
+	engine_label.text = engine_text(engine_class)
+	mode_label.text = mode_text(mode, TrackLibrary.count())
+	weight_label.text = weight_text(weight_class)
+	bg.color = info.sky_top.darkened(0.45)
+	preview.setup(ArenaData.make(arena_selected).outline(), Vector2(280, 160))
+
+## Change the highlighted track (wraps around); the arena in battle mode.
 func move(dir: int) -> void:
-	selected = TrackLibrary.step(selected, dir)
+	if mode == MODE_BATTLE:
+		arena_selected = ArenaData.step(arena_selected, dir)
+	else:
+		selected = TrackLibrary.step(selected, dir)
 	_refresh()
 
 ## Change the lap count (wraps around the available options).
@@ -235,6 +270,12 @@ func start_race() -> void:
 	TrackLibrary.laps = laps
 	KartWeight.selected = weight_class
 	TimeTrial.active = mode == MODE_TT
+	Battle.active = mode == MODE_BATTLE
+	if mode == MODE_BATTLE:
+		Battle.arena = arena_selected
+		GrandPrix.stop()
+		get_tree().change_scene_to_file(BATTLE_SCENE)
+		return
 	if mode == MODE_GP:
 		GrandPrix.start(cup_order(selected, TrackLibrary.count()), RaceMain.RACER_COUNT)
 	else:

@@ -42,11 +42,25 @@ static func charges_for(t: int) -> int:
 static func is_dropped(t: int) -> bool:
 	return t == Type.BANANA or t == Type.FAKE_ITEM_BOX
 
+## Items that never turn up in a Mario Kart 64 battle: no blue shell (there is no leader to
+## chase), no lightning, no golden / triple mushrooms.
+const BATTLE_EXCLUDED := [Type.BLUE_SHELL, Type.LIGHTNING, Type.GOLDEN_MUSHROOM, Type.TRIPLE_MUSHROOM]
+
+static func in_battle(t: int) -> bool:
+	return t != Type.NONE and not BATTLE_EXCLUDED.has(t)
+
 ## Weights adjusted for race position (rubber banding): rank 1 = leader, racers = field size.
 ## The leader mostly gets defensive items; the back of the pack gets star, lightning and
 ## blue shell. Blue shell, lightning, golden mushroom and Boo are never rolled for the leader. rank <= 0 or a
-## field of one means "no adjustment" (the plain WEIGHTS).
-static func weights_for(rank := 0, racers := 0) -> Dictionary:
+## field of one means "no adjustment" (the plain WEIGHTS). `battle` drops the BATTLE_EXCLUDED items.
+static func weights_for(rank := 0, racers := 0, battle := false) -> Dictionary:
+	var out := _rank_weights(rank, racers)
+	if battle:
+		for t in BATTLE_EXCLUDED:
+			out[t] = 0.0
+	return out
+
+static func _rank_weights(rank: int, racers: int) -> Dictionary:
 	if rank <= 0 or racers < 2:
 		return WEIGHTS.duplicate()
 	var f := clampf(float(rank - 1) / float(racers - 1), 0.0, 1.0)   # 0 = leader, 1 = last
@@ -71,8 +85,8 @@ static func weights_for(rank := 0, racers := 0) -> Dictionary:
 	return out
 
 ## Map r in [0,1) to an item using WEIGHTS, or the rank-adjusted weights when rank > 0.
-static func roll(r: float, rank := 0, racers := 0) -> int:
-	var w := weights_for(rank, racers)
+static func roll(r: float, rank := 0, racers := 0, battle := false) -> int:
+	var w := weights_for(rank, racers, battle)
 	var total := 0.0
 	for v in w.values():
 		total += v

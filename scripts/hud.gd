@@ -153,3 +153,15 @@ func update_hud(tracker, speed: float, boosting: bool, drift_level: int, item :=
 	speed_label.text = "%d km/h" % int(round(absf(speed) * 3.6))
 	state_label.text = state_text(boosting, drift_level, star, shrunk, ghost)
 	banner_label.text = "FINISH!" if tracker.is_finished else ""
+
+## Battle mode HUD: balloons instead of laps, the battle clock instead of lap times, no finish banner
+## (the centre banner shows `banner`: "BOMB KART!" / "YOU WIN!" / "OUT").
+func update_battle(balloons_line: String, elapsed: float, speed: float, boosting: bool, drift_level: int, item := 0, place := "", star := false, shrunk := false, charges := 0, golden_left := 0.0, ghost := false, banner := "") -> void:
+	place_label.text = place
+	item_label.text = item_text(item, charges, golden_left)
+	hint_label.text = item_hint_text(item)
+	lap_label.text = balloons_line
+	time_label.text = "TIME %s" % format_time(elapsed)
+	speed_label.text = "%d km/h" % int(round(absf(speed) * 3.6))
+	state_label.text = state_text(boosting, drift_level, star, shrunk, ghost)
+	banner_label.text = banner

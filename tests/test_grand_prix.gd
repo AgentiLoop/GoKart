@@ -91,6 +91,8 @@ func test_menu_mode_keys_and_cup_order() -> void:
 	m.toggle_mode()
 	runner.check(m.mode == Menu.MODE_TT)
 	m.toggle_mode()
+	runner.check(m.mode == Menu.MODE_BATTLE)
+	m.toggle_mode()
 	runner.check(m.mode == Menu.MODE_SINGLE)
 	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.weight_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
 		n.free()

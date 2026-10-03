@@ -36,14 +36,19 @@ var bolts: Array = []   # live lightning bolt visuals
 var blasts: Array = []   # live blue shell explosion visuals
 var boos: Array = []   # live Boo flights: {thief, victim, t, item, charges, node}
 var time := 0.0
+## Battle mode: places per kart (1 = best) used for the item roll instead of race progress.
+var ranks_override: Array = []
 
 ## `course_items` false (time trials) leaves out the item boxes and the pre-placed hazards.
-func setup(track_data, all_karts, seed_value := 0, course_items := true) -> void:
+## `battle` true rolls only the Mario Kart 64 battle items.
+func setup(track_data, all_karts, seed_value := 0, course_items := true, battle := false) -> void:
 	track = track_data
 	karts = all_karts if all_karts is Array else [all_karts]
 	kart = karts[0]
 	for i in karts.size():
-		holders.append(ItemHolder.new(seed_value + i if seed_value != 0 else 0))
+		var h := ItemHolder.new(seed_value + i if seed_value != 0 else 0)
+		h.battle = battle
+		holders.append(h)
 	holder = holders[0]
 	if not course_items:
 		return
@@ -119,6 +124,14 @@ func _progresses() -> Array:
 		var frac: float = (k.global_position - track.points[idx]).dot(track.tangents[idx]) / track.spacing
 		out.append(RaceRanking.progress(lap, idx, track.count, frac))
 	return out
+
+## Place of kart `id` for the item roll: the battle standings when set, else the race standings.
+func _rank(id: int) -> int:
+	if not ranks_override.is_empty():
+		return ranks_override[id]
+	return RaceRanking.rank_of(id, _progresses(), _no_finish_times())
+
+## 
 
 ## Blue shell impact: spins out every kart (except stars) within the blast radius.
 func _explode(p) -> void:
@@ -418,7 +431,7 @@ func _physics_process(delta: float) -> void:
 		b.tick(delta)
 		for id in karts.size():
 			if b.try_take(positions[id]):
-				holders[id].pickup(RaceRanking.rank_of(id, _progresses(), _no_finish_times()), karts.size())
+				holders[id].pickup(_rank(id), karts.size())
 	if Input.is_action_just_pressed("use_item") and not karts[0].frozen:
 		use_item(0)
 	for id in range(1, karts.size()):

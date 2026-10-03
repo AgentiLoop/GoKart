@@ -14,6 +14,7 @@ var racers := 0
 var charges := 0   # uses left of a multi-use item (triple shells / triple mushrooms / banana bunch)
 var golden_time := 0.0   # seconds of unlimited boosts left once a golden mushroom is fired
 var locked := false      # a Boo is out fetching an item for this slot: no pickups meanwhile
+var battle := false      # battle mode: rolls skip the items MK64 keeps out of the arena
 var rng := RandomNumberGenerator.new()
 
 func _init(seed_value := 0) -> void:
@@ -49,7 +50,7 @@ func update(delta: float) -> void:
 		roulette_time -= delta
 		if roulette_time <= 0.0:
 			roulette_time = 0.0
-			held = Items.roll(rng.randf(), rank, racers)
+			held = Items.roll(rng.randf(), rank, racers, battle)
 			charges = Items.charges_for(held)
 			roulette_finished.emit(held)
 
