@@ -5,6 +5,8 @@ extends Node3D
 ## after a lap, and a flashing red "REVERSE" sign while the kart drives the wrong way.
 ## The pure helpers (lamps, going_wrong, lap_sign, rescue_pose) are unit tested without a scene.
 
+const UiStyle := preload("res://scripts/ui_style.gd")
+
 enum Mode { HIDDEN, START, RESCUE, FLAG, LAP_SIGN, REVERSE }
 
 ## Start signal: lamp i lights when the countdown drops below SIGNAL_STEPS[i] seconds; all three at GO.
@@ -134,14 +136,19 @@ func _show(remaining: float, started: bool) -> void:
 			m.albedo_color = LAMP_COLORS[i] if i < lit else LAMP_COLORS[i].darkened(0.7)
 	elif mode == Mode.REVERSE:
 		_sign_label.text = "REVERSE"
-		(_sign_board.material_override as StandardMaterial3D).albedo_color = Color(0.9, 0.05, 0.05)
+		_set_board(Color(0.9, 0.05, 0.05))
 		# MK64: the red sign flashes
 		_sign.visible = fmod(wrong_time, 0.4) < 0.28
 	elif mode == Mode.LAP_SIGN:
 		_sign_label.text = sign_text
-		(_sign_board.material_override as StandardMaterial3D).albedo_color = Color(0.1, 0.6, 0.2) if sign_text != "FINAL LAP" else Color(0.9, 0.6, 0.05)
+		_set_board(Color(0.1, 0.6, 0.2) if sign_text != "FINAL LAP" else Color(0.9, 0.6, 0.05))
 	elif mode == Mode.FLAG:
 		_flag.rotation.z = sin(time * 9.0) * 0.5
+
+## Paints the sign board and gives the text a rim in the board's shade.
+func _set_board(color: Color) -> void:
+	(_sign_board.material_override as StandardMaterial3D).albedo_color = color
+	_sign_label.outline_modulate = UiStyle.board_rim(color)
 
 func _move(delta: float, forward: Vector3) -> void:
 	var right := Vector3(-forward.z, 0, forward.x)
@@ -208,11 +215,9 @@ func _build() -> void:
 	_sign_board = _box(_sign, Vector3(2.0, 0.8, 0.12), Vector3(0, -0.3, 0), Color(0.9, 0.05, 0.05))
 	_sign_label = Label3D.new()
 	_sign_label.text = "REVERSE"
-	_sign_label.font_size = 96
 	_sign_label.pixel_size = 0.006
-	_sign_label.outline_size = 24
-	_sign_label.outline_modulate = Color(0.1, 0.02, 0.02)
-	_sign_label.modulate = Color(1, 1, 1)
+	# white text printed on the board: rounded font, thin rim in the board's shade, no black outline
+	UiStyle.style_label3d(_sign_label, 96, Color(1, 1, 1), UiStyle.board_rim(Color(0.9, 0.05, 0.05)))
 	_sign_label.position = Vector3(0, -0.3, 0.08)
 	_sign.add_child(_sign_label)
 	# checkered flag

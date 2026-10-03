@@ -5,6 +5,7 @@ extends Node3D
 ## coaches) moved along the rail every frame.
 
 const Train := preload("res://scripts/train.gd")
+const UiStyle := preload("res://scripts/ui_style.gd")
 
 const RAIL_HALF_GAUGE := 0.75
 const SIGNAL_SIDE := 2.2       # the signal post stands this far beyond the road edge (behind the wall)
@@ -137,10 +138,9 @@ func _build_locomotive(car: Node3D) -> void:
 	_sphere(car, 0.2, Vector3(0, 2.0, -2.05), Color(1.0, 0.95, 0.6))             # headlamp
 	var plate := Label3D.new()
 	plate.text = "64"
-	plate.font_size = 96
 	plate.pixel_size = 0.006
-	plate.outline_size = 16
-	plate.modulate = Color(1.0, 0.85, 0.1)
+	# gold with a dark red rim like the logo, no black outline
+	UiStyle.style_label3d(plate, 96, UiStyle.GOLD, UiStyle.SIGN_RIM)
 	plate.position = Vector3(0, 1.3, -2.26)
 	plate.rotation.y = PI
 	car.add_child(plate)

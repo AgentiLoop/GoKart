@@ -48,6 +48,21 @@ static func style_sign(l: Label, font: Font, font_size: int, col := GOLD, rim :=
 	l.add_theme_color_override("font_outline_color", rim)
 	l.add_theme_constant_override("outline_size", maxi(3, font_size / 16))
 
+## 3D sign text (Lakitu's sign, the start-gate banner, the train's number plate): the rounded font
+## with a thin rim in the board's own colour family instead of a thick black outline. Label3D has
+## no drop shadow, so the rim is what lifts the text off the board; a Label3D outline renders much
+## thinner on screen than a 2D one, so the rim is 1/8 of the text size (the 2D signs use 1/16).
+static func style_label3d(l: Label3D, font_size: int, col: Color, rim: Color) -> void:
+	l.font = make_font()
+	l.font_size = font_size
+	l.modulate = col
+	l.outline_modulate = rim
+	l.outline_size = maxi(4, font_size / 8)
+
+## Rim colour for text printed on a board of colour `board`: a darker shade of the board.
+static func board_rim(board: Color) -> Color:
+	return board.darkened(0.55)
+
 ## Navy panel with a gold rim and a soft shadow (menu panels, results table).
 static func panel_style(fill := PANEL_FILL, rim := PANEL_RIM, radius := 16) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()

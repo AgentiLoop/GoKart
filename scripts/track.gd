@@ -3,6 +3,7 @@ extends Node3D
 ## collision, start gate and animated boost pads.
 
 const TrackData := preload("res://scripts/track_data.gd")
+const UiStyle := preload("res://scripts/ui_style.gd")
 
 var data: TrackData
 var wall_height := 1.4
@@ -25,6 +26,7 @@ func set_banner(text: String) -> void:
 	for lbl in _banner_labels:
 		lbl.text = text
 		lbl.modulate = fg
+		lbl.outline_modulate = UiStyle.board_rim(bg)
 	if _banner_panel != null:
 		(_banner_panel.material_override as StandardMaterial3D).albedo_color = bg
 
@@ -182,11 +184,9 @@ func _build_start_gate() -> void:
 			_box(gate, Vector3(check_w, 0.3, 0.45), Vector3(-banner_w * 0.5 + check_w * (cx + 0.5), y, 0), c)
 	for face in [1.0, -1.0]:
 		var lbl := Label3D.new()
-		lbl.font_size = 128
 		lbl.pixel_size = 0.0125
-		lbl.outline_size = 36
-		lbl.outline_modulate = Color(0.05, 0.05, 0.2)
-		lbl.modulate = Color(1.0, 0.85, 0.1)
+		# rounded font with a thin rim in the banner's shade (set_banner) instead of a thick dark outline
+		UiStyle.style_label3d(lbl, 128, Color(1.0, 0.85, 0.1), UiStyle.board_rim(Color(0.1, 0.25, 0.8)))
 		lbl.position = Vector3(0, 6.2, face * 0.22)
 		lbl.rotation.y = 0.0 if face > 0 else PI
 		lbl.text = banner_text

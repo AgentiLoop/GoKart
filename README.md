@@ -28,7 +28,11 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 
 ![Every item icon: mushrooms, bananas, shells, star, lightning, fake box, Boo](assets/screenshots/items.png)
 
-Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the road, drifts and fires items at random), `tools/train_shot.gd`, `tools/traffic_shot.gd`, `tools/mole_shot.gd`, `tools/menu_shot.gd`, `tools/hud_shot.gd` and `tools/item_shot.gd`.
+![The START banner on the start gate: rounded font, a thin rim in the banner's shade](assets/screenshots/start-gate.png)
+
+![Lakitu holding up the REVERSE sign: white text printed on the red board, no black outline](assets/screenshots/lakitu-sign.png)
+
+Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the road, drifts and fires items at random), `tools/train_shot.gd`, `tools/traffic_shot.gd`, `tools/mole_shot.gd`, `tools/menu_shot.gd`, `tools/hud_shot.gd`, `tools/item_shot.gd` and `tools/sign_shot.gd`.
 
 ## Features
 
@@ -55,7 +59,7 @@ Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the roa
 - **Visual effects**: drift sparks, boost flames, tire trails, speed lines / boost blur, and custom shaders in `shaders/`
 - **Results screen**: after you finish, an autopilot takes over and a Mario Kart 64 style results board appears — a gold title banner over a navy panel, one row per racer with a kart-colour swatch, a gold / silver / bronze place, name, time and MK64 points, your row on a lit gold bar, a blinking prompt; a Grand Prix shows the race result and the cup standings side by side with the trophy underneath, a Time Trial its laps beside the record list, a Battle the verdict as a gold sign. Enter restarts, or moves on to the next cup race (`scripts/race_results.gd`, board in `scripts/hud.gd`)
 - **Procedural audio**: synthesized engine loop (pitch follows speed), tire screech while drifting, countdown beeps, boost / mini-turbo / item / hit / explosion / lightning / star / Boo / splash / burnout / crossing-bell / train-crash sounds and a finish jingle, plus positional 3D engine hum on each AI kart, with no audio files (`scripts/ai_engine_audio.gd`, `scripts/sound_synth.gd`, `scripts/game_audio.gd`)
-- **HUD** with place, lap, a Mario Kart 64 style **item window** (a navy box with a gold rim at the top centre holding a drawn icon of the held item — the roulette cycles the icons — with the item's name and the use key under it; icons for all 14 items are built from a few polygons and circles in `scripts/item_icon.gd`, no textures) and a track minimap (with the railway on Dusty Canyon), styled like the menu (`scripts/ui_style.gd`): the same rounded font, gold / cream text with drop shadows and no black outlines; only the countdown and the FINISH! / YOU WIN! banners are gold "signs" with a dark red rim like the logo (`scripts/hud.gd`, `scripts/minimap.gd`)
+- **HUD** with place, lap, a Mario Kart 64 style **item window** (a navy box with a gold rim at the top centre holding a drawn icon of the held item — the roulette cycles the icons — with the item's name and the use key under it; icons for all 14 items are built from a few polygons and circles in `scripts/item_icon.gd`, no textures) and a track minimap (with the railway on Dusty Canyon), styled like the menu (`scripts/ui_style.gd`): the same rounded font, gold / cream text with drop shadows and no black outlines; only the countdown and the FINISH! / YOU WIN! banners are gold "signs" with a dark red rim like the logo (`scripts/hud.gd`, `scripts/minimap.gd`). The 3D signs in the race share the look: Lakitu's LAP / REVERSE sign, the start gate's START / CONTINUE / FINISH banner and the train's "64" plate use the same rounded font with a thin rim in their board's own shade (`UiStyle.style_label3d` / `board_rim`) instead of the old thick black outlines
 - **Procedural kart model** with steering front wheels and spinning wheels (`scripts/kart_model.gd`)
 
 ## Controls
@@ -124,6 +128,7 @@ godot --path . -s tools/traffic_shot.gd         # Sunset Speedway traffic: behin
 godot --path . -s tools/mole_shot.gd            # Green Hills moles: the first group popping out ahead, thrown by a mole -> /tmp/gokart_mole*.png
 godot --path . -s tools/hud_shot.gd             # restyled HUD: gold countdown sign, item window with a green shell, results boards (race / Grand Prix / Time Trial), pixel-sampled for the palette / no black outline -> /tmp/gokart_hud_*.png
 godot --path . -s tools/item_shot.gd            # contact sheet of all 14 item icons in their windows, each sampled for its colour -> /tmp/gokart_items.png
+godot --path . -s tools/sign_shot.gd            # 3D sign text: the START banner and Lakitu's REVERSE sign, sampled for the thin coloured rim / no black outline -> /tmp/gokart_sign_*.png
 godot --path . -s tools/random_drive.gd -- 1    # random drive, 3 screenshots -> /tmp/gokart_random_*.png (arg = track index, random if omitted)
 ```
 
