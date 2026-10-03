@@ -1,11 +1,13 @@
 extends SceneTree
 ## Windowed render check of the restyled race HUD (no black outlines, MK64 palette):
 ##   perl -e 'alarm 60; exec @ARGV' godot --path . -s tools/hud_shot.gd
-## Saves /tmp/gokart_hud_countdown.png (the gold "3" sign over the grid), /tmp/gokart_hud_results.png,
+## Saves /tmp/gokart_hud_countdown.png (the gold "3" sign over the grid, a green shell in the item window), /tmp/gokart_hud_results.png,
 ## _results_gp.png and _results_tt.png (the results boards on their navy panel) and samples a few pixels.
 
 const RaceResults := preload("res://scripts/race_results.gd")
 const UiStyle := preload("res://scripts/ui_style.gd")
+const Items := preload("res://scripts/items.gd")
+const ItemIcon := preload("res://scripts/item_icon.gd")
 
 var main
 var f := 0
@@ -32,7 +34,10 @@ static func _has_colour(img: Image, r: Rect2i, c: Color, tol := 0.18) -> bool:
 
 func _process(_d: float) -> bool:
 	f += 1
-	if f == 30:
+	if f == 20:
+		# a green shell in the MK64 item window at the top centre
+		main.items.holder.held = Items.Type.SHELL
+	elif f == 30:
 		print("countdown label: '%s'  outline %d rim %s" % [main.hud.countdown_label.text, main.hud.countdown_label.get_theme_constant("outline_size"), main.hud.countdown_label.get_theme_color("font_outline_color")])
 		var img := _shot("hud_countdown")
 		var size := img.get_size()
@@ -40,6 +45,13 @@ func _process(_d: float) -> bool:
 		print("gold sign at centre: ", _has_colour(img, centre, UiStyle.GOLD))
 		print("gold lap label top-left: ", _has_colour(img, Rect2i(24, 16, 220, 48), UiStyle.GOLD))
 		print("black outline pixels around lap label: ", _has_colour(img, Rect2i(24, 16, 220, 48), Color.BLACK, 0.04))
+		var win := Rect2i(size.x / 2 - 48, 14, 96, 96)
+		print("item window shown: %s  label '%s'" % [main.hud.item_window.visible, main.hud.item_label.text])
+		print("item window navy fill: ", _has_colour(img, Rect2i(win.position + Vector2i(6, 6), Vector2i(10, 10)), Color(UiStyle.PANEL_FILL.r, UiStyle.PANEL_FILL.g, UiStyle.PANEL_FILL.b), 0.12))
+		print("item window gold rim: ", _has_colour(img, Rect2i(win.position.x + 20, win.position.y, 56, 3), UiStyle.PANEL_RIM, 0.2))
+		print("green shell in the window: ", _has_colour(img, win, ItemIcon.SHELL_GREEN, 0.15))
+		print("shell rim (white) in the window: ", _has_colour(img, win, ItemIcon.SHELL_RIM, 0.1))
+		print("gold item name under the window: ", _has_colour(img, Rect2i(size.x / 2 - 120, 114, 240, 30), UiStyle.GOLD, 0.15))
 	elif f == 40:
 		var names := ["YOU", "BLUE", "GREEN", "PURPLE", "RED", "TEAL", "PINK", "LIME"]
 		var rows := RaceResults.rows(names, [900.0, 880.0, 860.0, 840.0, 820.0, 800.0, 780.0, 760.0], [92.4, 93.1, 95.0, 97.7, -1.0, -1.0, -1.0, -1.0])

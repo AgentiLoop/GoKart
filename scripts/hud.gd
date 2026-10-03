@@ -10,6 +10,11 @@ const Items := preload("res://scripts/items.gd")
 const RaceRanking := preload("res://scripts/race_ranking.gd")
 const Minimap := preload("res://scripts/minimap.gd")
 const UiStyle := preload("res://scripts/ui_style.gd")
+const ItemIcon := preload("res://scripts/item_icon.gd")
+
+## Item window (top centre): box side and the icon's side inside it.
+const ITEM_WINDOW := 96.0
+const ITEM_ICON := 72.0
 
 ## Results board geometry (pixels): panel widths (single column / two columns side by side),
 ## inner padding, row heights and the x of each cell inside a column.
@@ -40,6 +45,8 @@ var speed_label: Label
 var state_label: Label
 var banner_label: Label
 var item_label: Label
+var item_window: Panel          # MK64 item box window (hidden while nothing is held)
+var item_icon: ItemIcon
 var hint_label: Label
 var place_label: Label
 var countdown_label: Label
@@ -105,8 +112,27 @@ func _ready() -> void:
 	cup_label = _make_label(HORIZONTAL_ALIGNMENT_LEFT, VERTICAL_ALIGNMENT_TOP, Vector2(24, 128), 22, UiStyle.SKY_BLUE)
 	speed_label = _make_label(HORIZONTAL_ALIGNMENT_RIGHT, VERTICAL_ALIGNMENT_BOTTOM, Vector2(24, 24), 36, UiStyle.CREAM)
 	state_label = _make_label(HORIZONTAL_ALIGNMENT_LEFT, VERTICAL_ALIGNMENT_BOTTOM, Vector2(24, 24), 28, UiStyle.GOLD)
-	item_label = _make_label(HORIZONTAL_ALIGNMENT_CENTER, VERTICAL_ALIGNMENT_TOP, Vector2(0, 16), 32, UiStyle.CREAM)
-	hint_label = _make_label(HORIZONTAL_ALIGNMENT_CENTER, VERTICAL_ALIGNMENT_TOP, Vector2(0, 56), 22, UiStyle.GREY)
+	# MK64 item window: a rounded navy box with a gold rim at the top centre holding the item's
+	# icon (the roulette cycles the icon), the item's name and the use hint underneath
+	item_window = Panel.new()
+	item_window.anchor_left = 0.5
+	item_window.anchor_right = 0.5
+	item_window.offset_left = -ITEM_WINDOW * 0.5
+	item_window.offset_right = ITEM_WINDOW * 0.5
+	item_window.offset_top = 14.0
+	item_window.offset_bottom = 14.0 + ITEM_WINDOW
+	item_window.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	item_window.add_theme_stylebox_override("panel", UiStyle.panel_style(UiStyle.PANEL_FILL, UiStyle.PANEL_RIM, 18))
+	item_window.visible = false
+	add_child(item_window)
+	item_icon = ItemIcon.new()
+	item_icon.font = font
+	item_icon.position = Vector2(ITEM_WINDOW - ITEM_ICON, ITEM_WINDOW - ITEM_ICON) * 0.5
+	item_icon.size = Vector2(ITEM_ICON, ITEM_ICON)
+	item_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	item_window.add_child(item_icon)
+	item_label = _make_label(HORIZONTAL_ALIGNMENT_CENTER, VERTICAL_ALIGNMENT_TOP, Vector2(0, 14 + ITEM_WINDOW + 4), 22, UiStyle.GOLD)
+	hint_label = _make_label(HORIZONTAL_ALIGNMENT_CENTER, VERTICAL_ALIGNMENT_TOP, Vector2(0, 14 + ITEM_WINDOW + 34), 16, UiStyle.GREY)
 	place_label = _make_label(HORIZONTAL_ALIGNMENT_RIGHT, VERTICAL_ALIGNMENT_TOP, Vector2(24, 16), 48, UiStyle.GOLD)
 	# the countdown and the centre banner are big "signs": gold with a dark red rim like the logo
 	countdown_label = _make_label(HORIZONTAL_ALIGNMENT_CENTER, VERTICAL_ALIGNMENT_CENTER, Vector2(0, -110), 160, UiStyle.GOLD)
@@ -448,10 +474,16 @@ func show_cup(text: String) -> void:
 func show_countdown(text: String) -> void:
 	countdown_label.text = text
 
-func update_hud(tracker, speed: float, boosting: bool, drift_level: int, item := 0, place := "", star := false, shrunk := false, charges := 0, golden_left := 0.0, ghost := false) -> void:
-	place_label.text = place
+## Item window: the icon of the held (or rolling) item, its name and the use hint; hidden when empty.
+func show_item(item: int, charges := 0, golden_left := 0.0) -> void:
+	item_window.visible = item != Items.Type.NONE
+	item_icon.item = item
 	item_label.text = item_text(item, charges, golden_left)
 	hint_label.text = item_hint_text(item)
+
+func update_hud(tracker, speed: float, boosting: bool, drift_level: int, item := 0, place := "", star := false, shrunk := false, charges := 0, golden_left := 0.0, ghost := false) -> void:
+	place_label.text = place
+	show_item(item, charges, golden_left)
 	lap_label.text = lap_text(tracker.lap, tracker.total_laps) if tracker.lap > 0 else "READY"
 	time_label.text = "TIME %s\nLAP  %s" % [format_time(tracker.race_time), format_time(tracker.lap_time)]
 	speed_label.text = "%d km/h" % int(round(absf(speed) * 3.6))
@@ -462,8 +494,7 @@ func update_hud(tracker, speed: float, boosting: bool, drift_level: int, item :=
 ## (the centre banner shows `banner`: "BOMB KART!" / "YOU WIN!" / "OUT").
 func update_battle(balloons_line: String, elapsed: float, speed: float, boosting: bool, drift_level: int, item := 0, place := "", star := false, shrunk := false, charges := 0, golden_left := 0.0, ghost := false, banner := "") -> void:
 	place_label.text = place
-	item_label.text = item_text(item, charges, golden_left)
-	hint_label.text = item_hint_text(item)
+	show_item(item, charges, golden_left)
 	lap_label.text = balloons_line
 	time_label.text = "TIME %s" % format_time(elapsed)
 	speed_label.text = "%d km/h" % int(round(absf(speed) * 3.6))
