@@ -13,6 +13,7 @@ var rank := 0      # race position when the box was hit (0 = unknown), biases th
 var racers := 0
 var charges := 0   # uses left of a multi-use item (triple shells / triple mushrooms / banana bunch)
 var golden_time := 0.0   # seconds of unlimited boosts left once a golden mushroom is fired
+var locked := false      # a Boo is out fetching an item for this slot: no pickups meanwhile
 var rng := RandomNumberGenerator.new()
 
 func _init(seed_value := 0) -> void:
@@ -30,7 +31,7 @@ func is_golden_active() -> bool:
 
 ## Item box touched. Ignored while holding or rolling. Returns true if a roulette started.
 func pickup(at_rank := 0, field_size := 0) -> bool:
-	if held != Items.Type.NONE or is_rolling():
+	if held != Items.Type.NONE or is_rolling() or locked:
 		return false
 	rank = at_rank
 	racers = field_size
@@ -74,6 +75,25 @@ func clear() -> void:
 	charges = 0
 	golden_time = 0.0
 	roulette_time = 0.0
+
+## A Boo takes the held item away: returns [item, charges] ([NONE, 0] while rolling, empty or
+## while a fired golden mushroom is running down) and empties the slot.
+func steal() -> Array:
+	if is_rolling() or is_golden_active():
+		return [Items.Type.NONE, 0]
+	var out := [held, charges]
+	held = Items.Type.NONE
+	charges = 0
+	return out
+
+## The Boo is back: put the stolen item in the slot (nothing if it came back empty-handed) and unlock.
+func receive(item: int, item_charges: int) -> void:
+	locked = false
+	if item == Items.Type.NONE or held != Items.Type.NONE or is_rolling():
+		return
+	held = item
+	charges = item_charges
+	golden_time = 0.0
 
 ## What the HUD should show: the held item, or a cycling preview while rolling.
 func display_item(time: float) -> int:

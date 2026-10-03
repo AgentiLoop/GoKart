@@ -13,15 +13,15 @@ const DT := 1.0 / 60.0
 
 func test_roll_covers_all_items_in_weight_order() -> void:
 	runner.check(Items.roll(0.0) == Items.Type.MUSHROOM)
-	runner.check(Items.roll(0.999) == Items.Type.BANANA_BUNCH)
+	runner.check(Items.roll(0.999) == Items.Type.BOO)
 	var seen := {}
 	for i in 100:
 		seen[Items.roll(i / 100.0)] = true
 	runner.check(seen.size() == Items.count(), "seen=%s" % seen)
-	# mushroom has weight 5/25.5
+	# mushroom has weight 5/26.5
 	var m := 0
-	for i in 2550:
-		if Items.roll(i / 2550.0) == Items.Type.MUSHROOM:
+	for i in 2650:
+		if Items.roll(i / 2650.0) == Items.Type.MUSHROOM:
 			m += 1
 	runner.check(absi(m - 500) <= 2, "mushroom share=%d" % m)
 
@@ -202,7 +202,7 @@ func test_new_item_names_and_roulette_preview() -> void:
 	runner.check(Items.name_of(Items.Type.RED_SHELL) == "RED SHELL")
 	runner.check(Items.name_of(Items.Type.STAR) == "STAR")
 	runner.check(Items.name_of(Items.Type.LIGHTNING) == "LIGHTNING")
-	runner.check(Items.count() == 12)
+	runner.check(Items.count() == 13)
 	var h := ItemHolder.new(5)
 	h.pickup()
 	var seen := {}
@@ -854,3 +854,170 @@ func test_ai_drops_fake_box_and_bunch_when_followed() -> void:
 	runner.check(d.wants_use(DT, Items.Type.FAKE_ITEM_BOX, INF, 12.0), "drops it on a close follower")
 	runner.check(not d.wants_use(0.6, Items.Type.BANANA_BUNCH, INF, INF))
 	runner.check(d.wants_use(DT, Items.Type.BANANA_BUNCH, INF, 12.0))
+
+func test_mk64_boo_item_basics() -> void:
+	runner.check(Items.name_of(Items.Type.BOO) == "BOO")
+	runner.check(Items.charges_for(Items.Type.BOO) == 0 and not Items.is_dropped(Items.Type.BOO))
+	runner.check(Hud.item_text(Items.Type.BOO) == "[ BOO ]")
+	# never for the leader, more likely at the back
+	var lead := Items.weights_for(1, 8)
+	var mid := Items.weights_for(4, 8)
+	var last := Items.weights_for(8, 8)
+	runner.check(lead[Items.Type.BOO] == 0.0, "leader never rolls a Boo")
+	runner.check(last[Items.Type.BOO] > mid[Items.Type.BOO] and mid[Items.Type.BOO] > 0.0)
+	for i in 1000:
+		runner.check(Items.roll(i / 1000.0, 1, 8) != Items.Type.BOO, "leader rolled a Boo")
+	var seen := false
+	for seed_value in range(1, 300):
+		var h := ItemHolder.new(seed_value)
+		h.pickup(8, 8)
+		h.update(h.roulette_duration + 0.1)
+		if h.held == Items.Type.BOO:
+			seen = true
+			runner.check(h.charges == 0)
+	runner.check(seen, "last place rolls a Boo for some seed")
+	# ghost physics: translucent + untouchable for ghost_duration, no speed bonus
+	var k := KartPhysics.new()
+	runner.check(not k.is_ghost())
+	var started := [0]
+	var ended := [0]
+	k.ghost_started.connect(func(): started[0] += 1)
+	k.ghost_ended.connect(func(): ended[0] += 1)
+	k.apply_ghost()
+	k.apply_ghost()
+	runner.check(k.is_ghost() and started[0] == 1, "one start signal")
+	runner.check(is_equal_approx(k.ghost_time, k.ghost_duration))
+	runner.check(not k.spin_out(), "ghost shrugs off a hit")
+	runner.check(not k.apply_shrink(), "ghost shrugs off lightning")
+	runner.check(not k.is_shrunk())
+	runner.check(k.current_max_speed() == k.max_speed, "no speed bonus")
+	for i in int(k.ghost_duration / DT) + 2:
+		k.step(DT, 1.0, 0.0, 0.0, false)
+	runner.check(not k.is_ghost() and ended[0] == 1)
+	runner.check(k.spin_out(), "hittable again")
+
+func test_holder_steal_and_receive() -> void:
+	var h := ItemHolder.new(1)
+	h.held = Items.Type.TRIPLE_SHELL
+	h.charges = 2
+	runner.check(h.steal() == [Items.Type.TRIPLE_SHELL, 2])
+	runner.check(h.held == Items.Type.NONE and h.charges == 0, "slot emptied")
+	runner.check(h.steal() == [Items.Type.NONE, 0], "nothing left to take")
+	h.roulette_time = 1.0
+	runner.check(h.steal() == [Items.Type.NONE, 0], "nothing to take while rolling")
+	h.roulette_time = 0.0
+	# a running golden mushroom cannot be stolen
+	h.held = Items.Type.GOLDEN_MUSHROOM
+	h.use()
+	runner.check(h.steal() == [Items.Type.NONE, 0] and h.held == Items.Type.GOLDEN_MUSHROOM)
+	h.clear()
+	# locked slot refuses boxes until the Boo is back
+	h.locked = true
+	runner.check(not h.pickup(), "no pickups while the Boo is out")
+	h.receive(Items.Type.TRIPLE_SHELL, 2)
+	runner.check(not h.locked and h.held == Items.Type.TRIPLE_SHELL and h.charges == 2)
+	runner.check(not h.pickup(), "holding the loot")
+	var h2 := ItemHolder.new(1)
+	h2.locked = true
+	h2.receive(Items.Type.NONE, 0)
+	runner.check(not h2.locked and h2.held == Items.Type.NONE, "came back empty-handed: slot free")
+	runner.check(h2.pickup())
+
+func test_mk64_boo_steals_item_and_ghosts_user() -> void:
+	var r = _make_manager(3)
+	var m = r[0]
+	var ks: Array = r[1]
+	m.holders[0].held = Items.Type.BOO
+	m.holders[1].held = Items.Type.TRIPLE_SHELL
+	m.holders[1].charges = 3
+	var stolen := []
+	m.item_stolen.connect(func(t, v, i): stolen.append([t, v, i]))
+	runner.check(m.use_item(0) == Items.Type.BOO)
+	runner.check(ks[0].model.is_ghost(), "user is a ghost")
+	runner.check(m.holders[0].held == Items.Type.NONE and m.holders[0].locked, "slot empty but locked while the Boo flies")
+	runner.check(m.boos.size() == 1 and m.boos[0].victim == 1, "the only rival with an item is the victim")
+	runner.check(m.boos[0].node.get_child_count() == 4, "ghost visual")
+	runner.check(not m.holders[0].pickup(), "cannot take a box meanwhile")
+	runner.check(m.holders[1].held == Items.Type.TRIPLE_SHELL, "victim still holds it on the way out")
+	var ticks := int(m.BOO_FLIGHT / DT) + 1
+	for i in ticks:
+		m._physics_process(DT)
+	runner.check(m.holders[1].held == Items.Type.NONE, "taken on arrival")
+	runner.check(m.boos.size() == 1 and m.boos[0].item == Items.Type.TRIPLE_SHELL and m.boos[0].charges == 3)
+	runner.check(stolen.is_empty(), "not delivered yet")
+	for i in ticks:
+		m._physics_process(DT)
+	runner.check(m.boos.is_empty(), "flight over")
+	runner.check(m.holders[0].held == Items.Type.TRIPLE_SHELL and m.holders[0].charges == 3, "thief got the shells")
+	runner.check(not m.holders[0].locked)
+	runner.check(stolen == [[0, 1, Items.Type.TRIPLE_SHELL]], "stolen=%s" % [stolen])
+	runner.check(ks[0].model.is_ghost(), "still a ghost after the Boo is back")
+	# a ghost is passed through by shells and ignored by red shells and lightning
+	m.holders[1].held = Items.Type.RED_SHELL
+	_place(r, 1, 5)
+	_place(r, 0, 9)
+	_place(r, 2, 40)
+	m.use_item(1)
+	var shell = m.projectiles[-1]
+	m._physics_process(DT)
+	runner.check(shell.target_pos == null or shell.target_pos.distance_to(ks[0].global_position) > 1.0, "red shell does not lock onto a ghost")
+	ks[0].global_position = shell.position
+	m._physics_process(DT)
+	runner.check(not ks[0].model.is_spinning(), "ghost never spins")
+	m.holders[2].held = Items.Type.LIGHTNING
+	m.use_item(2)
+	runner.check(not ks[0].model.is_shrunk() and ks[1].model.is_shrunk(), "lightning skips the ghost")
+	_free_manager(r)
+
+func test_mk64_boo_with_nothing_to_steal() -> void:
+	var r = _make_manager(2)
+	var m = r[0]
+	m.holders[0].held = Items.Type.BOO
+	var stolen := []
+	m.item_stolen.connect(func(t, v, i): stolen.append([t, v, i]))
+	m.use_item(0)
+	runner.check(m.boos.size() == 1 and m.boos[0].victim == -1)
+	runner.check(not m.holders[0].locked, "slot stays free when there is nothing to fetch")
+	for i in int(m.BOO_FLIGHT * 2.0 / DT) + 2:
+		m._physics_process(DT)
+	runner.check(m.boos.is_empty() and m.holders[0].held == Items.Type.NONE)
+	runner.check(stolen == [[0, -1, Items.Type.NONE]], "stolen=%s" % [stolen])
+	# a rolling rival or a ghost rival is not a target either
+	var r2 = _make_manager(3)
+	var m2 = r2[0]
+	m2.holders[0].held = Items.Type.BOO
+	m2.holders[1].pickup()
+	m2.holders[2].held = Items.Type.STAR
+	r2[1][2].model.apply_ghost()
+	m2.use_item(0)
+	runner.check(m2.boos[0].victim == -1, "nobody eligible")
+	_free_manager(r2)
+	_free_manager(r)
+
+func test_mk64_boo_victim_uses_item_before_it_is_taken() -> void:
+	var r = _make_manager(2)
+	var m = r[0]
+	m.holders[0].held = Items.Type.BOO
+	m.holders[1].held = Items.Type.MUSHROOM
+	m.use_item(0)
+	runner.check(m.boos[0].victim == 1)
+	m.use_item(1)   # fires the mushroom while the Boo is still on its way
+	for i in int(m.BOO_FLIGHT * 2.0 / DT) + 2:
+		m._physics_process(DT)
+	runner.check(m.boos.is_empty())
+	runner.check(m.holders[0].held == Items.Type.NONE and not m.holders[0].locked, "empty-handed, slot unlocked")
+	_free_manager(r)
+
+func test_ai_uses_boo() -> void:
+	var d = load("res://scripts/ai_driver.gd").new(TrackData.new(), 0.0, 0.5)
+	runner.check(not d.wants_use(0.4, Items.Type.BOO, INF, INF), "before delay")
+	runner.check(d.wants_use(0.2, Items.Type.BOO, INF, INF), "Boo after delay")
+
+func test_hud_shows_boo_state() -> void:
+	runner.check(Hud.state_text(false, 0, false, false, true) == "BOO!")
+	runner.check(Hud.state_text(true, 2, false, true, true) == "BOO!", "ghost outranks boost and shrunk")
+	runner.check(Hud.state_text(true, 0, true, false, true) == "STAR!", "star outranks ghost")
+	runner.check(Hud.state_text(true, 0) == "BOOST!")
+	runner.check(Hud.state_text(false, 0, false, true) == "SHRUNK!")
+	runner.check(Hud.state_text(false, 3) == "ULTRA MINI-TURBO")
+	runner.check(Hud.state_text(false, 0) == "")

@@ -14,9 +14,13 @@ const MUSHROOM_BOOST_TIME := 1.5
 const KART_RADIUS := 1.1
 const STAR_HIT_RADIUS := 2.2
 const BUNCH_GAP := 1.0   # metres between the bananas trailing a banana-bunch holder
+const BOO_FLIGHT := 0.7  # seconds the Boo takes to reach its victim (and as long again to come back)
+const BOO_HOVER := Vector3(0, 2.2, 0)   # where the Boo floats relative to a kart
 
 signal kart_hit(kind: int, id: int)
 signal lightning_struck(user: int, victims: Array)
+## A Boo came back: victim is -1 and item NONE when nobody had anything to take.
+signal item_stolen(thief: int, victim: int, item: int)
 
 var track
 var karts: Array = []     # index in this array == kart_id; karts[0] is the player
@@ -30,6 +34,7 @@ var orbits := {}   # kart id -> Node3D holding the orbiting triple-shell visuals
 var trails := {}   # kart id -> [item kind, Node3D] for the banana(s) / shell / fake box dangling behind the kart
 var bolts: Array = []   # live lightning bolt visuals
 var blasts: Array = []   # live blue shell explosion visuals
+var boos: Array = []   # live Boo flights: {thief, victim, t, item, charges, node}
 var time := 0.0
 
 func setup(track_data, all_karts, seed_value := 0) -> void:
@@ -92,6 +97,8 @@ func use_item(id := 0) -> int:
 			k.model.apply_star()
 		Items.Type.LIGHTNING:
 			_strike(id)
+		Items.Type.BOO:
+			_send_boo(id)
 	return t
 
 func _no_finish_times() -> Array:
@@ -120,11 +127,65 @@ func _explode(p) -> void:
 	blast.build(p.position, ItemProjectile.BLUE_BLAST_RADIUS)
 	blasts.append(blast)
 
-## Lightning: every rival that is not a star kart shrinks, spins out and drops its item.
+## Boo (Mario Kart 64): the user turns into a see-through, untouchable ghost while a Boo flies
+## off to a rival that holds an item, takes it and brings it back. Victim: a random rival with
+## something in its slot (drawn from the user's own rng so races stay seeded); none → the Boo
+## just hovers over the user and vanishes empty-handed.
+func _send_boo(user: int) -> void:
+	karts[user].model.apply_ghost()
+	var candidates: Array = []
+	for j in karts.size():
+		if j != user and holders[j].held != Items.Type.NONE and not holders[j].is_rolling() and not karts[j].model.is_ghost():
+			candidates.append(j)
+	var victim := -1
+	if not candidates.is_empty():
+		victim = candidates[holders[user].rng.randi_range(0, candidates.size() - 1)]
+		holders[user].locked = true
+	var node := _make_boo_node()
+	add_child(node)
+	node.position = karts[user].global_position + BOO_HOVER
+	boos.append({"thief": user, "victim": victim, "t": 0.0, "item": Items.Type.NONE, "charges": 0, "node": node})
+
+## Advance every Boo flight: out to the victim (grab its item on arrival), back to the thief.
+func _update_boos(delta: float) -> void:
+	for b in boos.duplicate():
+		var was: float = b.t
+		b.t += delta
+		var node: Node3D = b.node
+		var home: Vector3 = karts[b.thief].global_position + BOO_HOVER
+		var bob := Vector3(0, 0.25 * sin(time * 5.0), 0)
+		if b.victim < 0:
+			node.position = home + bob
+			node.scale = Vector3.ONE * clampf(2.0 - b.t / BOO_FLIGHT, 0.0, 1.0)
+			if b.t >= BOO_FLIGHT * 2.0:
+				_finish_boo(b)
+			continue
+		var there: Vector3 = karts[b.victim].global_position + BOO_HOVER
+		if was < BOO_FLIGHT and b.t >= BOO_FLIGHT:
+			var got: Array = holders[b.victim].steal()
+			b.item = got[0]
+			b.charges = got[1]
+		if b.t < BOO_FLIGHT:
+			node.position = home.lerp(there, b.t / BOO_FLIGHT) + bob
+		elif b.t < BOO_FLIGHT * 2.0:
+			node.position = there.lerp(home, b.t / BOO_FLIGHT - 1.0) + bob
+		else:
+			_finish_boo(b)
+
+func _finish_boo(b: Dictionary) -> void:
+	boos.erase(b)
+	b.node.queue_free()
+	if b.victim < 0:
+		item_stolen.emit(b.thief, -1, Items.Type.NONE)
+		return
+	holders[b.thief].receive(b.item, b.charges)
+	item_stolen.emit(b.thief, b.victim, b.item)
+
+## Lightning: every rival that is not a star or ghost kart shrinks, spins out and drops its item.
 func _strike(user: int) -> void:
 	var victims: Array = []
 	for j in karts.size():
-		if j == user or karts[j].model.is_star():
+		if j == user or karts[j].model.is_star() or karts[j].model.is_ghost():
 			continue
 		karts[j].model.apply_shrink()
 		karts[j].model.spin_out()
@@ -211,6 +272,42 @@ func _make_banana_node() -> Node3D:
 		mi.rotation_degrees = Vector3(0, 0, 70 + 40 * k)
 		mi.position = Vector3(0.12 * k - 0.06, 0.25, 0)
 		n.add_child(mi)
+	return n
+
+## A little white ghost: round body, two black eyes and a dark grin, slightly see-through.
+func _make_boo_node() -> Node3D:
+	var n := Node3D.new()
+	var body := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = 0.55
+	sm.height = 1.1
+	body.mesh = sm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 1.0, 1.0, 0.8)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.emission_enabled = true
+	mat.emission = Color(0.6, 0.6, 0.8)
+	mat.emission_energy_multiplier = 0.5
+	body.material_override = mat
+	n.add_child(body)
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color(0.05, 0.05, 0.08)
+	for x in [-0.2, 0.2]:
+		var eye := MeshInstance3D.new()
+		var em := SphereMesh.new()
+		em.radius = 0.1
+		em.height = 0.2
+		eye.mesh = em
+		eye.material_override = dark
+		eye.position = Vector3(x, 0.12, -0.46)
+		n.add_child(eye)
+	var mouth := MeshInstance3D.new()
+	var mm := BoxMesh.new()
+	mm.size = Vector3(0.3, 0.08, 0.1)
+	mouth.mesh = mm
+	mouth.material_override = dark
+	mouth.position = Vector3(0, -0.15, -0.5)
+	n.add_child(mouth)
 	return n
 
 ## A floating box that looks like a real item box (upside-down glyph, faint red tint) —
@@ -311,6 +408,7 @@ func _physics_process(delta: float) -> void:
 		headings.append(k.heading)
 	for id in karts.size():
 		holders[id].update(delta)
+	_update_boos(delta)
 	_update_orbits()
 	_update_trails()
 	for b in boxes:
@@ -328,7 +426,7 @@ func _physics_process(delta: float) -> void:
 				use_item(id)
 	var valid: Array = []
 	for k in karts:
-		valid.append(not k.model.is_star())
+		valid.append(not k.model.is_star() and not k.model.is_ghost())
 	# a star kart bowls over anyone it touches
 	for id in karts.size():
 		if karts[id].model.is_star():

@@ -50,12 +50,19 @@ func setup(player_kart, item_manager) -> void:
 	kart.model.boost_started.connect(func(_l): play("boost"))
 	kart.model.spin_started.connect(func(): play("hit"))
 	kart.model.star_started.connect(func(): play("star"))
+	kart.model.ghost_started.connect(func(): play("boo"))
 	items.kart_hit.connect(_on_kart_hit)
+	items.item_stolen.connect(_on_item_stolen)
 	items.lightning_struck.connect(func(_u, _v): play("lightning"))
 
 func _on_kart_hit(kind: int, id: int) -> void:
 	if kind == Items.Type.BLUE_SHELL:
 		play("explosion", 0.0 if id == 0 else -8.0)
+
+## The player's item was taken by a rival's Boo.
+func _on_item_stolen(_thief: int, victim: int, item: int) -> void:
+	if victim == 0 and item != Items.Type.NONE:
+		play("boo", -4.0)
 
 ## Start a one-shot on a free voice (or steal the first one). Returns the voice used.
 func play(effect: String, volume_db := 0.0) -> AudioStreamPlayer:

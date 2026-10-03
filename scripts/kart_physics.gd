@@ -12,6 +12,8 @@ signal star_started
 signal star_ended
 signal shrink_started
 signal shrink_ended
+signal ghost_started
+signal ghost_ended
 
 var max_speed := 30.0
 var reverse_max_speed := 10.0
@@ -45,6 +47,8 @@ var star_time := 0.0
 var shrink_duration := 7.0      # seconds a lightning strike keeps a kart small and slow
 var shrink_speed_factor := 0.7
 var shrink_time := 0.0
+var ghost_duration := 5.0       # seconds a Boo keeps the kart see-through and untouchable
+var ghost_time := 0.0
 
 func is_boosting() -> bool:
 	return boost_time > 0.0
@@ -70,9 +74,20 @@ func apply_star(duration := -1.0) -> void:
 func is_shrunk() -> bool:
 	return shrink_time > 0.0
 
-## Lightning strike: smaller and slower for shrink_duration. A star kart is immune (returns false).
+func is_ghost() -> bool:
+	return ghost_time > 0.0
+
+## Boo (Mario Kart 64): the kart turns translucent and, like a star, nothing can hit it —
+## shells and bananas pass straight through — but it gets no speed bonus.
+func apply_ghost(duration := -1.0) -> void:
+	var was := is_ghost()
+	ghost_time = maxf(ghost_time, ghost_duration if duration < 0.0 else duration)
+	if not was:
+		ghost_started.emit()
+
+## Lightning strike: smaller and slower for shrink_duration. A star or ghost kart is immune (returns false).
 func apply_shrink(duration := -1.0) -> bool:
-	if is_star():
+	if is_star() or is_ghost():
 		return false
 	var was := is_shrunk()
 	shrink_time = maxf(shrink_time, shrink_duration if duration < 0.0 else duration)
@@ -99,7 +114,7 @@ func spin_progress() -> float:
 ## Get hit: lose control, boost and drift for spin_duration. Returns false (no effect)
 ## if already spinning or still immune.
 func spin_out() -> bool:
-	if is_spinning() or immunity_time > 0.0 or is_star():
+	if is_spinning() or immunity_time > 0.0 or is_star() or is_ghost():
 		return false
 	spin_time = spin_duration
 	boost_time = 0.0
@@ -185,6 +200,12 @@ func step(delta: float, throttle: float, brake: float, steer: float, drift_held:
 		if shrink_time <= 0.0:
 			shrink_time = 0.0
 			shrink_ended.emit()
+
+	if ghost_time > 0.0:
+		ghost_time -= delta
+		if ghost_time <= 0.0:
+			ghost_time = 0.0
+			ghost_ended.emit()
 
 	# --- spin out: no control, speed bleeds off
 	if immunity_time > 0.0:

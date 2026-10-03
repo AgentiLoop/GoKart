@@ -141,6 +141,7 @@ static func effect_library() -> Dictionary:
 		"explosion": noise_burst(0.8, 0.8, 1.0, 11),
 		"lightning": noise_burst(0.5, 0.05, 0.8, 13),
 		"star": arpeggio([784.0, 988.0, 1175.0, 1568.0, 1175.0, 988.0], 0.07, 0.4),
+		"boo": sweep(520.0, 180.0, 0.7, 0.4),
 		"throw": sweep(300.0, 700.0, 0.15, 0.4),
 		"finish": arpeggio([523.0, 659.0, 784.0, 659.0, 784.0, 1047.0], 0.12, 0.5),
 	}

@@ -38,6 +38,20 @@ static func item_text(item: int, charges := 0, golden_left := 0.0) -> String:
 static func item_hint_text(item: int) -> String:
 	return "" if item == Items.Type.NONE else "Press E / Enter / Ctrl to use"
 
+## Bottom-left status word: star beats a Boo ghost beats a boost beats shrunk beats the mini-turbo level.
+static func state_text(boosting: bool, drift_level: int, star := false, shrunk := false, ghost := false) -> String:
+	if star:
+		return "STAR!"
+	if ghost:
+		return "BOO!"
+	if boosting:
+		return "BOOST!"
+	if shrunk:
+		return "SHRUNK!"
+	if drift_level > 0:
+		return ["", "MINI-TURBO", "SUPER MINI-TURBO", "ULTRA MINI-TURBO"][drift_level]
+	return ""
+
 static func place_text(rank: int, total: int) -> String:
 	return "" if total <= 1 else "%s / %d" % [RaceRanking.ordinal(rank), total]
 
@@ -130,21 +144,12 @@ func show_cup(text: String) -> void:
 func show_countdown(text: String) -> void:
 	countdown_label.text = text
 
-func update_hud(tracker, speed: float, boosting: bool, drift_level: int, item := 0, place := "", star := false, shrunk := false, charges := 0, golden_left := 0.0) -> void:
+func update_hud(tracker, speed: float, boosting: bool, drift_level: int, item := 0, place := "", star := false, shrunk := false, charges := 0, golden_left := 0.0, ghost := false) -> void:
 	place_label.text = place
 	item_label.text = item_text(item, charges, golden_left)
 	hint_label.text = item_hint_text(item)
 	lap_label.text = lap_text(tracker.lap, tracker.total_laps) if tracker.lap > 0 else "READY"
 	time_label.text = "TIME %s\nLAP  %s" % [format_time(tracker.race_time), format_time(tracker.lap_time)]
 	speed_label.text = "%d km/h" % int(round(absf(speed) * 3.6))
-	var s := ""
-	if star:
-		s = "STAR!"
-	elif boosting:
-		s = "BOOST!"
-	elif shrunk:
-		s = "SHRUNK!"
-	elif drift_level > 0:
-		s = ["", "MINI-TURBO", "SUPER MINI-TURBO", "ULTRA MINI-TURBO"][drift_level]
-	state_label.text = s
+	state_label.text = state_text(boosting, drift_level, star, shrunk, ghost)
 	banner_label.text = "FINISH!" if tracker.is_finished else ""

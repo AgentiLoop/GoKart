@@ -6,6 +6,7 @@ const KartEffects := preload("res://scripts/kart_effects.gd")
 const KartModel := preload("res://scripts/kart_model.gd")
 
 const SHRUNK_SCALE := 0.5
+const GHOST_ALPHA := 0.35   # how see-through a Boo makes the kart
 
 var model := KartPhysics.new()
 var gravity := 30.0
@@ -40,6 +41,8 @@ func _ready() -> void:
 	add_child(effects)
 	effects.setup(model, [Vector3(-0.8, 0, -0.8), Vector3(0.8, 0, -0.8), Vector3(-0.8, 0, 0.8), Vector3(0.8, 0, 0.8)])
 	effects.setup_star(body_mesh)
+	model.ghost_started.connect(func(): body_mesh.set_opacity(GHOST_ALPHA))
+	model.ghost_ended.connect(func(): body_mesh.set_opacity(1.0))
 
 func _physics_process(delta: float) -> void:
 	var throttle := Input.get_action_strength("accelerate")

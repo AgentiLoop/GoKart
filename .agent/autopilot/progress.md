@@ -744,3 +744,34 @@ Cycle 5: added two Mario Kart 64 items — **Triple Mushrooms** and the **Golden
 - `scripts/ai_driver.gd`: fake box / bunch use the banana policy; `scripts/hud.gd`: "x5" via `charges_for`.
 - Tests: `test_mk64_fake_item_box`, `test_mk64_banana_bunch`, `test_ai_drops_fake_box_and_bunch_when_followed`; roll/count/charges tests updated (12 items, mushroom share 5/25.5, bunch charges). Suite 4816 passed, 0 failed. smoke 7/7 AI racing. Windowed check (temp script): fake box dropped + bunch trail rendered with no shader errors, /tmp/gokart_fakebox.png saved (not visually inspected).
 - Remaining MK64 ideas: Boo (ghost item), mirror mode ("Extra"), time trials with ghost, battle mode, Lakitu rescue, bananas/fake boxes blocking shells.
+## Cycle 6 — 2026-10-03 14:58
+Cycle 6: added two more Mario Kart 64 items — the **Fake Item Box** and the **Banana Bunch** — committed as dcaf03a.
+
+**What I did**
+- `scripts/items.gd`: `FAKE_ITEM_BOX` (weight 2.0; rank multiplier 2.2 → 0.2 from leader to last, so it's mostly a front-of-the-pack item like MK64) and `BANANA_BUNCH` (weight 1.5, front-leaning like the single banana); `BUNCH_CHARGES = 5`; new helpers `charges_for(t)` (3 for triples, 5 for the bunch) and `is_dropped(t)`. 12 items total.
+- `scripts/item_holder.gd`: the roulette grants `charges_for(held)`; `use()` spends one charge on any multi-use item.
+- `scripts/item_projectile.gd`: `make_fake_box()` — a stationary hazard (radius 1.0) with the usual owner grace; hitting it spins the kart out through the existing hit path.
+- `scripts/item_manager.gd`: the fake box is dropped 2.6 m behind the kart and rendered as a slowly spinning box using the item-box shader with an upside-down "¿" glyph and a faint red tint; a bunch drops one real banana per press; the dangling-item trail now shows a small fake box, or one banana per remaining charge lined up behind the kart.
+- `shaders/item_box.gdshader`: `flip` and `tint` uniforms (defaults keep real boxes unchanged).
+- `scripts/ai_driver.gd`: both new items follow the banana policy (drop when a rival is within 20 m behind, or after 8 s). `scripts/hud.gd`: "[ BANANA BUNCH x5 ]" via `charges_for`.
+- Tests: `test_mk64_fake_item_box`, `test_mk64_banana_bunch`, `test_ai_drops_fake_box_and_bunch_when_followed` in `tests/test_items.gd`; roll/count/charges tests updated. Suite: **4816 passed, 0 failed** (was 4756). `tools/smoke.gd` → 7/7 AI karts racing, no script errors. A temporary windowed script dropped a fake box and showed a bunch trail with no shader errors (`/tmp/gokart_fakebox.png` saved, not visually inspected).
+- README items bullet and progress log updated (the pending cycle-5 progress note is committed too).
+
+**Assumptions**: weights are my tuning; fake boxes/bananas do not yet block incoming shells (MK64 does that); the red tint is a deliberate subtle tell. Not seen on screen.
+
+**Remaining MK64 parity ideas**: Boo (ghost item that steals a rival's item), mirror mode ("Extra"), time trials with a ghost, battle mode, Lakitu rescue when far off-road, dropped items blocking shells.
+
+**Blockers**: none. No parity folders were given, so nothing was mirrored.
+
+
+## Cycle 7 (session 5) — MK64 Boo item
+- `scripts/items.gd`: `Type.BOO` (weight 1.0; rank mult 0 for the leader, 0.5 + 1.5 f otherwise). 13 items now.
+- `scripts/kart_physics.gd`: `ghost_duration` 5.0, `ghost_time`, `is_ghost()`, `apply_ghost()`, `ghost_started/ended`; ghosts shrug off `spin_out()` and `apply_shrink()`, no speed bonus.
+- `scripts/item_holder.gd`: `locked` (no pickups while the Boo is out), `steal()` -> [item, charges] (nothing while rolling / golden active), `receive(item, charges)`.
+- `scripts/item_manager.gd`: `_send_boo` (ghost the user, pick a random rival holding an item via the user's rng, spawn `_make_boo_node()`), `_update_boos` (out BOO_FLIGHT 0.7 s, steal on arrival, back 0.7 s, `receive` + `item_stolen(thief, victim, item)`; victim -1 when nobody had anything), red shells skip ghosts (`valid`), lightning skips ghosts.
+- `scripts/kart_model.gd`: `materials` list + `set_opacity(alpha)`; `scripts/kart.gd`: GHOST_ALPHA 0.35 on ghost_started, 1.0 on ghost_ended.
+- `scripts/hud.gd`: `state_text()` static (STAR! > BOO! > BOOST! > SHRUNK! > mini-turbo), `update_hud(..., ghost)`; `main.gd` passes `is_ghost()`.
+- Audio: `sound_synth.gd` "boo" sweep 520->180 Hz; `game_audio.gd` plays it on the player's ghost_started and when the player is robbed (`item_stolen`).
+- `ai_driver.gd`: Boo used after the hold delay.
+- Tests: test_mk64_boo_item_basics, test_holder_steal_and_receive, test_mk64_boo_steals_item_and_ghosts_user, test_mk64_boo_with_nothing_to_steal, test_mk64_boo_victim_uses_item_before_it_is_taken, test_ai_uses_boo, test_hud_shows_boo_state; roll/count tests updated (13 items, mushroom share 5/26.5); test_audio effect list has "boo". Suite 5888 passed, 0 failed. smoke 7/7. Windowed temp script: Boo fired -> flight -> player got the stolen triple shells, HUD "BOO!", no errors; /tmp/gokart_boo_flight.png, /tmp/gokart_boo_ghost.png (not visually inspected).
+- Remaining MK64 ideas: mirror mode ("Extra"), time trials with ghost, battle mode, Lakitu rescue, bananas/fake boxes blocking shells.

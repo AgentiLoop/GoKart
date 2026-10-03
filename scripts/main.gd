@@ -242,7 +242,7 @@ func _physics_process(delta: float) -> void:
 			else:
 				hud.show_results(RaceResults.table_text(rows, 0))
 	var place := RaceRanking.rank_of(0, progresses, finish_times)
-	hud.update_hud(tracker, kart.model.speed, kart.model.is_boosting(), kart.model.drift_level, items.holder.display_item(items.time), Hud.place_text(place, karts.size()), kart.model.is_star(), kart.model.is_shrunk(), items.holder.charges, items.holder.golden_time)
+	hud.update_hud(tracker, kart.model.speed, kart.model.is_boosting(), kart.model.drift_level, items.holder.display_item(items.time), Hud.place_text(place, karts.size()), kart.model.is_star(), kart.model.is_shrunk(), items.holder.charges, items.holder.golden_time, kart.model.is_ghost())
 	hud.show_countdown(race_start.label())
 	var marker_pos: Array = []
 	var marker_col: Array = []

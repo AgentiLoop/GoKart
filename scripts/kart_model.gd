@@ -11,6 +11,7 @@ var front_pivots: Array[Node3D] = []   # yaw (steering) nodes, front wheels
 var wheel_spins: Array[Node3D] = []    # roll nodes, all wheels
 var steering_wheel: Node3D
 var driver_head: Node3D
+var materials: Array[StandardMaterial3D] = []   # every material on the model, for set_opacity
 
 ## Wheel roll rate in rad/s for a ground speed.
 static func wheel_roll_rate(speed: float) -> float:
@@ -84,9 +85,16 @@ func update_wheels(delta: float, speed: float, steer: float) -> void:
 	steering_wheel.rotation.z = lerpf(steering_wheel.rotation.z, -steer * 1.2, clampf(STEER_RATE * delta, 0.0, 1.0))
 	driver_head.rotation.y = lerpf(driver_head.rotation.y, -steer * 0.5, clampf(6.0 * delta, 0.0, 1.0))
 
+## Fade the whole kart (Boo ghost): alpha < 1 turns on alpha blending, 1 restores opaque rendering.
+func set_opacity(alpha: float) -> void:
+	for m in materials:
+		m.albedo_color.a = alpha
+		m.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED if alpha >= 1.0 else BaseMaterial3D.TRANSPARENCY_ALPHA
+
 func _mat(c: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = c
+	materials.append(m)
 	return m
 
 func _add(mi: MeshInstance3D, pos: Vector3, c: Color, rot: Vector3, parent: Node3D) -> void:

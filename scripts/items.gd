@@ -1,9 +1,9 @@
 extends RefCounted
 ## Item types and the weighted item-box roll (pure, unit tested).
 
-enum Type { NONE, MUSHROOM, BANANA, SHELL, RED_SHELL, STAR, LIGHTNING, TRIPLE_SHELL, BLUE_SHELL, TRIPLE_MUSHROOM, GOLDEN_MUSHROOM, FAKE_ITEM_BOX, BANANA_BUNCH }
+enum Type { NONE, MUSHROOM, BANANA, SHELL, RED_SHELL, STAR, LIGHTNING, TRIPLE_SHELL, BLUE_SHELL, TRIPLE_MUSHROOM, GOLDEN_MUSHROOM, FAKE_ITEM_BOX, BANANA_BUNCH, BOO }
 
-const WEIGHTS := {Type.MUSHROOM: 5.0, Type.BANANA: 3.0, Type.SHELL: 3.0, Type.RED_SHELL: 2.5, Type.STAR: 1.5, Type.LIGHTNING: 1.0, Type.TRIPLE_SHELL: 2.0, Type.BLUE_SHELL: 1.0, Type.TRIPLE_MUSHROOM: 2.0, Type.GOLDEN_MUSHROOM: 1.0, Type.FAKE_ITEM_BOX: 2.0, Type.BANANA_BUNCH: 1.5}
+const WEIGHTS := {Type.MUSHROOM: 5.0, Type.BANANA: 3.0, Type.SHELL: 3.0, Type.RED_SHELL: 2.5, Type.STAR: 1.5, Type.LIGHTNING: 1.0, Type.TRIPLE_SHELL: 2.0, Type.BLUE_SHELL: 1.0, Type.TRIPLE_MUSHROOM: 2.0, Type.GOLDEN_MUSHROOM: 1.0, Type.FAKE_ITEM_BOX: 2.0, Type.BANANA_BUNCH: 1.5, Type.BOO: 1.0}
 
 ## Shells / mushrooms granted by one TRIPLE_SHELL / TRIPLE_MUSHROOM pickup.
 const TRIPLE_CHARGES := 3
@@ -20,7 +20,7 @@ static func count() -> int:
 	return Type.size() - 1
 
 static func name_of(t: int) -> String:
-	return ["", "MUSHROOM", "BANANA", "GREEN SHELL", "RED SHELL", "STAR", "LIGHTNING", "TRIPLE SHELLS", "BLUE SHELL", "TRIPLE MUSHROOMS", "GOLDEN MUSHROOM", "FAKE ITEM BOX", "BANANA BUNCH"][t]
+	return ["", "MUSHROOM", "BANANA", "GREEN SHELL", "RED SHELL", "STAR", "LIGHTNING", "TRIPLE SHELLS", "BLUE SHELL", "TRIPLE MUSHROOMS", "GOLDEN MUSHROOM", "FAKE ITEM BOX", "BANANA BUNCH", "BOO"][t]
 
 ## Every item that gives the user a speed boost when fired.
 static func is_mushroom(t: int) -> bool:
@@ -44,7 +44,7 @@ static func is_dropped(t: int) -> bool:
 
 ## Weights adjusted for race position (rubber banding): rank 1 = leader, racers = field size.
 ## The leader mostly gets defensive items; the back of the pack gets star, lightning and
-## blue shell. Blue shell and lightning are never rolled for the leader. rank <= 0 or a
+## blue shell. Blue shell, lightning, golden mushroom and Boo are never rolled for the leader. rank <= 0 or a
 ## field of one means "no adjustment" (the plain WEIGHTS).
 static func weights_for(rank := 0, racers := 0) -> Dictionary:
 	if rank <= 0 or racers < 2:
@@ -63,6 +63,7 @@ static func weights_for(rank := 0, racers := 0) -> Dictionary:
 		Type.GOLDEN_MUSHROOM: 0.0 if rank == 1 else 2.5 * f,
 		Type.FAKE_ITEM_BOX: 2.2 - 2.0 * f,
 		Type.BANANA_BUNCH: 1.6 - 1.2 * f,
+		Type.BOO: 0.0 if rank == 1 else 0.5 + 1.5 * f,
 	}
 	var out := {}
 	for t in WEIGHTS:
