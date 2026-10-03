@@ -22,13 +22,13 @@ static func format_time(t: float) -> String:
 	var total_ms := int(round(t * 1000.0))
 	return "%d:%02d.%03d" % [total_ms / 60000, (total_ms / 1000) % 60, total_ms % 1000]
 
-## Held item label; triple items show the charges left ("x3"), a fired golden mushroom
+## Held item label; multi-use items show the charges left ("x3"), a fired golden mushroom
 ## its remaining seconds.
 static func item_text(item: int, charges := 0, golden_left := 0.0) -> String:
 	if item == Items.Type.NONE:
 		return ""
 	var extra := ""
-	if Items.is_triple(item) and charges > 0:
+	if Items.charges_for(item) > 0 and charges > 0:
 		extra = " x%d" % charges
 	elif item == Items.Type.GOLDEN_MUSHROOM and golden_left > 0.0:
 		extra = " %.1fs" % golden_left

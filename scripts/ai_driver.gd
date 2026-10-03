@@ -91,7 +91,7 @@ func wants_use(delta: float, item: int, gap_ahead: float, gap_behind: float) -> 
 			use = gap_ahead < 80.0 or hold_time > 10.0
 		Items.Type.STAR, Items.Type.LIGHTNING, Items.Type.BLUE_SHELL:
 			use = true
-		Items.Type.BANANA:
+		Items.Type.BANANA, Items.Type.FAKE_ITEM_BOX, Items.Type.BANANA_BUNCH:
 			use = gap_behind < 20.0 or hold_time > 8.0
 	if use:
 		hold_time = 0.0

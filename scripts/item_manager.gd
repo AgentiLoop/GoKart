@@ -13,6 +13,7 @@ const RaceRanking := preload("res://scripts/race_ranking.gd")
 const MUSHROOM_BOOST_TIME := 1.5
 const KART_RADIUS := 1.1
 const STAR_HIT_RADIUS := 2.2
+const BUNCH_GAP := 1.0   # metres between the bananas trailing a banana-bunch holder
 
 signal kart_hit(kind: int, id: int)
 signal lightning_struck(user: int, victims: Array)
@@ -26,7 +27,7 @@ var boxes: Array = []
 var projectiles: Array = []
 var nodes := {}   # projectile -> Node3D
 var orbits := {}   # kart id -> Node3D holding the orbiting triple-shell visuals
-var trails := {}   # kart id -> [item kind, Node3D] for a single banana/shell dangling behind the kart
+var trails := {}   # kart id -> [item kind, Node3D] for the banana(s) / shell / fake box dangling behind the kart
 var bolts: Array = []   # live lightning bolt visuals
 var blasts: Array = []   # live blue shell explosion visuals
 var time := 0.0
@@ -76,8 +77,10 @@ func use_item(id := 0) -> int:
 	match t:
 		Items.Type.MUSHROOM, Items.Type.TRIPLE_MUSHROOM, Items.Type.GOLDEN_MUSHROOM:
 			k.model.apply_boost(MUSHROOM_BOOST_TIME, 2)
-		Items.Type.BANANA:
+		Items.Type.BANANA, Items.Type.BANANA_BUNCH:
 			_add_projectile(ItemProjectile.make_banana(pos - fwd * 2.4 + Vector3(0, 0.3, 0), id))
+		Items.Type.FAKE_ITEM_BOX:
+			_add_projectile(ItemProjectile.make_fake_box(pos - fwd * 2.6, id))
 		Items.Type.SHELL, Items.Type.TRIPLE_SHELL:
 			_add_projectile(ItemProjectile.make_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), k.heading, id))
 		Items.Type.RED_SHELL:
@@ -210,12 +213,29 @@ func _make_banana_node() -> Node3D:
 		n.add_child(mi)
 	return n
 
-## A single banana / green shell / red shell dangles behind the kart that holds it
-## (Mario Kart 64 item dangling), for the player and every AI kart.
+## A floating box that looks like a real item box (upside-down glyph, faint red tint) —
+## the Mario Kart 64 fake item. scale < 1 shrinks it for the dangling-behind-the-kart copy.
+func _make_fake_box_node(scale := 1.0) -> Node3D:
+	var n := Node3D.new()
+	var mi := MeshInstance3D.new()
+	var m := BoxMesh.new()
+	m.size = Vector3(1.4, 1.4, 1.4) * scale
+	mi.mesh = m
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/item_box.gdshader") as Shader
+	mat.set_shader_parameter("flip", 1.0)
+	mat.set_shader_parameter("tint", Vector3(1.0, 0.7, 0.7))
+	mi.material_override = mat
+	mi.position.y = 1.4 * scale
+	n.add_child(mi)
+	return n
+
+## A single banana / green shell / red shell / fake item box dangles behind the kart that
+## holds it (Mario Kart 64 item dangling); a banana bunch trails one banana per charge.
 func _update_trails() -> void:
 	for id in karts.size():
 		var kind: int = holders[id].held
-		if kind != Items.Type.BANANA and kind != Items.Type.SHELL and kind != Items.Type.RED_SHELL:
+		if not Items.is_dropped(kind) and kind != Items.Type.SHELL and kind != Items.Type.RED_SHELL and kind != Items.Type.BANANA_BUNCH:
 			kind = Items.Type.NONE
 		var entry = trails.get(id)
 		if entry != null and entry[0] != kind:
@@ -228,6 +248,10 @@ func _update_trails() -> void:
 			var node: Node3D
 			if kind == Items.Type.BANANA:
 				node = _make_banana_node()
+			elif kind == Items.Type.FAKE_ITEM_BOX:
+				node = _make_fake_box_node(0.6)
+			elif kind == Items.Type.BANANA_BUNCH:
+				node = Node3D.new()
 			else:
 				node = Node3D.new()
 				node.add_child(_make_shell_mesh(kind, 0.4))
@@ -236,15 +260,28 @@ func _update_trails() -> void:
 			trails[id] = entry
 		var k = karts[id]
 		var fwd := Vector3(-sin(k.heading), 0, -cos(k.heading))
-		entry[1].position = k.global_position - fwd * 2.2 + Vector3(0, 0.5, 0)
-		if kind != Items.Type.BANANA:
-			entry[1].rotation.y = time * 12.0
+		var node: Node3D = entry[1]
+		node.position = k.global_position - fwd * 2.2 + Vector3(0, 0.5, 0)
+		if kind == Items.Type.BANANA_BUNCH:
+			var want: int = holders[id].charges
+			while node.get_child_count() > want:
+				var last := node.get_child(node.get_child_count() - 1)
+				node.remove_child(last)
+				last.queue_free()
+			while node.get_child_count() < want:
+				node.add_child(_make_banana_node())
+			for c in node.get_child_count():
+				node.get_child(c).position = -fwd * (BUNCH_GAP * c)
+		elif kind != Items.Type.BANANA:
+			node.rotation.y = time * 12.0 if kind != Items.Type.FAKE_ITEM_BOX else time * 1.6
 
 func _add_projectile(p) -> void:
 	projectiles.append(p)
 	var n := Node3D.new()
 	if p.is_shell():
 		n.add_child(_make_shell_mesh(p.kind, 0.55))
+	elif p.kind == Items.Type.FAKE_ITEM_BOX:
+		n = _make_fake_box_node()
 	else:
 		n = _make_banana_node()
 	n.position = p.position
@@ -322,4 +359,4 @@ func _physics_process(delta: float) -> void:
 		else:
 			var n: Node3D = nodes[p]
 			n.position = p.position
-			n.rotation.y += (12.0 if p.is_shell() else 0.0) * delta
+			n.rotation.y += (12.0 if p.is_shell() else (1.6 if p.kind == Items.Type.FAKE_ITEM_BOX else 0.0)) * delta

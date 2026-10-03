@@ -717,3 +717,30 @@ Cycle 4: added Mario Kart 64 **engine classes (50cc / 100cc / 150cc)**, committe
 - `scripts/hud.gd`: `item_text(item, charges, golden_left)` shows "x3" for triple items and "6.5s" for an active golden mushroom; `update_hud` takes `charges` / `golden_left`, `scripts/main.gd` passes them.
 - Tests: `test_mk64_triple_mushrooms`, `test_mk64_golden_mushroom_boosts_repeatedly_then_expires`, `test_mk64_mushroom_items_follow_race_position`, `test_ai_fires_mushroom_items` in tests/test_items.gd; existing roll/count/charges tests updated (10 items, mushroom share 5/22). Suite 4756 passed, 0 failed. smoke 7/7 AI racing with no script errors.
 - Not seen on screen. Remaining MK64 ideas: fake item box, banana bunch, Boo (ghost), mirror mode ("Extra"), time trials with ghost, battle mode, Lakitu rescue.
+## Cycle 5 — 2026-10-03 14:52
+Cycle 5: added two Mario Kart 64 items — **Triple Mushrooms** and the **Golden Mushroom** — committed as 0ab3be9.
+
+**What I did**
+- `scripts/items.gd`: `TRIPLE_MUSHROOM` (weight 2.0) and `GOLDEN_MUSHROOM` (weight 1.0) appended to the item enum (10 items now), `GOLDEN_DURATION` = 7.5 s, helpers `is_mushroom()` / `is_triple()`. Position-based weights: triple mushrooms favour the back of the pack; the golden mushroom is never rolled for the leader (like MK64's back-of-the-field items).
+- `scripts/item_holder.gd`: triple mushrooms reuse the 3-charge logic of triple shells; a golden mushroom stays in the slot after the first press, every press gives another boost, and `update()` removes it when its 7.5 s clock expires (`golden_time`, `is_golden_active()`); lightning's `clear()` also kills it.
+- `scripts/item_manager.gd` / `scripts/ai_driver.gd`: both items boost like a mushroom; AI karts fire them after their hold delay.
+- `scripts/hud.gd` + `scripts/main.gd`: the item label shows "[ TRIPLE MUSHROOMS x3 ]" / "[ GOLDEN MUSHROOM 6.5s ]" via new `charges` / `golden_left` params on `item_text` / `update_hud`.
+- Tests: 4 new tests in `tests/test_items.gd` (charges, HUD text, golden clock/expiry/clear, manager boosts on every use, leader never rolls golden, last place rolls both, AI fires them); existing roll/count/charges tests updated. Suite: **4756 passed, 0 failed** (was 3646). `tools/smoke.gd` → 7/7 AI karts racing, no script errors.
+- README items bullet and progress log updated.
+
+**Assumptions**: 7.5 s golden duration and the weights are my tuning; no 3D visual for held mushrooms (MK64 shows them only in the item slot). Not seen on screen.
+
+**Remaining MK64 parity ideas**: fake item box, banana bunch, Boo (ghost item), mirror mode ("Extra"), time trials with a ghost, battle mode, Lakitu rescue when far off-road.
+
+**Blockers**: none. No parity folders were given, so nothing was mirrored.
+
+
+## Cycle 6 (session 5) — MK64 fake item box + banana bunch
+- `scripts/items.gd`: `Type.FAKE_ITEM_BOX` (weight 2.0, rank mult 2.2 - 2.0 f: leader-heavy, last place 0.2) and `Type.BANANA_BUNCH` (weight 1.5, mult 1.6 - 1.2 f); `BUNCH_CHARGES` 5; helpers `charges_for(t)` (3 triples / 5 bunch / 0) and `is_dropped(t)` (banana, fake box). 12 items now.
+- `scripts/item_holder.gd`: roulette sets `charges = Items.charges_for(held)`; `use()` spends a charge for any multi-use item.
+- `scripts/item_projectile.gd`: `make_fake_box(pos, owner)` (radius 1.0, sits still like a banana, same owner grace, spins out on contact via the generic hit path).
+- `scripts/item_manager.gd`: fake box dropped 2.6 m behind the kart with `_make_fake_box_node()` (BoxMesh + item_box shader with `flip`=1 / reddish `tint`, slow spin); bunch drops one banana per press; `_update_trails` dangles a 0.6-scale fake box and, for a bunch, one banana per remaining charge in a line (`BUNCH_GAP` 1 m).
+- `shaders/item_box.gdshader`: new uniforms `flip` (upside-down glyph) and `tint`.
+- `scripts/ai_driver.gd`: fake box / bunch use the banana policy; `scripts/hud.gd`: "x5" via `charges_for`.
+- Tests: `test_mk64_fake_item_box`, `test_mk64_banana_bunch`, `test_ai_drops_fake_box_and_bunch_when_followed`; roll/count/charges tests updated (12 items, mushroom share 5/25.5, bunch charges). Suite 4816 passed, 0 failed. smoke 7/7 AI racing. Windowed check (temp script): fake box dropped + bunch trail rendered with no shader errors, /tmp/gokart_fakebox.png saved (not visually inspected).
+- Remaining MK64 ideas: Boo (ghost item), mirror mode ("Extra"), time trials with ghost, battle mode, Lakitu rescue, bananas/fake boxes blocking shells.

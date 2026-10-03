@@ -1,7 +1,7 @@
 extends RefCounted
 ## A thrown/dropped item in the world (pure logic). Green shells fly straight and
-## ricochet off the road walls; bananas sit where they were dropped. Both are
-## consumed when they hit a kart.
+## ricochet off the road walls; bananas and fake item boxes sit where they were dropped.
+## All are consumed when they hit a kart.
 
 const Items := preload("res://scripts/items.gd")
 
@@ -105,6 +105,15 @@ static func make_banana(pos: Vector3, owner := -1) -> Object:
 	var p = load("res://scripts/item_projectile.gd").new()
 	p.kind = Items.Type.BANANA
 	p.position = pos
+	p.owner_id = owner
+	return p
+
+## Mario Kart 64 fake item box: sits on the road like a banana, looks like a real box.
+static func make_fake_box(pos: Vector3, owner := -1) -> Object:
+	var p = load("res://scripts/item_projectile.gd").new()
+	p.kind = Items.Type.FAKE_ITEM_BOX
+	p.position = pos
+	p.radius = 1.0
 	p.owner_id = owner
 	return p
 

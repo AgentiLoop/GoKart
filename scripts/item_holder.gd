@@ -11,7 +11,7 @@ var roulette_time := 0.0
 var roulette_duration := 1.5
 var rank := 0      # race position when the box was hit (0 = unknown), biases the roll
 var racers := 0
-var charges := 0   # uses left of a multi-use item (triple shells / triple mushrooms)
+var charges := 0   # uses left of a multi-use item (triple shells / triple mushrooms / banana bunch)
 var golden_time := 0.0   # seconds of unlimited boosts left once a golden mushroom is fired
 var rng := RandomNumberGenerator.new()
 
@@ -49,18 +49,19 @@ func update(delta: float) -> void:
 		if roulette_time <= 0.0:
 			roulette_time = 0.0
 			held = Items.roll(rng.randf(), rank, racers)
-			charges = Items.TRIPLE_CHARGES if Items.is_triple(held) else 0
+			charges = Items.charges_for(held)
 			roulette_finished.emit(held)
 
-## Consume the held item (NONE if empty or still rolling). Triple items spend one charge;
-## a golden mushroom stays in the slot and keeps boosting until GOLDEN_DURATION runs out.
+## Consume the held item (NONE if empty or still rolling). Multi-use items (triples, banana
+## bunch) spend one charge; a golden mushroom stays in the slot and keeps boosting until
+## GOLDEN_DURATION runs out.
 func use() -> int:
 	var t := held
 	if t == Items.Type.GOLDEN_MUSHROOM:
 		if golden_time <= 0.0:
 			golden_time = Items.GOLDEN_DURATION
 		return t
-	if Items.is_triple(t) and charges > 1:
+	if charges > 1:
 		charges -= 1
 		return t
 	held = Items.Type.NONE

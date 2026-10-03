@@ -13,15 +13,15 @@ const DT := 1.0 / 60.0
 
 func test_roll_covers_all_items_in_weight_order() -> void:
 	runner.check(Items.roll(0.0) == Items.Type.MUSHROOM)
-	runner.check(Items.roll(0.999) == Items.Type.GOLDEN_MUSHROOM)
+	runner.check(Items.roll(0.999) == Items.Type.BANANA_BUNCH)
 	var seen := {}
 	for i in 100:
 		seen[Items.roll(i / 100.0)] = true
 	runner.check(seen.size() == Items.count(), "seen=%s" % seen)
-	# mushroom has weight 5/22
+	# mushroom has weight 5/25.5
 	var m := 0
-	for i in 2200:
-		if Items.roll(i / 2200.0) == Items.Type.MUSHROOM:
+	for i in 2550:
+		if Items.roll(i / 2550.0) == Items.Type.MUSHROOM:
 			m += 1
 	runner.check(absi(m - 500) <= 2, "mushroom share=%d" % m)
 
@@ -202,7 +202,7 @@ func test_new_item_names_and_roulette_preview() -> void:
 	runner.check(Items.name_of(Items.Type.RED_SHELL) == "RED SHELL")
 	runner.check(Items.name_of(Items.Type.STAR) == "STAR")
 	runner.check(Items.name_of(Items.Type.LIGHTNING) == "LIGHTNING")
-	runner.check(Items.count() == 10)
+	runner.check(Items.count() == 12)
 	var h := ItemHolder.new(5)
 	h.pickup()
 	var seen := {}
@@ -404,8 +404,9 @@ func test_triple_shell_has_three_charges() -> void:
 	runner.check(h.held == Items.Type.NONE and h.charges == 0, "emptied after third")
 	runner.check(h.use() == Items.Type.NONE)
 
-func test_roulette_grants_charges_only_for_triple() -> void:
+func test_roulette_grants_charges_only_for_multi_use_items() -> void:
 	var seen_triple := false
+	var seen_bunch := false
 	for seed_value in range(1, 200):
 		var h := ItemHolder.new(seed_value)
 		h.pickup()
@@ -413,9 +414,13 @@ func test_roulette_grants_charges_only_for_triple() -> void:
 		if Items.is_triple(h.held):
 			seen_triple = true
 			runner.check(h.charges == 3)
+		elif h.held == Items.Type.BANANA_BUNCH:
+			seen_bunch = true
+			runner.check(h.charges == Items.BUNCH_CHARGES)
 		else:
 			runner.check(h.charges == 0)
 	runner.check(seen_triple, "some seed rolls triple shells")
+	runner.check(seen_bunch, "some seed rolls a banana bunch")
 
 func test_holder_clear() -> void:
 	var h := ItemHolder.new(1)
@@ -758,3 +763,94 @@ func test_ai_fires_mushroom_items() -> void:
 	runner.check(d.wants_use(0.2, Items.Type.TRIPLE_MUSHROOM, INF, INF), "triple mushroom after delay")
 	runner.check(not d.wants_use(0.4, Items.Type.GOLDEN_MUSHROOM, INF, INF), "before delay")
 	runner.check(d.wants_use(0.2, Items.Type.GOLDEN_MUSHROOM, INF, INF), "golden mushroom after delay")
+
+func test_mk64_fake_item_box() -> void:
+	runner.check(Items.name_of(Items.Type.FAKE_ITEM_BOX) == "FAKE ITEM BOX")
+	runner.check(Items.is_dropped(Items.Type.FAKE_ITEM_BOX) and Items.is_dropped(Items.Type.BANANA) and not Items.is_dropped(Items.Type.SHELL))
+	runner.check(Items.charges_for(Items.Type.FAKE_ITEM_BOX) == 0)
+	runner.check(Hud.item_text(Items.Type.FAKE_ITEM_BOX) == "[ FAKE ITEM BOX ]")
+	# it sits still like a banana and spins out whoever drives into it
+	var p = ItemProjectile.make_fake_box(Vector3(5, 0, 5), 0)
+	runner.check(p.kind == Items.Type.FAKE_ITEM_BOX and not p.is_shell())
+	runner.check(not p.hits(Vector3(6.5, 0, 5), 1.0, 0), "owner safe during grace")
+	p.step(1.0, null)
+	runner.check(p.position == Vector3(5, 0, 5), "does not move")
+	runner.check(p.hits(Vector3(6.5, 0, 5), 1.0, 1), "rival hits it")
+	runner.check(p.hits(Vector3(6.5, 0, 5), 1.0, 0), "owner can hit it after the grace period")
+	# weights: the front of the pack gets it, the leader most of all
+	var lead := Items.weights_for(1, 8)
+	var last := Items.weights_for(8, 8)
+	runner.check(lead[Items.Type.FAKE_ITEM_BOX] > last[Items.Type.FAKE_ITEM_BOX] * 5.0, "lead=%f last=%f" % [lead[Items.Type.FAKE_ITEM_BOX], last[Items.Type.FAKE_ITEM_BOX]])
+	runner.check(last[Items.Type.FAKE_ITEM_BOX] > 0.0, "last place can still roll one")
+	# manager: dropped behind the kart, gets a box visual, and a kart driving into it spins out
+	var r = _make_manager(2)
+	var m = r[0]
+	var ks: Array = r[1]
+	_place(r, 0, 10)
+	_place(r, 1, 6)
+	m.holders[0].held = Items.Type.FAKE_ITEM_BOX
+	var n: int = m.projectiles.size()
+	runner.check(m.use_item(0) == Items.Type.FAKE_ITEM_BOX)
+	runner.check(m.projectiles.size() == n + 1)
+	var box = m.projectiles[-1]
+	runner.check(box.kind == Items.Type.FAKE_ITEM_BOX and box.owner_id == 0)
+	var fwd := Vector3(-sin(ks[0].heading), 0, -cos(ks[0].heading))
+	runner.check((box.position - ks[0].global_position).dot(fwd) < 0.0, "dropped behind the kart")
+	runner.check(m.nodes[box].get_child_count() == 1 and m.nodes[box].get_child(0) is MeshInstance3D, "box visual")
+	runner.check(m.holders[0].held == Items.Type.NONE, "single use")
+	var hits := []
+	m.kart_hit.connect(func(kind, id): hits.append([kind, id]))
+	ks[1].global_position = box.position
+	m._physics_process(DT)
+	runner.check(ks[1].model.is_spinning(), "rival spun out")
+	runner.check(hits == [[Items.Type.FAKE_ITEM_BOX, 1]], "hits=%s" % [hits])
+	runner.check(not m.projectiles.has(box), "consumed")
+	_free_manager(r)
+
+func test_mk64_banana_bunch() -> void:
+	runner.check(Items.name_of(Items.Type.BANANA_BUNCH) == "BANANA BUNCH")
+	runner.check(Items.BUNCH_CHARGES == 5 and Items.charges_for(Items.Type.BANANA_BUNCH) == 5)
+	runner.check(Items.charges_for(Items.Type.TRIPLE_SHELL) == 3 and Items.charges_for(Items.Type.BANANA) == 0)
+	runner.check(Hud.item_text(Items.Type.BANANA_BUNCH, 5) == "[ BANANA BUNCH x5 ]")
+	runner.check(Hud.item_text(Items.Type.BANANA, 5) == "[ BANANA ]", "a single banana never shows charges")
+	var h := ItemHolder.new(1)
+	h.held = Items.Type.BANANA_BUNCH
+	h.charges = Items.BUNCH_CHARGES
+	for left in [4, 3, 2, 1]:
+		runner.check(h.use() == Items.Type.BANANA_BUNCH)
+		runner.check(h.held == Items.Type.BANANA_BUNCH and h.charges == left, "charges=%d" % h.charges)
+	runner.check(h.use() == Items.Type.BANANA_BUNCH)
+	runner.check(h.held == Items.Type.NONE and h.charges == 0, "emptied after the fifth")
+	# front of the pack favoured, like the single banana
+	runner.check(Items.weights_for(1, 8)[Items.Type.BANANA_BUNCH] > Items.weights_for(8, 8)[Items.Type.BANANA_BUNCH])
+	# manager: five bananas trail the kart, one fewer after every drop, each drop is a real banana
+	var r = _make_manager(2)
+	var m = r[0]
+	var k = r[1][0]
+	m.holders[0].held = Items.Type.BANANA_BUNCH
+	m.holders[0].charges = 5
+	m._physics_process(DT)
+	runner.check(m.trails.has(0) and m.trails[0][0] == Items.Type.BANANA_BUNCH, "bunch trail")
+	var trail: Node3D = m.trails[0][1]
+	runner.check(trail.get_child_count() == 5, "five bananas trailing, got %d" % trail.get_child_count())
+	var fwd := Vector3(-sin(k.heading), 0, -cos(k.heading))
+	runner.check(trail.get_child(4).position.dot(fwd) < trail.get_child(1).position.dot(fwd), "bananas line up behind the kart")
+	runner.check(trail.position.distance_to(k.global_position - fwd * 2.2 + Vector3(0, 0.5, 0)) < 0.01, "trail hangs behind the kart")
+	for i in 5:
+		var n: int = m.projectiles.size()
+		runner.check(m.use_item(0) == Items.Type.BANANA_BUNCH, "drop %d" % i)
+		runner.check(m.projectiles.size() == n + 1 and m.projectiles[-1].kind == Items.Type.BANANA, "banana %d dropped" % i)
+		m._physics_process(DT)
+		if i < 4:
+			runner.check(trail.get_child_count() == 4 - i, "trail shrinks to %d" % (4 - i))
+	runner.check(m.holders[0].held == Items.Type.NONE)
+	runner.check(not m.trails.has(0), "trail removed when empty")
+	runner.check(m.use_item(0) == Items.Type.NONE)
+	_free_manager(r)
+
+func test_ai_drops_fake_box_and_bunch_when_followed() -> void:
+	var d = load("res://scripts/ai_driver.gd").new(TrackData.new(), 0.0, 0.5)
+	runner.check(not d.wants_use(0.6, Items.Type.FAKE_ITEM_BOX, INF, INF), "nobody behind: keep it")
+	runner.check(d.wants_use(DT, Items.Type.FAKE_ITEM_BOX, INF, 12.0), "drops it on a close follower")
+	runner.check(not d.wants_use(0.6, Items.Type.BANANA_BUNCH, INF, INF))
+	runner.check(d.wants_use(DT, Items.Type.BANANA_BUNCH, INF, 12.0))
