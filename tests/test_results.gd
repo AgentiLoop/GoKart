@@ -4,8 +4,9 @@ const RaceResults := preload("res://scripts/race_results.gd")
 var runner
 
 func test_points() -> void:
-	runner.check(RaceResults.points_for(1) == 15)
-	runner.check(RaceResults.points_for(4) == 8)
+	runner.check(RaceResults.points_for(1) == 9)
+	runner.check(RaceResults.points_for(4) == 1)
+	runner.check(RaceResults.points_for(5) == 0, "MK64: nothing below 4th")
 	runner.check(RaceResults.points_for(0) == 0)
 	runner.check(RaceResults.points_for(99) == 0)
 
@@ -23,7 +24,7 @@ func test_rows_finished_by_time_then_progress() -> void:
 	runner.check(rows[1].id == 0 and rows[1].time == "1:40.000", str(rows[1]))
 	runner.check(rows[2].id == 3 and not rows[2].finished and rows[2].time == "--:--.---", str(rows[2]))
 	runner.check(rows[3].id == 2)
-	runner.check(rows[0].points == 15 and rows[3].points == 8)
+	runner.check(rows[0].points == 9 and rows[3].points == 1)
 
 func test_table_text_marks_player() -> void:
 	var rows := RaceResults.rows(["YOU", "BLU"], [10.0, 5.0], [-1.0, -1.0])

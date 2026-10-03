@@ -15,6 +15,7 @@ var hint_label: Label
 var place_label: Label
 var countdown_label: Label
 var results_label: Label
+var cup_label: Label
 var minimap: Minimap
 
 static func format_time(t: float) -> String:
@@ -41,6 +42,8 @@ func _ready() -> void:
 	# follows the window edges at any size or aspect ratio.
 	lap_label = _make_label(HORIZONTAL_ALIGNMENT_LEFT, VERTICAL_ALIGNMENT_TOP, Vector2(24, 16), 36)
 	time_label = _make_label(HORIZONTAL_ALIGNMENT_LEFT, VERTICAL_ALIGNMENT_TOP, Vector2(24, 64), 22)
+	cup_label = _make_label(HORIZONTAL_ALIGNMENT_LEFT, VERTICAL_ALIGNMENT_TOP, Vector2(24, 128), 22)
+	cup_label.add_theme_color_override("font_color", Color(0.55, 0.9, 1.0))
 	speed_label = _make_label(HORIZONTAL_ALIGNMENT_RIGHT, VERTICAL_ALIGNMENT_BOTTOM, Vector2(24, 24), 36)
 	state_label = _make_label(HORIZONTAL_ALIGNMENT_LEFT, VERTICAL_ALIGNMENT_BOTTOM, Vector2(24, 24), 28)
 	item_label = _make_label(HORIZONTAL_ALIGNMENT_CENTER, VERTICAL_ALIGNMENT_TOP, Vector2(0, 16), 32)
@@ -108,6 +111,10 @@ func update_minimap(positions: Array, colors: Array) -> void:
 func show_results(text: String) -> void:
 	results_label.text = text
 	results_label.visible = text != ""
+
+## Grand Prix progress line under the timers ("RACE 2 / 3"); empty hides it.
+func show_cup(text: String) -> void:
+	cup_label.text = text
 
 ## Big centre text for the start countdown ("3", "2", "1", "GO!"); empty hides it.
 func show_countdown(text: String) -> void:

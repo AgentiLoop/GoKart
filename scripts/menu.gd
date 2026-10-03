@@ -1,8 +1,10 @@
 extends Control
 ## Title screen: pick a track with Left/Right (A/D) and press Enter/Space to race.
 ## Selection is stored in TrackLibrary.selected; Esc during a race comes back here.
+## G / Tab toggles Single Race vs Grand Prix (every track in turn, MK64-style cup points).
 
 const TrackLibrary := preload("res://scripts/track_library.gd")
+const GrandPrix := preload("res://scripts/grand_prix.gd")
 const Minimap := preload("res://scripts/minimap.gd")
 const RACE_SCENE := "res://scenes/main.tscn"
 
@@ -14,6 +16,8 @@ var laps_label: Label
 var laps := 3
 var difficulty_label: Label
 var difficulty := 1
+var mode_label: Label
+var grand_prix := false
 var stage: Control   # fixed 1280x720 layout area, kept centred when the window is wider/taller
 var preview: Minimap
 var bg: ColorRect
@@ -51,6 +55,22 @@ static func difficulty_text(i: int) -> String:
 static func laps_text(n: int) -> String:
 	return "Laps: %d  (W / S)" % n
 
+## True for the keys that toggle Single Race / Grand Prix.
+static func is_mode_key(keycode: int) -> bool:
+	return keycode == KEY_G or keycode == KEY_TAB
+
+static func mode_text(gp: bool, track_count: int) -> String:
+	if gp:
+		return "Mode: GRAND PRIX - %d races, cup points  (G)" % track_count
+	return "Mode: Single Race  (G)"
+
+## Cup order for a Grand Prix: every track once, starting from the highlighted one.
+static func cup_order(first: int, track_count: int) -> Array:
+	var out: Array = []
+	for i in track_count:
+		out.append(posmod(first + i, track_count))
+	return out
+
 static func is_confirm_key(keycode: int) -> bool:
 	return keycode == KEY_ENTER or keycode == KEY_KP_ENTER or keycode == KEY_SPACE
 
@@ -72,20 +92,21 @@ func _ready() -> void:
 	stage.offset_right = 640.0
 	stage.offset_bottom = 360.0
 	add_child(stage)
-	var title := _label(Vector2(240, 50), 120, 800, Color(1.0, 0.85, 0.15))
+	var title := _label(Vector2(240, 30), 120, 800, Color(1.0, 0.85, 0.15))
 	title.text = "GOKART"
-	var sub := _label(Vector2(240, 190), 26, 800, Color(1, 1, 1))
+	var sub := _label(Vector2(240, 168), 26, 800, Color(1, 1, 1))
 	sub.text = "Select a track"
-	name_label = _label(Vector2(240, 250), 56, 800, Color(1, 1, 1))
-	blurb_label = _label(Vector2(240, 322), 24, 800, Color(0.9, 0.9, 0.9))
-	index_label = _label(Vector2(240, 360), 30, 800, Color(1, 1, 1))
-	laps_label = _label(Vector2(240, 398), 28, 400, Color(1.0, 0.85, 0.15))
-	difficulty_label = _label(Vector2(640, 398), 28, 400, Color(1.0, 0.85, 0.15))
+	name_label = _label(Vector2(240, 226), 56, 800, Color(1, 1, 1))
+	blurb_label = _label(Vector2(240, 298), 24, 800, Color(0.9, 0.9, 0.9))
+	index_label = _label(Vector2(240, 336), 30, 800, Color(1, 1, 1))
+	laps_label = _label(Vector2(240, 374), 28, 400, Color(1.0, 0.85, 0.15))
+	difficulty_label = _label(Vector2(640, 374), 28, 400, Color(1.0, 0.85, 0.15))
+	mode_label = _label(Vector2(240, 412), 28, 800, Color(0.55, 0.9, 1.0))
 	preview = Minimap.new()
-	preview.position = Vector2(500, 440)
+	preview.position = Vector2(500, 452)
 	stage.add_child(preview)
-	var hint := _label(Vector2(140, 660), 22, 1000, Color(1, 1, 1))
-	hint.text = "Arrows / A D: track     Up Down / W S: laps     Q E: AI level     Enter: race"
+	var hint := _label(Vector2(90, 662), 22, 1100, Color(1, 1, 1))
+	hint.text = "Arrows / A D: track     Up Down / W S: laps     Q E: AI level     G: mode     Enter: race"
 	_refresh()
 
 func _label(pos: Vector2, font_size: int, w: float, col: Color) -> Label:
@@ -107,8 +128,9 @@ func _refresh() -> void:
 	index_label.text = counter_text(selected, TrackLibrary.count())
 	laps_label.text = laps_text(laps)
 	difficulty_label.text = difficulty_text(difficulty)
+	mode_label.text = mode_text(grand_prix, TrackLibrary.count())
 	bg.color = info.sky_top.darkened(0.45)
-	preview.setup(TrackLibrary.make_data(selected).points, Vector2(280, 205))
+	preview.setup(TrackLibrary.make_data(selected).points, Vector2(280, 195))
 
 ## Change the highlighted track (wraps around).
 func move(dir: int) -> void:
@@ -125,10 +147,19 @@ func move_difficulty(dir: int) -> void:
 	difficulty = TrackLibrary.step_difficulty(difficulty, dir)
 	_refresh()
 
+## Flip between a single race and a Grand Prix cup.
+func toggle_mode() -> void:
+	grand_prix = not grand_prix
+	_refresh()
+
 func start_race() -> void:
 	TrackLibrary.selected = selected
 	TrackLibrary.difficulty = difficulty
 	TrackLibrary.laps = laps
+	if grand_prix:
+		GrandPrix.start(cup_order(selected, TrackLibrary.count()), 4)
+	else:
+		GrandPrix.stop()
 	get_tree().change_scene_to_file(RACE_SCENE)
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -137,7 +168,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	var d := direction_for_key(event.physical_keycode)
 	var ld := lap_direction_for_key(event.physical_keycode)
 	var dd := difficulty_direction_for_key(event.physical_keycode)
-	if dd != 0:
+	if is_mode_key(event.physical_keycode):
+		toggle_mode()
+	elif dd != 0:
 		move_difficulty(dd)
 	elif d != 0:
 		move(d)

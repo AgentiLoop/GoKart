@@ -610,3 +610,13 @@ Session ended — goal reached after 9 cycle(s) (2026-10-01 15:22)
   - Walls: rebuilt as a ribbon mesh with collision; the emission glow was removed on purpose (it washed out the red). The old "glow changes are in" line is wrong.
   - Karts: on collision layer 2, mask 1, so they pass through each other but still hit walls. Nothing in the scripts uses Area3D or physics queries on karts.
   - Project icon: `res://assets/icon.png` exists.
+# Auto-pilot session — 2026-10-03 14:19
+Goal: keep building GoKart to resemble Mario Kart Nintendo 64 version. search Mario Kart N64 or Mario Kart Nintendo 64 and keep improving, interating, making GoKart better
+Budget: no time limit, unlimited cycles
+
+
+## Cycle 1 (session 5) — Grand Prix cup (MK64)
+- New `scripts/grand_prix.gd` (static cup state: order, race_index, totals; MK64 points 9/6/3/1; standings, trophy, standings_text). `race_results.gd` POINTS switched to the MK64 table and `table_text` takes a footer.
+- Menu: G / Tab toggles Single Race / Grand Prix (cup = every track once, starting from the highlighted one); layout shifted up to fit the mode line. HUD shows "RACE n / 3" in a cup. `main.gd`: results in a cup append the standings, Enter loads the next track (or returns to the menu with the trophy after the last), Esc cancels the cup.
+- Tests: `tests/test_grand_prix.gd` (6 tests); suite 3383 passed, 0 failed. `tools/gp_check.gd` headless flow passes (menu -> G -> race 1 -> forced finish -> standings 9 pts -> Enter -> race 2 on track 1 -> Esc clears cup). `tools/menu_check.gd` still passes.
+- Not seen on screen. Remaining MK64 parity ideas: 8 racers, engine classes 50/100/150cc naming, mirror mode, time trials with ghost, battle mode, Lakitu rescue when far off-road, fake item box / golden mushroom / banana bunch, AI rubber-banding.

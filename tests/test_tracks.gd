@@ -131,6 +131,7 @@ func test_lap_options() -> void:
 	m.laps = 3
 	m.laps_label = Label.new()
 	m.difficulty_label = Label.new()
+	m.mode_label = Label.new()
 	m.name_label = Label.new()
 	m.blurb_label = Label.new()
 	m.index_label = Label.new()
@@ -142,7 +143,7 @@ func test_lap_options() -> void:
 	runner.check(m.difficulty == 2 and m.difficulty_label.text == Menu.difficulty_text(2))
 	m.move_difficulty(1)
 	runner.check(m.difficulty == 0 and m.difficulty_label.text.contains("Easy"), "wraps to Easy")
-	for n in [m.laps_label, m.difficulty_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
+	for n in [m.laps_label, m.difficulty_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
 		n.free()
 	var lt = load("res://scripts/lap_tracker.gd").new(200, 8, 2)
 	runner.check(lt.total_laps == 2)

@@ -19,12 +19,13 @@ Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the roa
 - **UI scales with the window** (canvas_items stretch, anchored HUD drawn above the speed effects so it stays sharp); 4x MSAA and steady, shadow-free striped walls
 - **AI difficulty** Easy / Medium / Hard on the title menu (`TrackLibrary.DIFFICULTIES`)
 - **Title menu** to pick the track (A / D or arrows) and the lap count (W / S, 1/2/3/5/7 laps), Enter to race; Esc in a race returns to it (`scripts/menu.gd`)
+- **Grand Prix cup** (G on the menu): every track is raced in turn, Mario Kart 64 points (9 / 6 / 3 / 1) add up after each race, the standings follow the results and the cup ends with a gold, silver or bronze trophy (`scripts/grand_prix.gd`)
 - **3-lap races** with ordered checkpoints and live race ranking (`scripts/lap_tracker.gd`, `scripts/race_ranking.gd`)
 - **Start countdown** (3-2-1-GO) with a rocket-start boost for well-timed throttle (`scripts/race_start.gd`)
 - **AI opponents** using pure-pursuit steering, corner speed limiting, stuck recovery and item use (`scripts/ai_driver.gd`)
 - **Items** from rainbow `?` item boxes with a roulette: mushroom, banana, green shell (ricochets), red homing shell, triple shells (three orbiting green shells fired one by one), blue spiny shell (hunts the leader along the road and explodes), star and lightning (`scripts/items.gd`, `item_holder.gd`, `item_manager.gd`, `item_projectile.gd`). Getting hit spins the kart out; lightning shrinks and slows every rival (`lightning_bolt.gd`).
 - **Visual effects**: drift sparks, boost flames, tire trails, speed lines / boost blur, and custom shaders in `shaders/`
-- **Results screen**: after you finish, an autopilot takes over and a standings table with points appears; Enter restarts (`scripts/race_results.gd`)
+- **Results screen**: after you finish, an autopilot takes over and a standings table with MK64 points appears; Enter restarts, or moves on to the next cup race (`scripts/race_results.gd`)
 - **Procedural audio**: synthesized engine loop (pitch follows speed), tire screech while drifting, countdown beeps, boost / mini-turbo / item / hit / explosion / lightning / star sounds and a finish jingle, plus positional 3D engine hum on each AI kart, with no audio files (`scripts/ai_engine_audio.gd`, `scripts/sound_synth.gd`, `scripts/game_audio.gd`)
 - **HUD** with place, lap, item slot and a track minimap (`scripts/hud.gd`, `scripts/minimap.gd`)
 - **Procedural kart model** with steering front wheels and spinning wheels (`scripts/kart_model.gd`)
@@ -38,7 +39,8 @@ Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the roa
 | Space or Shift | Drift (release for mini-turbo) |
 | E, Enter or Ctrl | Use the held item (a hint shows under the item name) |
 | Q / E (menu) | AI difficulty: Easy / Medium (default) / Hard |
-| Enter | Race again (on the results screen) / start race (menu) |
+| G or Tab (menu) | Mode: Single Race / Grand Prix |
+| Enter | Race again or next cup race (on the results screen) / start race (menu) |
 | Esc | Back to the track menu |
 
 ## Download
@@ -70,6 +72,7 @@ godot --path .          # run the game (opens the title menu: scenes/menu.tscn)
 ./run_tests.sh                                  # headless unit tests (tests/)
 godot --headless --path . -s tools/smoke.gd -- 1  # headless race smoke test with AI karts (arg = track index)
 godot --headless --path . -s tools/menu_check.gd  # menu -> race -> Esc flow check
+godot --headless --path . -s tools/gp_check.gd    # Grand Prix flow check (menu -> cup race 1 -> results -> race 2 -> Esc)
 godot --path . -s tools/screenshot.gd           # visual check, writes /tmp/gokart_*.png
 godot --path . -s tools/random_drive.gd -- 1    # random drive, 3 screenshots -> /tmp/gokart_random_*.png (arg = track index, random if omitted)
 ```

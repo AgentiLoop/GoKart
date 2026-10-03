@@ -16,6 +16,7 @@ const RaceResults := preload("res://scripts/race_results.gd")
 const GameAudio := preload("res://scripts/game_audio.gd")
 const AiEngineAudio := preload("res://scripts/ai_engine_audio.gd")
 const TrackLibrary := preload("res://scripts/track_library.gd")
+const GrandPrix := preload("res://scripts/grand_prix.gd")
 
 ## Seconds after the player crosses the line before the results panel appears.
 const RESULTS_DELAY := 2.0
@@ -132,6 +133,7 @@ func _ready() -> void:
 	hud = Hud.new()
 	add_child(hud)
 	hud.setup_minimap(data.points)
+	hud.show_cup(GrandPrix.race_label() if GrandPrix.active else "")
 	audio = GameAudio.new()
 	add_child(audio)
 	audio.setup(kart, items)
@@ -161,10 +163,20 @@ func _on_go() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_ESCAPE:
+		GrandPrix.stop()
 		get_tree().change_scene_to_file("res://scenes/menu.tscn")
 		return
 	if results_shown and event is InputEventKey and event.pressed and not event.echo \
 			and (event.physical_keycode == KEY_ENTER or event.physical_keycode == KEY_KP_ENTER):
+		if GrandPrix.active:
+			if GrandPrix.advance():
+				# next cup race: the menu's track choice is replaced by the cup order
+				TrackLibrary.selected = GrandPrix.current_track()
+				get_tree().reload_current_scene()
+			else:
+				GrandPrix.stop()
+				get_tree().change_scene_to_file("res://scenes/menu.tscn")
+			return
 		get_tree().reload_current_scene()
 
 func _back() -> Vector3:
@@ -204,7 +216,12 @@ func _physics_process(delta: float) -> void:
 			var names: Array = []
 			for i in karts.size():
 				names.append(RACER_NAMES[i % RACER_NAMES.size()])
-			hud.show_results(RaceResults.table_text(RaceResults.rows(names, progresses, finish_times), 0))
+			var rows := RaceResults.rows(names, progresses, finish_times)
+			if GrandPrix.active:
+				GrandPrix.add_race(rows)
+				hud.show_results(RaceResults.table_text(rows, 0, GrandPrix.standings_text(names, 0)))
+			else:
+				hud.show_results(RaceResults.table_text(rows, 0))
 	var place := RaceRanking.rank_of(0, progresses, finish_times)
 	hud.update_hud(tracker, kart.model.speed, kart.model.is_boosting(), kart.model.drift_level, items.holder.display_item(items.time), Hud.place_text(place, karts.size()), kart.model.is_star(), kart.model.is_shrunk())
 	hud.show_countdown(race_start.label())
