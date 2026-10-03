@@ -1,7 +1,9 @@
 extends RefCounted
 ## Start countdown (3-2-1-GO) and the Mario Kart style rocket start.
 ## Pressing the throttle in the last BOOST_WINDOW seconds before GO gives a start boost
-## (stronger the closer to GO). Holding it from earlier, or never pressing, gives none.
+## (stronger the closer to GO). Pressing earlier and still holding it at GO is a Mario Kart 64
+## false start: the tires burn out and the kart sits still for STALL_TIME. Never pressing,
+## or letting go before GO, gives neither.
 
 signal go
 
@@ -9,6 +11,7 @@ const COUNT_TIME := 3.0
 const BOOST_WINDOW := 0.8
 const MAX_BOOST := 1.2
 const MIN_BOOST := 0.4
+const STALL_TIME := 1.5
 const GO_SHOW_TIME := 1.0
 
 var remaining := COUNT_TIME
@@ -16,13 +19,16 @@ var started := false
 var since_go := 0.0
 var _press_remaining := -1.0    # countdown value when the throttle was pressed (-1 = not held)
 var _was_held := false
-var _held_from_early := false
 
 ## Throttle press timing -> boost duration in seconds (0 = none / too early).
 static func boost_for_press(remaining_at_press: float) -> float:
 	if remaining_at_press < 0.0 or remaining_at_press > BOOST_WINDOW:
 		return 0.0
 	return lerpf(MAX_BOOST, MIN_BOOST, remaining_at_press / BOOST_WINDOW)
+
+## Throttle still held at GO after being pressed before the boost window -> false start.
+static func stalls_for_press(remaining_at_press: float, held_at_go: bool) -> bool:
+	return held_at_go and remaining_at_press > BOOST_WINDOW
 
 ## Advance the clock. Returns true on the frame GO happens.
 func update(delta: float, throttle_held: bool) -> bool:
@@ -45,6 +51,10 @@ func update(delta: float, throttle_held: bool) -> bool:
 ## Boost the player earns for the moment they pressed the throttle (call after GO).
 func start_boost() -> float:
 	return boost_for_press(_press_remaining)
+
+## True when the player jumped the gun: throttle held from before the boost window right through GO.
+func false_start() -> bool:
+	return stalls_for_press(_press_remaining, _was_held)
 
 func is_counting() -> bool:
 	return not started

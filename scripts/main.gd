@@ -207,7 +207,9 @@ func _on_go() -> void:
 	for i in karts.size():
 		karts[i].frozen = false
 	var b := race_start.start_boost()
-	if b > 0.0:
+	if race_start.false_start():
+		kart.model.stall(RaceStart.STALL_TIME)
+	elif b > 0.0:
 		kart.model.apply_boost(b, 1)
 	for i in range(1, karts.size()):
 		var ab: float = AI_START_BOOSTS[(i - 1) % AI_START_BOOSTS.size()] * TrackLibrary.difficulty_info(TrackLibrary.difficulty).start_boost

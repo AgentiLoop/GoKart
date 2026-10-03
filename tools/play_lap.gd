@@ -31,7 +31,8 @@ func _process(_d: float) -> bool:
 	var t = main.track.data
 	if helper == null:
 		helper = AiDriver.new(t, 0.0, 1.0)
-	Input.action_press("accelerate")
+	if main.race_start.started or main.race_start.remaining <= 0.5:
+		Input.action_press("accelerate")   # rocket start, not a false start
 	var look := 7
 	var target: Vector3 = t.points[(main.kart_index + look) % t.count]
 	var d: Vector3 = target - k.global_position

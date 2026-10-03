@@ -63,6 +63,22 @@ func test_mushroom_boost_flames() -> void:
 	runner.check(r[1].flames[0].emitting)
 	r[1].queue_free()
 
+func test_false_start_tire_smoke() -> void:
+	var r = _make_fx()
+	var m = r[0]
+	var fx = r[1]
+	runner.check(fx.smoke.size() == 2, "one smoke emitter per rear wheel: %d" % fx.smoke.size())
+	runner.check(not fx.smoke[0].emitting)
+	m.stall(1.0)
+	runner.check(fx.smoke[0].emitting and fx.smoke[1].emitting, "smoke while the tires burn out")
+	runner.check(not fx.flames[0].emitting, "no boost flames during a false start")
+	var mat: StandardMaterial3D = (fx.smoke[0].draw_pass_1 as QuadMesh).material
+	runner.check(mat.blend_mode == BaseMaterial3D.BLEND_MODE_MIX, "smoke is not additive")
+	for i in 70:
+		m.step(1.0 / 60.0, 1.0, 0.0, 0.0, false)
+	runner.check(not m.is_stalled() and not fx.smoke[0].emitting, "smoke stops with the stall")
+	fx.queue_free()
+
 func test_trail_grows_and_expires() -> void:
 	var t = TireTrail.new()
 	_tree().add_child(t)

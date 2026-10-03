@@ -14,6 +14,8 @@ signal shrink_started
 signal shrink_ended
 signal ghost_started
 signal ghost_ended
+signal stall_started
+signal stall_ended
 
 var max_speed := 30.0
 var reverse_max_speed := 10.0
@@ -49,9 +51,23 @@ var shrink_speed_factor := 0.7
 var shrink_time := 0.0
 var ghost_duration := 5.0       # seconds a Boo keeps the kart see-through and untouchable
 var ghost_time := 0.0
+var stall_duration := 1.5       # MK64 false start: the tires burn out and the kart goes nowhere
+var stall_time := 0.0
 
 func is_boosting() -> bool:
 	return boost_time > 0.0
+
+func is_stalled() -> bool:
+	return stall_time > 0.0
+
+## Mario Kart 64 false start: the throttle was held too early during the countdown, so the kart
+## sits still with spinning tires for stall_duration before it can pull away.
+func stall(duration := -1.0) -> void:
+	var was := is_stalled()
+	stall_time = maxf(stall_time, stall_duration if duration < 0.0 else duration)
+	speed = 0.0
+	if not was:
+		stall_started.emit()
 
 ## Mario Kart 64 engine class: scales this kart's top speed and acceleration (50cc < 100cc < 150cc).
 ## Call once, right after creation.
@@ -237,6 +253,15 @@ func step(delta: float, throttle: float, brake: float, steer: float, drift_held:
 			spin_time = 0.0
 			immunity_time = hit_immunity_time
 			spin_ended.emit()
+		return 0.0
+
+	# --- false start: tires spin, the kart does not move or turn
+	if stall_time > 0.0:
+		stall_time -= delta
+		speed = 0.0
+		if stall_time <= 0.0:
+			stall_time = 0.0
+			stall_ended.emit()
 		return 0.0
 
 	# --- drift state machine

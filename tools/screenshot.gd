@@ -11,7 +11,6 @@ var drift_start := 0
 func _initialize() -> void:
 	main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(main)
-	Input.action_press("accelerate")
 
 func _steer() -> void:
 	var k = main.kart
@@ -31,6 +30,8 @@ func _steer() -> void:
 func _process(_d: float) -> bool:
 	var f := Engine.get_physics_frames()
 	var k = main.kart
+	if main.race_start.started or main.race_start.remaining <= 0.5:
+		Input.action_press("accelerate")   # rocket start, not a false start
 	if stage == 0 or (stage >= 3 and stage != 11 and stage != 8 and stage != 9 and stage != 10):
 		_steer()
 	if stage == 0 and k.global_position.z < -42.0:

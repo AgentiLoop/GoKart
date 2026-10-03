@@ -16,12 +16,13 @@ func _initialize() -> void:
 		load("res://scripts/track_library.gd").engine_class = int(args[1])
 	main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(main)
-	Input.action_press("accelerate")
 
 func _process(_d: float) -> bool:
 	var f := Engine.get_physics_frames()
 	var k = main.kart
 	var t = main.track.data
+	if main.race_start.started or main.race_start.remaining <= 0.5:
+		Input.action_press("accelerate")   # rocket start, not a false start
 	var target: Vector3 = t.points[(main.kart_index + 10) % t.count]
 	var d: Vector3 = target - k.global_position
 	var err := wrapf(atan2(-d.x, -d.z) - k.heading, -PI, PI)

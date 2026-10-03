@@ -9,6 +9,7 @@ const Lakitu := preload("res://scripts/lakitu.gd")
 
 const SHRUNK_SCALE := 0.5
 const GHOST_ALPHA := 0.35   # how see-through a Boo makes the kart
+const STALL_WHEEL_SPEED := 24.0   # m/s the wheels appear to spin at during a false-start burnout
 
 ## A kart-to-kart bump happened (other kart, closing speed in m/s); battle mode pops balloons on hard shoves.
 signal bumped(other, closing: float)
@@ -156,7 +157,7 @@ func _physics_process(delta: float) -> void:
 			var n := get_slide_collision(i).get_normal()
 			if absf(n.y) < 0.5:   # wall hit: lose the speed that went into the wall
 				model.speed = minf(model.speed, maxf(velocity.dot(forward), 0.0))
-	body_mesh.update_wheels(delta, model.speed, steer)
+	body_mesh.update_wheels(delta, STALL_WHEEL_SPEED if model.is_stalled() else model.speed, steer)
 	effects.update_fx(delta, is_on_floor())
 
 ## Kart-to-kart contact (MK64 weight classes): both karts are thrown apart along the contact

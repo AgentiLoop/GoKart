@@ -156,7 +156,9 @@ func _on_go() -> void:
 	for k in karts:
 		k.frozen = false
 	var b := race_start.start_boost()
-	if b > 0.0:
+	if race_start.false_start():
+		kart.model.stall(RaceStart.STALL_TIME)
+	elif b > 0.0:
 		kart.model.apply_boost(b, 1)
 
 ## An item (or a star kart) got kart `id`: one balloon gone.

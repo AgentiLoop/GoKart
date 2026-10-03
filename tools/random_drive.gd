@@ -27,7 +27,8 @@ func _process(_d: float) -> bool:
 	var f := Engine.get_physics_frames()
 	var k = main.kart
 	var t = main.track.data
-	Input.action_press("accelerate")
+	if main.race_start.started or main.race_start.remaining <= 0.5:
+		Input.action_press("accelerate")   # rocket start, not a false start
 	# wander: pick a new lane offset every 1-3 s
 	if f >= lane_timer:
 		lane = rng.randf_range(-3.0, 3.0)

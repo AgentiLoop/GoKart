@@ -145,5 +145,6 @@ static func effect_library() -> Dictionary:
 		"throw": sweep(300.0, 700.0, 0.15, 0.4),
 		"splash": noise_burst(0.5, 0.75, 0.7, 17),
 		"pop": noise_burst(0.12, 0.1, 0.8, 19),
+		"burnout": noise_burst(1.5, 0.12, 0.45, 23),
 		"finish": arpeggio([523.0, 659.0, 784.0, 659.0, 784.0, 1047.0], 0.12, 0.5),
 	}

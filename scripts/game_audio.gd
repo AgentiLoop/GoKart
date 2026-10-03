@@ -51,6 +51,7 @@ func setup(player_kart, item_manager) -> void:
 	kart.model.spin_started.connect(func(): play("hit"))
 	kart.model.star_started.connect(func(): play("star"))
 	kart.model.ghost_started.connect(func(): play("boo"))
+	kart.model.stall_started.connect(func(): play("burnout"))
 	items.kart_hit.connect(_on_kart_hit)
 	items.item_stolen.connect(_on_item_stolen)
 	items.lightning_struck.connect(func(_u, _v): play("lightning"))
@@ -90,7 +91,8 @@ func update_audio(delta: float, race_start) -> void:
 		last_count = tick
 		play("go" if tick == 0 else "beep")
 	var m = kart.model
-	var ratio: float = absf(m.speed) / m.max_speed
+	# a false-start burnout revs the engine flat out while the kart sits still
+	var ratio: float = 1.0 if m.is_stalled() else absf(m.speed) / m.max_speed
 	var racing: bool = race_start.started and not kart.frozen
 	engine.pitch_scale = SoundSynth.engine_pitch(ratio, m.is_boosting())
 	engine.volume_db = lerpf(engine.volume_db, loop_db(true, ENGINE_DB if racing else ENGINE_DB - 8.0), clampf(8.0 * delta, 0.0, 1.0))

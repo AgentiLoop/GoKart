@@ -18,6 +18,7 @@ const FLAME_COLORS := [
 	Color(0.8, 0.3, 1.0),    # mini-turbo 3: purple
 ]
 const FLASH_DECAY := 4.0      # 1/s: mini-turbo flash fades in ~0.25 s
+const SMOKE_COLOR := Color(0.75, 0.75, 0.75, 0.6)   # false-start tire smoke
 
 var model            # KartPhysics
 var sparks: Array[GPUParticles3D] = []
@@ -25,6 +26,7 @@ var flames: Array[GPUParticles3D] = []
 var trails: Array = []
 var wheel_nodes: Array[Node3D] = []
 var pops: Array[GPUParticles3D] = []   # one-shot star burst when a drift level is reached
+var smoke: Array[GPUParticles3D] = []  # grey tire smoke at the rear wheels during a false-start burnout
 var flash_light: OmniLight3D
 var flash_amount := 0.0                 # 1 right at mini-turbo release, decays to 0
 var flash_color := Color.WHITE
@@ -64,6 +66,10 @@ func setup(physics_model, wheel_offsets: Array) -> void:
 			f.position = Vector3(off.x * 0.45, 0.45, 1.2)
 			add_child(f)
 			flames.append(f)
+			var sm := _make_smoke()
+			sm.position = off + Vector3(0, 0.15, 0.3)
+			add_child(sm)
+			smoke.append(sm)
 	flash_light = OmniLight3D.new()
 	flash_light.position = Vector3(0, 0.8, 0.6)
 	flash_light.omni_range = 6.0
@@ -76,6 +82,8 @@ func setup(physics_model, wheel_offsets: Array) -> void:
 	model.boost_ended.connect(_on_boost_ended)
 	model.star_started.connect(_on_star_started)
 	model.star_ended.connect(_on_star_ended)
+	model.stall_started.connect(_on_stall_started)
+	model.stall_ended.connect(_on_stall_ended)
 	star_glitter = _make_glitter()
 	star_glitter.position = Vector3(0, 0.7, 0)
 	add_child(star_glitter)
@@ -267,6 +275,47 @@ func _on_boost_started(level: int) -> void:
 func _on_boost_ended() -> void:
 	for f in flames:
 		f.emitting = false
+
+## False start (MK64): the rear tires burn out in a cloud of grey smoke while the kart sits still.
+func _on_stall_started() -> void:
+	for s in smoke:
+		s.emitting = true
+
+func _on_stall_ended() -> void:
+	for s in smoke:
+		s.emitting = false
+
+func _make_smoke() -> GPUParticles3D:
+	var p := GPUParticles3D.new()
+	p.amount = 50
+	p.lifetime = 0.9
+	p.local_coords = false
+	p.emitting = false
+	p.visibility_aabb = AABB(Vector3(-5, -5, -5), Vector3(10, 10, 10))
+	var pm := ParticleProcessMaterial.new()
+	pm.direction = Vector3(0, 0.5, 1)
+	pm.spread = 35.0
+	pm.initial_velocity_min = 1.5
+	pm.initial_velocity_max = 3.5
+	pm.gravity = Vector3(0, 0.8, 0)
+	pm.scale_min = 1.5
+	pm.scale_max = 3.0
+	var sc := Curve.new()
+	sc.add_point(Vector2(0, 0.5))
+	sc.add_point(Vector2(1, 1.6))
+	var sct := CurveTexture.new()
+	sct.curve = sc
+	pm.scale_curve = sct
+	pm.color = SMOKE_COLOR
+	pm.color_ramp = _fade_ramp()
+	p.process_material = pm
+	var q := QuadMesh.new()
+	q.size = Vector2(0.4, 0.4)
+	var m := _particle_material(Color(1, 1, 1, 1))
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_MIX   # smoke darkens, it does not glow
+	q.material = m
+	p.draw_pass_1 = q
+	return p
 
 ## Called every physics frame by the kart.
 func update_fx(delta: float, on_floor: bool) -> void:
