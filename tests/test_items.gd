@@ -13,15 +13,15 @@ const DT := 1.0 / 60.0
 
 func test_roll_covers_all_items_in_weight_order() -> void:
 	runner.check(Items.roll(0.0) == Items.Type.MUSHROOM)
-	runner.check(Items.roll(0.999) == Items.Type.BOO)
+	runner.check(Items.roll(0.999) == Items.Type.TRIPLE_RED_SHELL)
 	var seen := {}
 	for i in 100:
 		seen[Items.roll(i / 100.0)] = true
 	runner.check(seen.size() == Items.count(), "seen=%s" % seen)
-	# mushroom has weight 5/26.5
+	# mushroom has weight 5/28
 	var m := 0
-	for i in 2650:
-		if Items.roll(i / 2650.0) == Items.Type.MUSHROOM:
+	for i in 2800:
+		if Items.roll(i / 2800.0) == Items.Type.MUSHROOM:
 			m += 1
 	runner.check(absi(m - 500) <= 2, "mushroom share=%d" % m)
 
@@ -202,7 +202,7 @@ func test_new_item_names_and_roulette_preview() -> void:
 	runner.check(Items.name_of(Items.Type.RED_SHELL) == "RED SHELL")
 	runner.check(Items.name_of(Items.Type.STAR) == "STAR")
 	runner.check(Items.name_of(Items.Type.LIGHTNING) == "LIGHTNING")
-	runner.check(Items.count() == 13)
+	runner.check(Items.count() == 14)
 	var h := ItemHolder.new(5)
 	h.pickup()
 	var seen := {}
@@ -1023,7 +1023,7 @@ func test_hud_shows_boo_state() -> void:
 	runner.check(Hud.state_text(false, 0) == "")
 
 func test_mk64_shield_items_and_blockable_shells() -> void:
-	for t in [Items.Type.BANANA, Items.Type.FAKE_ITEM_BOX, Items.Type.SHELL, Items.Type.RED_SHELL, Items.Type.BANANA_BUNCH, Items.Type.TRIPLE_SHELL]:
+	for t in [Items.Type.BANANA, Items.Type.FAKE_ITEM_BOX, Items.Type.SHELL, Items.Type.RED_SHELL, Items.Type.BANANA_BUNCH, Items.Type.TRIPLE_SHELL, Items.Type.TRIPLE_RED_SHELL]:
 		runner.check(Items.is_shield(t), "shield %d" % t)
 	for t in [Items.Type.NONE, Items.Type.MUSHROOM, Items.Type.STAR, Items.Type.LIGHTNING, Items.Type.BLUE_SHELL, Items.Type.BOO, Items.Type.TRIPLE_MUSHROOM, Items.Type.GOLDEN_MUSHROOM]:
 		runner.check(not Items.is_shield(t), "not a shield %d" % t)
@@ -1182,3 +1182,124 @@ func test_shield_does_not_stop_a_shell_hitting_the_kart_head_on() -> void:
 	runner.check(blocked.is_empty())
 	runner.check(m.holders[1].held == Items.Type.BANANA, "the banana is still there")
 	_free_manager(r)
+
+func test_mk64_triple_red_shells_basics() -> void:
+	runner.check(Items.name_of(Items.Type.TRIPLE_RED_SHELL) == "TRIPLE RED SHELLS")
+	runner.check(Items.is_triple(Items.Type.TRIPLE_RED_SHELL) and Items.charges_for(Items.Type.TRIPLE_RED_SHELL) == 3)
+	runner.check(Items.is_orbiting(Items.Type.TRIPLE_RED_SHELL) and Items.is_orbiting(Items.Type.TRIPLE_SHELL))
+	runner.check(not Items.is_orbiting(Items.Type.TRIPLE_MUSHROOM) and not Items.is_orbiting(Items.Type.RED_SHELL))
+	runner.check(Items.shell_of(Items.Type.TRIPLE_RED_SHELL) == Items.Type.RED_SHELL and Items.shell_of(Items.Type.TRIPLE_SHELL) == Items.Type.SHELL)
+	runner.check(Items.shell_of(Items.Type.BANANA) == Items.Type.NONE)
+	runner.check(Items.is_shield(Items.Type.TRIPLE_RED_SHELL))
+	runner.check(Items.in_battle(Items.Type.TRIPLE_RED_SHELL), "MK64 battle item")
+	runner.check(Hud.item_text(Items.Type.TRIPLE_RED_SHELL, 3) == "[ TRIPLE RED SHELLS x3 ]")
+	# Mario Kart 64: 2nd to last place only, never the leader
+	var lead := Items.weights_for(1, 8)
+	var mid := Items.weights_for(4, 8)
+	var last := Items.weights_for(8, 8)
+	runner.check(lead[Items.Type.TRIPLE_RED_SHELL] == 0.0, "leader never rolls triple red shells")
+	runner.check(last[Items.Type.TRIPLE_RED_SHELL] > mid[Items.Type.TRIPLE_RED_SHELL] and mid[Items.Type.TRIPLE_RED_SHELL] > 0.0)
+	runner.check(Items.weights_for(2, 8)[Items.Type.TRIPLE_RED_SHELL] > 0.0, "2nd place can roll them")
+	for i in 1000:
+		runner.check(Items.roll(i / 1000.0, 1, 8) != Items.Type.TRIPLE_RED_SHELL, "leader rolled triple red shells")
+	var seen := false
+	for seed_value in range(1, 300):
+		var h := ItemHolder.new(seed_value)
+		h.pickup(8, 8)
+		h.update(h.roulette_duration + 0.1)
+		if h.held == Items.Type.TRIPLE_RED_SHELL:
+			seen = true
+			runner.check(h.charges == 3, "three charges")
+	runner.check(seen, "last place rolls triple red shells for some seed")
+	# holder: one charge per use
+	var h := ItemHolder.new(1)
+	h.held = Items.Type.TRIPLE_RED_SHELL
+	h.charges = Items.TRIPLE_CHARGES
+	for left in [2, 1]:
+		runner.check(h.use() == Items.Type.TRIPLE_RED_SHELL)
+		runner.check(h.held == Items.Type.TRIPLE_RED_SHELL and h.charges == left, "charges=%d" % h.charges)
+	runner.check(h.use() == Items.Type.TRIPLE_RED_SHELL)
+	runner.check(h.held == Items.Type.NONE and h.charges == 0, "emptied after third")
+
+func test_manager_triple_red_shells_orbit_red_and_fire_homing_shells() -> void:
+	var r = _make_manager(2)
+	var m = r[0]
+	var ks: Array = r[1]
+	_place(r, 0, 6)
+	_place(r, 1, 14)   # rival ahead
+	m.holders[0].held = Items.Type.TRIPLE_RED_SHELL
+	m.holders[0].charges = 3
+	m._physics_process(DT)
+	runner.check(m.orbits.has(0) and m.orbits[0].get_child_count() == 3, "three orbiting shells")
+	var mat: ShaderMaterial = m.orbits[0].get_child(0).material_override
+	var col: Color = mat.get_shader_parameter("shell_color")
+	runner.check(col.r > 0.8 and col.g < 0.3, "orbiting shells are red: %s" % col)
+	runner.check(m.orbits[0].get_meta("shell") == Items.Type.RED_SHELL)
+	var hits := []
+	m.kart_hit.connect(func(kind, id): hits.append([kind, id]))
+	var n: int = m.projectiles.size()
+	runner.check(m.use_item(0) == Items.Type.TRIPLE_RED_SHELL)
+	runner.check(m.projectiles.size() == n + 1 and m.projectiles[-1].kind == Items.Type.RED_SHELL, "a red shell is fired")
+	for i in 240:
+		m._physics_process(DT)
+		if not hits.is_empty():
+			break
+	runner.check(hits == [[Items.Type.RED_SHELL, 1]], "the fired shell homed in on the rival, hits=%s" % [hits])
+	runner.check(ks[1].model.is_spinning())
+	runner.check(m.holders[0].held == Items.Type.TRIPLE_RED_SHELL and m.holders[0].charges == 2)
+	runner.check(m.orbits[0].get_child_count() == 2, "orbit follows the charges")
+	for i in 2:
+		n = m.projectiles.size()
+		runner.check(m.use_item(0) == Items.Type.TRIPLE_RED_SHELL)
+		runner.check(m.projectiles[-1].kind == Items.Type.RED_SHELL, "shell %d is red" % i)
+		m._physics_process(DT)
+	runner.check(m.holders[0].held == Items.Type.NONE and not m.orbits.has(0), "empty: orbit gone")
+	runner.check(m.use_item(0) == Items.Type.NONE)
+	_free_manager(r)
+
+func test_orbiting_red_shells_shield_the_kart_and_orbit_swaps_colour() -> void:
+	var pos := Vector3(10, 0, 10)
+	var o: Array = ItemProjectile.shield_of(Items.Type.TRIPLE_RED_SHELL, pos, 0.0)
+	runner.check(o[0] == pos and o[1] == ItemProjectile.ORBIT_SHIELD, "orbit shield %s" % [o])
+	var r = _make_manager(2)
+	var m = r[0]
+	_place(r, 0, 6)
+	_place(r, 1, 12)
+	m.holders[1].held = Items.Type.TRIPLE_RED_SHELL
+	m.holders[1].charges = 3
+	m.holders[0].held = Items.Type.SHELL
+	var blocked := []
+	m.shell_blocked.connect(func(s, id, item): blocked.append([s, id, item]))
+	m.use_item(0)
+	for i in 120:
+		m._physics_process(DT)
+		if not blocked.is_empty():
+			break
+	runner.check(blocked == [[Items.Type.SHELL, 1, Items.Type.TRIPLE_RED_SHELL]], "blocked=%s" % [blocked])
+	runner.check(m.holders[1].charges == 2 and not r[1][1].model.is_spinning(), "one red shell spent, no spin")
+	m._physics_process(DT)
+	runner.check(m.orbits[1].get_child_count() == 2)
+	# a Boo swapping green shells for red ones recolours the orbit
+	var r2 = _make_manager(2)
+	var m2 = r2[0]
+	m2.holders[0].held = Items.Type.TRIPLE_SHELL
+	m2.holders[0].charges = 3
+	m2._physics_process(DT)
+	runner.check(m2.orbits[0].get_meta("shell") == Items.Type.SHELL)
+	var old: Node3D = m2.orbits[0]
+	m2.holders[0].held = Items.Type.TRIPLE_RED_SHELL
+	m2._physics_process(DT)
+	runner.check(m2.orbits[0] != old and m2.orbits[0].get_meta("shell") == Items.Type.RED_SHELL, "orbit rebuilt in red")
+	runner.check(m2.orbits[0].get_child_count() == 3)
+	var col: Color = m2.orbits[0].get_child(0).material_override.get_shader_parameter("shell_color")
+	runner.check(col.r > 0.8 and col.g < 0.3, "red: %s" % col)
+	_free_manager(r2)
+	_free_manager(r)
+
+func test_ai_fires_triple_red_shells_like_a_red_shell() -> void:
+	var d = load("res://scripts/ai_driver.gd").new(TrackData.new(), 0.0, 0.5)
+	runner.check(not d.wants_use(1.0, Items.Type.TRIPLE_RED_SHELL, 200.0, INF), "nobody near")
+	runner.check(d.wants_use(DT, Items.Type.TRIPLE_RED_SHELL, 60.0, INF), "rival ahead")
+	var b = load("res://scripts/battle_ai.gd").new(load("res://scripts/arena_data.gd").make(1), 0.5)
+	runner.check(not b.wants_use(1.0, Items.Type.TRIPLE_RED_SHELL, 200.0, INF), "battle: nobody near")
+	runner.check(b.wants_use(DT, Items.Type.TRIPLE_RED_SHELL, 40.0, INF), "battle: rival ahead")

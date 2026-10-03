@@ -100,7 +100,7 @@ func use_item(id := 0) -> int:
 			_add_projectile(ItemProjectile.make_fake_box(pos - fwd * 2.6, id))
 		Items.Type.SHELL, Items.Type.TRIPLE_SHELL:
 			_add_projectile(ItemProjectile.make_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), k.heading, id))
-		Items.Type.RED_SHELL:
+		Items.Type.RED_SHELL, Items.Type.TRIPLE_RED_SHELL:
 			_add_projectile(ItemProjectile.make_red_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), k.heading, id))
 		Items.Type.BLUE_SHELL:
 			var lead := ItemProjectile.pick_leader(_progresses(), id)
@@ -249,11 +249,18 @@ func _make_shell_mesh(kind: int, radius: float) -> MeshInstance3D:
 			mi.add_child(spike)
 	return mi
 
-## Shells orbiting a kart while it holds triple shells: one per remaining charge.
+## Shells orbiting a kart while it holds triple green / red shells: one per remaining charge,
+## in the colour of the shell each charge fires.
 func _update_orbits() -> void:
 	for id in karts.size():
-		var want: int = holders[id].charges if holders[id].held == Items.Type.TRIPLE_SHELL else 0
+		var held: int = holders[id].held
+		var want: int = holders[id].charges if Items.is_orbiting(held) else 0
+		var shell: int = Items.shell_of(held)
 		var orbit: Node3D = orbits.get(id)
+		if orbit != null and want > 0 and orbit.get_meta("shell", shell) != shell:
+			orbit.queue_free()   # a Boo swapped green shells for red (or the other way round)
+			orbits.erase(id)
+			orbit = null
 		if want == 0:
 			if orbit != null:
 				orbit.queue_free()
@@ -261,6 +268,7 @@ func _update_orbits() -> void:
 			continue
 		if orbit == null:
 			orbit = Node3D.new()
+			orbit.set_meta("shell", shell)
 			add_child(orbit)
 			orbits[id] = orbit
 		while orbit.get_child_count() > want:
@@ -268,7 +276,7 @@ func _update_orbits() -> void:
 			orbit.remove_child(last)
 			last.queue_free()
 		while orbit.get_child_count() < want:
-			orbit.add_child(_make_shell_mesh(Items.Type.SHELL, 0.3))
+			orbit.add_child(_make_shell_mesh(shell, 0.3))
 		var n := orbit.get_child_count()
 		for c in n:
 			var a := time * 4.0 + TAU * c / n

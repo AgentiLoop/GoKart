@@ -5,6 +5,8 @@ extends SceneTree
 ## shell -> the banana takes the hit (block sound, white puff, no spin-out, slot empty).
 ## Run B: the player fires a green shell at a banana lying on the road -> both vanish.
 ## Run C: the player holds triple shells, an AI green shell is stopped by the orbit -> 2 charges left.
+## Run D: the player holds triple red shells (red orbit, HUD "xN") and fires one at the AI kart
+## ahead -> it homes in and spins the kart out, 2 red shells keep orbiting.
 
 const Items := preload("res://scripts/items.gd")
 const ItemProjectile := preload("res://scripts/item_projectile.gd")
@@ -70,6 +72,16 @@ func _setup_run() -> void:
 			items._physics_process(1.0 / 60.0)
 			_check(items.orbits.has(0) and items.orbits[0].get_child_count() == 3, "three shells orbit the player")
 			_check(items.use_item(1) == Items.Type.SHELL, "AI fires a green shell from behind")
+		"D":
+			_park(1, 28)   # AI kart ahead of the player this time
+			items.holders[0].held = Items.Type.TRIPLE_RED_SHELL
+			items.holders[0].charges = 3
+			items._physics_process(1.0 / 60.0)
+			_check(items.orbits.has(0) and items.orbits[0].get_child_count() == 3, "three red shells orbit the player")
+			var col: Color = items.orbits[0].get_child(0).material_override.get_shader_parameter("shell_color")
+			_check(col.r > 0.8 and col.g < 0.3, "orbiting shells are red (%s)" % col)
+			_check(items.use_item(0) == Items.Type.TRIPLE_RED_SHELL, "player fires one red shell")
+			_check(items.projectiles[-1].kind == Items.Type.RED_SHELL, "a homing red shell is in the air")
 
 func _finish_run() -> void:
 	var items = main.items
@@ -92,6 +104,14 @@ func _finish_run() -> void:
 			_check(items.holders[0].held == Items.Type.TRIPLE_SHELL and items.holders[0].charges == 2, "two charges left")
 			_check(items.orbits.has(0) and items.orbits[0].get_child_count() == 2, "two shells still orbit")
 			_check(hits.is_empty() and not k.model.is_spinning(), "player never hit")
+		"D":
+			_check(hits == [[Items.Type.RED_SHELL, 1]], "red shell homed in on the AI kart: %s" % [hits])
+			_check(main.karts[1].model.is_spinning(), "AI kart spun out")
+			_check(blocked.is_empty(), "nothing blocked it")
+			_check(items.holders[0].held == Items.Type.TRIPLE_RED_SHELL and items.holders[0].charges == 2, "two red shells left")
+			_check(items.orbits.has(0) and items.orbits[0].get_child_count() == 2, "two red shells still orbit")
+			_check(main.hud.item_label.text.begins_with("[ TRIPLE RED SHELLS x"), "HUD shows the count: %s" % main.hud.item_label.text)
+			_check("throw" in main.audio.played, "throw sound played")
 
 func _physics_process(_d: float) -> bool:
 	frames += 1
@@ -116,6 +136,9 @@ func _physics_process(_d: float) -> bool:
 				_setup_run()
 			elif run == "B":
 				run = "C"
+				_setup_run()
+			elif run == "C":
+				run = "D"
 				_setup_run()
 			else:
 				print("block_check: " + ("OK" if ok else "FAILED"))

@@ -101,7 +101,7 @@ func wants_use(delta: float, item: int, gap_ahead: float, gap_behind: float) -> 
 	match item:
 		Items.Type.SHELL, Items.Type.TRIPLE_SHELL:
 			use = gap_ahead < SHELL_RANGE or hold_time > 10.0
-		Items.Type.RED_SHELL:
+		Items.Type.RED_SHELL, Items.Type.TRIPLE_RED_SHELL:
 			use = gap_ahead < SHELL_RANGE * 1.5 or hold_time > 8.0
 		Items.Type.BANANA, Items.Type.FAKE_ITEM_BOX, Items.Type.BANANA_BUNCH:
 			use = gap_behind < DROP_RANGE or hold_time > 6.0

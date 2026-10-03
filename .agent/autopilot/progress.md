@@ -966,3 +966,29 @@ Cycle 13: added Mario Kart 64's **false start (dud rocket start)** — committed
 - Tests: `test_items.gd` +6 (shield/blockable sets + geometry, pure blocked_by/destroys incl. grace/blue/dead, manager: banana blocks red shell, bunch + triple lose one charge, road banana + shell both vanish + puff, head-on shell still hits), `test_audio.gd` library has "block". Suite 6913 passed, 0 failed (was 6856).
 - Tools: new `tools/block_check.gd` (real race scene after GO, karts parked: A banana blocks AI red shell → sound, puff, slot empty; B player shell wipes a road banana; C orbiting triple shells stop an AI shell → 2 left) 19/19 PASS; smoke 7/7, start/battle/lakitu/gp/tt checks + battle smoke OK. README updated.
 - Remaining MK64 ideas: staff ghosts, a visible Lakitu for AI rescues, Double Deck arena, triple red shells, AI false starts on Easy, AI holding a shield when a red shell is coming.
+## Cycle 14 — 2026-10-03 17:14
+Cycle 14: added Mario Kart 64 **shell blocking** — committed as ba65f38.
+
+**What I did**
+- Confirmed the MK64 rule (dragging a banana / green shell behind the kart stops a red shell) via web search.
+- `scripts/items.gd`: `is_shield(t)` (banana, fake item box, green/red shell, banana bunch, triple shells) and `is_blockable_shell(t)` (green + red; blue shells fly over everything).
+- `scripts/item_projectile.gd`: shared `TRAIL_BEHIND` 2.2 / `SHIELD_RADIUS` 0.9 / `ORBIT_RADIUS` 1.5 / `ORBIT_SHIELD` 1.9; pure `destroys(hazard)` (shell vs banana / fake box lying on the road), `shield_of(held, pos, heading)` → [centre, radius] (dangling spot behind the kart, or the orbit ring for triple shells), `blocked_by(shield, kart_id)` honouring the owner grace.
+- `scripts/item_manager.gd`: new `shell_blocked(shell, id, item)` signal (id −1 = road hazard); `_block_shell` runs after each shell step and before kart hits — a road banana/fake box and the shell both vanish, a held shield spends one charge (`holders[id].use()`: a bunch / triple shells lose one, single items go) and the shell is consumed; small white puff (`BlueBlast.build(..., tint)` gained a tint parameter). Trail and orbit visuals now use the shared constants.
+- `sound_synth.gd` new "block" clink, played by `game_audio.gd` on `shell_blocked` (quieter when an AI kart blocks).
+- Tests: `test_items.gd` +6 tests (shield/blockable sets and geometry; pure blocked_by/destroys incl. grace, blue shell, dead shell; manager: dangling banana blocks a red shell with no hit/spin and the trail disappears, bunch and orbiting triple shells lose exactly one charge, shell + road banana both vanish with a puff, a shell coming head-on still hits the kart); `test_audio.gd` library includes "block". Suite **6913 passed, 0 failed** (was 6856).
+- Tools: new `tools/block_check.gd` (headless race after GO, karts parked: A banana blocks an AI red shell → signal, block sound, puff, slot empty, no hit; B player's green shell wipes out a road banana → both gone; C orbiting triple shells stop an AI shell → 2 charges / 2 orbiting shells left) **19/19 PASS**; race smoke 7/7, start / battle / lakitu / gp / tt checks and the Block Fort battle smoke all OK. README (features + testing) and progress log updated; project index rebuilt (90 files). Untracked `.agent/index|plans|toolcache` added to `.gitignore` (the git tool had staged them; the commit was amended to drop them). Deleted the stale, already-finished `cycle12-battle` plan.
+
+**Assumptions**: shield geometry/radii and the "block" sound/puff are my designs; triple shells orbiting the kart shield it like MK64; the pre-placed course bananas can now be cleared by shells (MK64 behaviour); the AI item policy is unchanged (it already holds bananas until a kart is close behind). `screenshot.png` at the repo root (untracked, not mine) was left alone.
+
+**Remaining MK64 parity ideas**: staff ghosts, a visible Lakitu for AI rescues, Double Deck arena, triple red shells, AI false starts on Easy, AI deliberately keeping a shield up when a red shell is incoming.
+
+**Blockers**: none. No parity folders were given, so nothing was mirrored (folder-wise).
+
+
+## Cycle 15 (session 5) — MK64 triple red shells
+- `scripts/items.gd`: `Type.TRIPLE_RED_SHELL` (weight 1.5, "TRIPLE RED SHELLS", 3 charges), `is_triple` includes it, new `is_orbiting(t)` (green + red triples) and `shell_of(t)` (the shell one charge fires); `is_shield` uses `is_orbiting`; rank weights `0.0 if rank == 1 else 0.6 + 1.4 * f` (MK64: 2nd–8th only, never the leader); allowed in battle.
+- `scripts/item_manager.gd`: `use_item` fires `make_red_shell` for `TRIPLE_RED_SHELL`; `_update_orbits` orbits `Items.shell_of(held)` meshes (red for red triples), tags the orbit node with meta "shell" and rebuilds it when a Boo swaps green for red.
+- `scripts/item_projectile.gd`: `shield_of` uses `is_orbiting` (red triples shield the kart like green ones). `ai_driver.gd` / `battle_ai.gd`: triple red shells use the red-shell policy.
+- Tests: `test_items.gd` +4 tests (basics/weights/holder; manager orbit red + 3 homing red shells + hit; orbit shield + colour swap; AI policies), existing roll/count/shield tests updated (14 items, weight total 28). Suite 7978 passed, 0 failed (was 6913).
+- Tools: `tools/block_check.gd` run D (red orbit, HUD count, homing hit, 2 left) 30/30 PASS; smoke 7/7, battle_check, battle_smoke, start_check OK. README updated.
+- Remaining MK64 ideas: staff ghosts, a visible Lakitu for AI rescues, Double Deck arena, AI false starts on Easy, AI holding a shield when a red shell is coming.

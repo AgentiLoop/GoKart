@@ -191,11 +191,11 @@ func destroys(hazard) -> bool:
 
 ## Where the item a kart holds shields it: [centre, radius] — the dangling spot behind
 ## the kart for bananas / shells / fake boxes / a banana bunch, the orbit ring for triple
-## shells — or an empty array when `held` is not a shield.
+## green / red shells — or an empty array when `held` is not a shield.
 static func shield_of(held: int, pos: Vector3, heading: float) -> Array:
 	if not Items.is_shield(held):
 		return []
-	if held == Items.Type.TRIPLE_SHELL:
+	if Items.is_orbiting(held):
 		return [pos, ORBIT_SHIELD]
 	var fwd := Vector3(-sin(heading), 0, -cos(heading))
 	return [pos - fwd * TRAIL_BEHIND, SHIELD_RADIUS]
