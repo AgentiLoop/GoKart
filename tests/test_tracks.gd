@@ -132,6 +132,7 @@ func test_lap_options() -> void:
 	m.laps_label = Label.new()
 	m.difficulty_label = Label.new()
 	m.engine_label = Label.new()
+	m.weight_label = Label.new()
 	m.mode_label = Label.new()
 	m.name_label = Label.new()
 	m.blurb_label = Label.new()
@@ -144,7 +145,7 @@ func test_lap_options() -> void:
 	runner.check(m.difficulty == 2 and m.difficulty_label.text == Menu.difficulty_text(2))
 	m.move_difficulty(1)
 	runner.check(m.difficulty == 0 and m.difficulty_label.text.contains("Easy"), "wraps to Easy")
-	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
+	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.weight_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
 		n.free()
 	var lt = load("res://scripts/lap_tracker.gd").new(200, 8, 2)
 	runner.check(lt.total_laps == 2)
@@ -266,6 +267,7 @@ func test_mk64_engine_classes() -> void:
 	m.laps_label = Label.new()
 	m.difficulty_label = Label.new()
 	m.engine_label = Label.new()
+	m.weight_label = Label.new()
 	m.mode_label = Label.new()
 	m.name_label = Label.new()
 	m.blurb_label = Label.new()
@@ -280,7 +282,7 @@ func test_mk64_engine_classes() -> void:
 	runner.check(m.engine_class == 3 and m.engine_label.text.contains("Extra"), "150cc steps up to Extra")
 	m.move_engine(1)
 	runner.check(m.engine_class == 0 and m.engine_label.text.contains("50cc"), "wraps to 50cc")
-	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
+	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.weight_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
 		n.free()
 
 func test_mk64_extra_mirror_mode() -> void:
@@ -350,6 +352,7 @@ func test_mk64_extra_mirror_mode() -> void:
 	m.laps_label = Label.new()
 	m.difficulty_label = Label.new()
 	m.engine_label = Label.new()
+	m.weight_label = Label.new()
 	m.mode_label = Label.new()
 	m.name_label = Label.new()
 	m.blurb_label = Label.new()
@@ -361,12 +364,12 @@ func test_mk64_extra_mirror_mode() -> void:
 	m.move_engine(1)
 	var plain := L.make_data(1)
 	var Minimap = load("res://scripts/minimap.gd")
-	var pf: Dictionary = Minimap.fit(plain.points, Vector2(280, 195), 14.0)
+	var pf: Dictionary = Minimap.fit(plain.points, Vector2(280, 160), 14.0)
 	var plain_x: float = Minimap.to_map(plain.points[20], pf["scale"], pf["offset"]).x
 	runner.check(m.engine_class == 3 and m.blurb_label.text.contains("MIRRORED"), "Extra tags the blurb")
 	runner.check(m.preview.map_points.size() == plain.count + 1 and absf(m.preview.map_points[20].x + plain_x - 280.0) < 0.01, "preview is mirrored")
 	m.mode = Menu.MODE_TT
 	m._refresh()
 	runner.check(not m.blurb_label.text.contains("MIRRORED") and absf(m.preview.map_points[20].x - plain_x) < 0.01, "time trials never mirror")
-	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
+	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.weight_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
 		n.free()

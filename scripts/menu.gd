@@ -4,12 +4,14 @@ extends Control
 ## G / Tab cycles the mode: Single Race -> Grand Prix (every track in turn, MK64-style cup points)
 ## -> Time Trial (solo, 100cc, triple mushroom, race the ghost of your best run).
 ## Z / C step the MK64 engine class (50cc / 100cc / 150cc / Extra = 150cc on mirrored courses).
+## X / V step the MK64 weight class of the player's kart (Light / Medium / Heavy).
 
 const TrackLibrary := preload("res://scripts/track_library.gd")
 const GrandPrix := preload("res://scripts/grand_prix.gd")
 const TimeTrial := preload("res://scripts/time_trial.gd")
 const RaceMain := preload("res://scripts/main.gd")
 const Minimap := preload("res://scripts/minimap.gd")
+const KartWeight := preload("res://scripts/kart_weight.gd")
 const RACE_SCENE := "res://scenes/main.tscn"
 
 const MODE_SINGLE := 0
@@ -27,6 +29,8 @@ var difficulty_label: Label
 var difficulty := 1
 var engine_label: Label
 var engine_class := 2
+var weight_label: Label
+var weight_class := KartWeight.MEDIUM
 var mode_label: Label
 var mode := MODE_SINGLE
 var stage: Control   # fixed 1280x720 layout area, kept centred when the window is wider/taller
@@ -75,6 +79,19 @@ static func engine_direction_for_key(keycode: int) -> int:
 static func engine_text(i: int) -> String:
 	return "Class: %s  (Z / C)" % TrackLibrary.engine_info(i).name
 
+## Key -> weight class step (-1 / +1), 0 for anything else.
+static func weight_direction_for_key(keycode: int) -> int:
+	match keycode:
+		KEY_X:
+			return -1
+		KEY_V:
+			return 1
+	return 0
+
+static func weight_text(i: int) -> String:
+	var w: Dictionary = KartWeight.info(i)
+	return "Kart: %s - %s  (X / V)" % [w.name, w.blurb]
+
 ## Track blurb, tagged when the Extra class flips the course.
 static func blurb_text(blurb: String, mirror: bool) -> String:
 	return blurb + "  -  MIRRORED (Extra)" if mirror else blurb
@@ -117,6 +134,7 @@ func _ready() -> void:
 	laps = TrackLibrary.laps
 	difficulty = TrackLibrary.difficulty
 	engine_class = TrackLibrary.engine_class
+	weight_class = KartWeight.selected
 	mode = MODE_TT if TimeTrial.active else MODE_SINGLE
 	bg = ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -138,12 +156,13 @@ func _ready() -> void:
 	laps_label = _label(Vector2(240, 374), 26, 266, Color(1.0, 0.85, 0.15))
 	difficulty_label = _label(Vector2(506, 374), 26, 266, Color(1.0, 0.85, 0.15))
 	engine_label = _label(Vector2(772, 374), 26, 266, Color(1.0, 0.85, 0.15))
-	mode_label = _label(Vector2(240, 412), 28, 800, Color(0.55, 0.9, 1.0))
+	weight_label = _label(Vector2(240, 412), 26, 800, Color(1.0, 0.85, 0.15))
+	mode_label = _label(Vector2(240, 450), 28, 800, Color(0.55, 0.9, 1.0))
 	preview = Minimap.new()
-	preview.position = Vector2(500, 452)
+	preview.position = Vector2(500, 494)
 	stage.add_child(preview)
 	var hint := _label(Vector2(40, 662), 20, 1200, Color(1, 1, 1))
-	hint.text = "Arrows / A D: track     Up Down / W S: laps     Q E: AI level     Z C: engine class     G: mode     Enter: race"
+	hint.text = "Arrows / A D: track     Up Down / W S: laps     Q E: AI level     Z C: engine class     X V: kart weight     G: mode     Enter: race"
 	_refresh()
 
 func _label(pos: Vector2, font_size: int, w: float, col: Color) -> Label:
@@ -175,8 +194,9 @@ func _refresh() -> void:
 		difficulty_label.text = difficulty_text(difficulty)
 		engine_label.text = engine_text(engine_class)
 	mode_label.text = mode_text(mode, TrackLibrary.count())
+	weight_label.text = weight_text(weight_class)
 	bg.color = info.sky_top.darkened(0.45)
-	preview.setup(TrackLibrary.make_data(selected, mirror).points, Vector2(280, 195))
+	preview.setup(TrackLibrary.make_data(selected, mirror).points, Vector2(280, 160))
 
 ## Change the highlighted track (wraps around).
 func move(dir: int) -> void:
@@ -198,9 +218,14 @@ func toggle_mode() -> void:
 	mode = next_mode(mode)
 	_refresh()
 
-## Change the engine class (wraps around 50cc / 100cc / 150cc).
+## Change the engine class (wraps around 50cc / 100cc / 150cc / Extra).
 func move_engine(dir: int) -> void:
 	engine_class = TrackLibrary.step_engine(engine_class, dir)
+	_refresh()
+
+## Change the kart weight class (wraps around Light / Medium / Heavy).
+func move_weight(dir: int) -> void:
+	weight_class = KartWeight.step(weight_class, dir)
 	_refresh()
 
 func start_race() -> void:
@@ -208,6 +233,7 @@ func start_race() -> void:
 	TrackLibrary.difficulty = difficulty
 	TrackLibrary.engine_class = engine_class
 	TrackLibrary.laps = laps
+	KartWeight.selected = weight_class
 	TimeTrial.active = mode == MODE_TT
 	if mode == MODE_GP:
 		GrandPrix.start(cup_order(selected, TrackLibrary.count()), RaceMain.RACER_COUNT)
@@ -222,12 +248,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	var ld := lap_direction_for_key(event.physical_keycode)
 	var dd := difficulty_direction_for_key(event.physical_keycode)
 	var ed := engine_direction_for_key(event.physical_keycode)
+	var wd := weight_direction_for_key(event.physical_keycode)
 	if is_mode_key(event.physical_keycode):
 		toggle_mode()
 	elif dd != 0:
 		move_difficulty(dd)
 	elif ed != 0:
 		move_engine(ed)
+	elif wd != 0:
+		move_weight(wd)
 	elif d != 0:
 		move(d)
 	elif ld != 0:

@@ -828,3 +828,29 @@ Cycle 8: added Mario Kart 64 **Time Trials** with a ghost — committed as 9cb6f
 - Tests: `test_mk64_engine_classes` updated (4 classes, wraps), new `test_mk64_extra_mirror_mode` (exact x-reflection, right/left swap, opposite loop direction, pads/hazards mirrored and on road, AI finishes a lap on every mirrored course, helpers, menu blurb/preview, TT never mirrors). Suite 6083 passed, 0 failed.
 - Tools: `tools/mirror_check.gd` (headless menu -> C -> mirrored race with 8 karts on road -> Esc -> menu remembers Extra) passes; `tools/smoke.gd` takes an engine class as 2nd arg (`-- 2 3`: Frosty Peaks mirrored -> 7/7 AI racing); `tools/mirror_shot.gd` windowed run on Metal with no errors (/tmp/gokart_mirror_menu.png, /tmp/gokart_mirror_race.png not inspected). menu_check / gp_check / tt_check still OK.
 - Remaining MK64 ideas: battle mode, Lakitu rescue, staff ghosts, bananas/fake boxes blocking shells.
+## Cycle 9 — 2026-10-03 15:29
+Cycle 9: added Mario Kart 64's **Extra class (mirror mode)** — committed as af67aa6.
+
+**What I did**
+- `scripts/track_library.gd`: `ENGINE_CLASSES` now has a `mirror` flag and a 4th entry **Extra** (150cc speed/accel, mirror = true); `is_mirrored(i)`; `make_data(i, mirror := false)` passes the flag through the layout. Z / C now cycle 50cc → 100cc → 150cc → Extra.
+- `scripts/track_data.gd`: `mirrored` flag; layout `"mirror": true` flips the control points (`mirror_control`, x negated — the start line stays on x = 0) and swaps the lateral side of pad / hazard specs (`mirror_specs`). Walls, gate, grid, AI, laps and minimap all derive from the data, so they follow automatically.
+- `scripts/main.gd`: builds the track mirrored when the chosen class is Extra (never in a time trial, which is fixed at 100cc so records stay comparable).
+- `scripts/menu.gd`: `blurb_text()` tags the blurb "– MIRRORED (Extra)" and the minimap preview flips; label text stays "Class: Extra  (Z / C)" so it fits the column.
+- Tests: `test_mk64_engine_classes` updated for 4 classes; new `test_mk64_extra_mirror_mode` (exact x-reflection on all 3 tracks, right/left vectors swap, opposite loop direction, pads/hazards mirrored and on road, AI finishes a lap on every mirrored course, pure helpers, menu blurb/preview, TT never mirrors). Suite **6083 passed, 0 failed** (was 5966).
+- Tools: new `tools/mirror_check.gd` (headless: menu → C → Extra → mirrored race, 8 karts on the mirrored road, 150cc speed, walls/gate built → Esc → menu remembers Extra) passes 21/21; `tools/smoke.gd` takes an engine class as 2nd arg — `-- 2 3` (Frosty Peaks mirrored) → 7/7 AI karts racing; new `tools/mirror_shot.gd` windowed run on Metal with no script/shader errors (`/tmp/gokart_mirror_menu.png`, `/tmp/gokart_mirror_race.png` saved, not visually inspected). menu_check / gp_check / tt_check still OK.
+- README (features, controls, testing) and progress log updated.
+
+**Assumptions**: Extra is always unlocked (no cup-gold requirement as in MK64); it is a 4th engine class rather than a separate mode toggle; time trials and their saved ghosts are never mirrored; the blurb tag wording is my choice. ObjectDB leak warning at test exit unchanged (46 orphan Node3Ds, pre-existing frameless-test pattern).
+
+**Remaining MK64 parity ideas**: battle mode, Lakitu rescue when far off-road, staff ghosts, dropped bananas/fake boxes blocking shells.
+
+**Blockers**: none. No parity folders were given, so nothing was mirrored (folder-wise).
+
+
+## Cycle 10 (session 5) — MK64 weight classes (Light / Medium / Heavy) + kart bumps
+- `scripts/kart_weight.gd` (new, pure): `CLASSES` Light (speed 0.97, accel 1.18, mass 0.8, size 0.9) / Medium (base) / Heavy (1.03, 0.85, 1.3, 1.1), `static var selected` (player's pick), `info`/`step`/`count`, `shove(my_mass, other_mass, closing)` = (3 + 0.3*closing) * (other/my)^2 capped at 14 m/s, `speed_keep(my, other)` = clamp(0.85*my/other, 0.6, 1.0), BUMP_COOLDOWN 0.35 s, PUSH_DECAY 14.
+- `scripts/kart_physics.gd`: `apply_weight_class(speed, accel)` (stacks on the engine class). `scripts/kart.gd`: `weight_class`/`mass`/`size_scale`/`push`/`bump_cooldown`/`bumps`, `apply_weight_class(i)`, body mesh scaled by size_scale, `push` added to the velocity and decays; slide collisions with another kart (CharacterBody3D with `mass`) go to `_bump` (both karts shoved apart along the contact normal, lighter further; speed lerped towards the blocked speed by speed_keep) and the wall speed-loss rule is skipped on frames with a kart contact (it used to zero the speed on kart contact).
+- `scripts/main.gd`: `AI_SPECS` 5th element = weight class (3 light, 2 medium, 2 heavy); player gets `KartWeight.selected`, AI their spec. `scripts/menu.gd`: new "Kart: <class> - <blurb>  (X / V)" row at y 412, mode row moved to 450, preview to y 494 with height 160; `weight_direction_for_key`, `weight_text`, `move_weight`; start_race stores `KartWeight.selected`.
+- Tests: `tests/test_weight.gd` (6 tests); menu fixtures in test_tracks / test_grand_prix / test_time_trial gained `weight_label`; mirror preview test uses the 280x160 preview. Suite 6148 passed, 0 failed.
+- Tools: `tools/weight_check.gd` (menu -> V -> Heavy -> race: masses/speeds/sizes, AI mix, after GO a parked light kart is rammed by the heavy player: light thrown 13.8 m/s vs 4.6, player keeps 30.9 m/s -> Esc -> menu remembers Heavy) OK; headless render frames outrun physics ticks so stages wait on `Engine.get_physics_frames()`. menu_check / mirror_check / gp_check / tt_check OK, smoke 7/7, windowed menu_shot no errors (/tmp/gokart_menu0.png not inspected).
+- Remaining MK64 ideas: battle mode, Lakitu (start lights / reverse sign / rescue), staff ghosts, bananas/fake boxes blocking shells, star karts knocking others into a spin on contact.

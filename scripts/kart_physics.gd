@@ -61,6 +61,11 @@ func apply_engine_class(speed_scale: float, accel_scale: float) -> void:
 	acceleration *= accel_scale
 	boost_acceleration *= accel_scale
 
+## Mario Kart 64 weight class: the same scaling, stacked on top of the engine class
+## (light = quicker pick-up, heavy = higher top speed).
+func apply_weight_class(speed_scale: float, accel_scale: float) -> void:
+	apply_engine_class(speed_scale, accel_scale)
+
 func is_star() -> bool:
 	return star_time > 0.0
 

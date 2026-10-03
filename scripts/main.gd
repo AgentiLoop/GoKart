@@ -21,6 +21,7 @@ const TimeTrial := preload("res://scripts/time_trial.gd")
 const GhostRecording := preload("res://scripts/ghost_recording.gd")
 const GhostKart := preload("res://scripts/ghost_kart.gd")
 const Items := preload("res://scripts/items.gd")
+const KartWeight := preload("res://scripts/kart_weight.gd")
 
 ## Seconds after the player crosses the line before the results panel appears.
 const RESULTS_DELAY := 2.0
@@ -34,16 +35,17 @@ const PAD_BOOST_TIME := 1.2
 const AI_START_BOOSTS := [0.9, 0.5, 0.0, 0.7, 0.0, 0.3, 0.6]
 ## Half the lane spacing of the two-column MK64 grid.
 const GRID_LANE := 2.4
-## AI grid: [samples before the player's slot (negative = ahead), lane offset, speed scale, body colour]
+## AI grid: [samples before the player's slot (negative = ahead), lane offset, speed scale, body colour, weight class]
 ## Two columns, four rows (3 samples = 9 m apart); the player takes the right slot of the back row.
+## The field mixes MK64 weight classes: three light, two medium and two heavy karts.
 const AI_SPECS := [
-	[-9, -GRID_LANE, 0.98, Color(0.15, 0.3, 0.95)],    # BLUE   front row
-	[-9, GRID_LANE, 0.96, Color(0.15, 0.75, 0.25)],    # GREEN
-	[-6, -GRID_LANE, 0.95, Color(0.65, 0.2, 0.85)],    # PURPLE
-	[-6, GRID_LANE, 0.94, Color(0.95, 0.85, 0.15)],    # YELLOW
-	[-3, -GRID_LANE, 0.92, Color(0.95, 0.5, 0.1)],     # ORANGE
-	[-3, GRID_LANE, 0.90, Color(0.95, 0.4, 0.7)],      # PINK
-	[0, -GRID_LANE, 0.88, Color(0.1, 0.75, 0.75)],     # TEAL   back row, beside the player
+	[-9, -GRID_LANE, 0.98, Color(0.15, 0.3, 0.95), KartWeight.HEAVY],    # BLUE   front row
+	[-9, GRID_LANE, 0.96, Color(0.15, 0.75, 0.25), KartWeight.LIGHT],    # GREEN
+	[-6, -GRID_LANE, 0.95, Color(0.65, 0.2, 0.85), KartWeight.MEDIUM],   # PURPLE
+	[-6, GRID_LANE, 0.94, Color(0.95, 0.85, 0.15), KartWeight.LIGHT],    # YELLOW
+	[-3, -GRID_LANE, 0.92, Color(0.95, 0.5, 0.1), KartWeight.HEAVY],     # ORANGE
+	[-3, GRID_LANE, 0.90, Color(0.95, 0.4, 0.7), KartWeight.LIGHT],      # PINK
+	[0, -GRID_LANE, 0.88, Color(0.1, 0.75, 0.75), KartWeight.MEDIUM],    # TEAL   back row, beside the player
 ]
 
 var kart: CharacterBody3D
@@ -117,6 +119,8 @@ func _ready() -> void:
 	var engine: Dictionary = TrackLibrary.engine_info(engine_index)
 	kart = Kart.new()
 	kart.model.apply_engine_class(engine.speed, engine.accel)
+	# MK64 weight class picked on the menu: light / medium / heavy
+	kart.apply_weight_class(KartWeight.selected)
 	# the player starts in the right slot of the back row, just behind the line, facing along the track
 	# (alone on the front row's centre in a time trial)
 	var start_idx := data.count - 1 if time_trial else data.count - 10
@@ -140,6 +144,7 @@ func _ready() -> void:
 		ai.kart_id = karts.size()
 		add_child(ai)
 		ai.model.apply_engine_class(engine.speed, engine.accel)
+		ai.apply_weight_class(spec[4])
 		ai.model.max_speed *= spec[2] * TrackLibrary.difficulty_info(TrackLibrary.difficulty).speed
 		ai_base_speed.append(ai.model.max_speed)
 		var engine_sfx := AiEngineAudio.new()

@@ -81,7 +81,7 @@ func test_menu_mode_keys_and_cup_order() -> void:
 	runner.check("GRAND PRIX" in Menu.mode_text(Menu.MODE_GP, 3) and "3 races" in Menu.mode_text(Menu.MODE_GP, 3))
 	runner.check("Single" in Menu.mode_text(Menu.MODE_SINGLE, 3))
 	var m = Menu.new()
-	for prop in ["laps_label", "difficulty_label", "engine_label", "mode_label", "name_label", "blurb_label", "index_label"]:
+	for prop in ["laps_label", "difficulty_label", "engine_label", "weight_label", "mode_label", "name_label", "blurb_label", "index_label"]:
 		m.set(prop, Label.new())
 	m.bg = ColorRect.new()
 	m.preview = load("res://scripts/minimap.gd").new()
@@ -92,5 +92,5 @@ func test_menu_mode_keys_and_cup_order() -> void:
 	runner.check(m.mode == Menu.MODE_TT)
 	m.toggle_mode()
 	runner.check(m.mode == Menu.MODE_SINGLE)
-	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
+	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.weight_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
 		n.free()

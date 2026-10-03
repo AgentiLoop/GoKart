@@ -194,7 +194,7 @@ func test_menu_time_trial_mode() -> void:
 	runner.check(Menu.next_mode(Menu.MODE_TT) == Menu.MODE_SINGLE, "G cycles back to a single race")
 	runner.check("TIME TRIAL" in Menu.mode_text(Menu.MODE_TT, 3) and "ghost" in Menu.mode_text(Menu.MODE_TT, 3))
 	var m = Menu.new()
-	for prop in ["laps_label", "difficulty_label", "engine_label", "mode_label", "name_label", "blurb_label", "index_label"]:
+	for prop in ["laps_label", "difficulty_label", "engine_label", "weight_label", "mode_label", "name_label", "blurb_label", "index_label"]:
 		m.set(prop, Label.new())
 	m.bg = ColorRect.new()
 	m.preview = load("res://scripts/minimap.gd").new()
@@ -208,5 +208,5 @@ func test_menu_time_trial_mode() -> void:
 	runner.check(m.difficulty_label.text == "AI: none  (Time Trial)", m.difficulty_label.text)
 	m.toggle_mode()
 	runner.check(m.laps_label.text == Menu.laps_text(7) and m.engine_label.text == Menu.engine_text(2), "race options come back")
-	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
+	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.weight_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
 		n.free()
