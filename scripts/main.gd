@@ -27,6 +27,8 @@ const Train := preload("res://scripts/train.gd")
 const Railway := preload("res://scripts/railway.gd")
 const Traffic := preload("res://scripts/traffic.gd")
 const Highway := preload("res://scripts/highway.gd")
+const Moles := preload("res://scripts/moles.gd")
+const Molehills := preload("res://scripts/molehills.gd")
 
 ## Seconds after the player crosses the line before the results panel appears.
 const RESULTS_DELAY := 2.0
@@ -86,6 +88,11 @@ var traffic
 var highway = null
 ## Minimap colour of a traffic vehicle.
 const VEHICLE_COLOR := Color(0.4, 0.4, 0.45)
+## MK64 Moo Moo Farm Monty Moles: the model (inactive on courses without holes) and its node.
+var moles
+var molehills = null
+## Minimap colour of a mole hole.
+const MOLE_COLOR := Color(0.45, 0.3, 0.15)
 ## Time trial only: the run being recorded, the ghost of the best run (if any) and the filed result.
 var recording = null
 var ghost = null
@@ -150,6 +157,11 @@ func _ready() -> void:
 	if traffic.active():
 		highway = Highway.new(traffic)
 		add_child(highway)
+	# MK64 Moo Moo Farm: Monty Moles hop in and out of holes in the road
+	moles = Moles.new(data)
+	if moles.active():
+		molehills = Molehills.new(moles)
+		add_child(molehills)
 	kart = Kart.new()
 	kart.model.apply_engine_class(engine.speed, engine.accel)
 	# MK64 weight class picked on the menu: light / medium / heavy
@@ -285,6 +297,8 @@ func _physics_process(delta: float) -> void:
 	if highway != null and race_start.started:
 		# the traffic sets off at GO, so nobody is run over on the grid
 		highway.update_traffic(delta)
+	if molehills != null:
+		molehills.update_moles(delta)
 	var progresses: Array = []
 	var finish_times: Array = []
 	for k in karts:
@@ -310,16 +324,34 @@ func _physics_process(delta: float) -> void:
 		if traffic.active():
 			# MK64 Toad's Turnpike: CPU karts steer round the vehicles ahead; touch one and you are thrown into the air
 			if k.driver != null:
-				var lane: float = traffic.clear_lane(k.track_index, k.driver.lane_offset, k.driver.dodge_lane if k.driver.dodging else k.driver.lane_offset)
-				k.driver.dodging = lane != k.driver.lane_offset
-				k.driver.dodge_lane = lane
+				_dodge(k.driver, traffic, k.track_index)
 			var bump: Vector3 = traffic.hit_dir(kp)
 			if bump != Vector3.ZERO and not k.is_rescued() and k.launch(Traffic.LAUNCH_SPEED, bump * Traffic.SHOVE) and k == kart:
 				audio.play("crash")
+		if moles.active():
+			# MK64 Moo Moo Farm: CPU karts steer round the holes; a mole that is out throws anyone who runs
+			# into it into the air, a Star kart bowls the mole over instead
+			if k.driver != null:
+				_dodge(k.driver, moles, k.track_index)
+			var mi: int = moles.mole_at(kp)
+			if mi >= 0 and not k.is_rescued():
+				if k.model.is_star():
+					moles.knock(mi)
+					if k == kart:
+						audio.play("pop")
+				elif k.launch(Moles.LAUNCH_SPEED, moles.shove_dir(mi, kp) * Moles.SHOVE) and k == kart:
+					audio.play("crash")
 		var frac: float = (kp - data.points[k.track_index]).dot(data.tangents[k.track_index]) / data.spacing
 		progresses.append(RaceRanking.progress(k.tracker.lap, k.track_index, data.count, frac))
 		finish_times.append(k.tracker.race_time if k.tracker.is_finished else -1.0)
 	kart_index = kart.track_index
+	if moles.active():
+		# MK64: a green or red shell knocks a mole that is out away (and is spent on it)
+		for p in items.projectiles.duplicate():
+			if p.alive and Items.is_blockable_shell(p.kind) and moles.knock_at(p.position, p.radius + Moles.HIT_RADIUS) >= 0:
+				p.alive = false
+				items._remove_projectile(p)
+				audio.play("pop", -6.0)
 	# MK64 rubber-banding: AI karts behind the player get a top-speed bonus, karts far ahead ease off
 	var band: float = TrackLibrary.difficulty_info(TrackLibrary.difficulty).rubber_band
 	for i in range(1, karts.size()):
@@ -369,7 +401,17 @@ func _physics_process(delta: float) -> void:
 	for i in traffic.vehicles.size():
 		marker_pos.append(traffic.vehicle_pose(i).pos)
 		marker_col.append(VEHICLE_COLOR)
+	for m in moles.moles:
+		marker_pos.append(m.pos)
+		marker_col.append(MOLE_COLOR)
 	hud.update_minimap(marker_pos, marker_col)
+
+## Points an AI driver at the lane `hazards` (the traffic or the moles) says is clear ahead of it:
+## its own lane when free, otherwise a dodge lane it keeps until the way is clear.
+func _dodge(driver, hazards, idx: int) -> void:
+	var lane: float = hazards.clear_lane(idx, driver.lane_offset, driver.dodge_lane if driver.dodging else driver.lane_offset)
+	driver.dodging = lane != driver.lane_offset
+	driver.dodge_lane = lane
 
 ## Time trial: record the player's pose from GO to the line and replay the ghost alongside.
 func _update_time_trial(delta: float) -> void:

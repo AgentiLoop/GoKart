@@ -235,6 +235,9 @@ func _ready() -> void:
 	bg = ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+	# the live race behind everything (MK64 title screen), then the shade, then the 2D layout
+	attract = Attract.new()
+	add_child(attract)
 	backdrop = Backdrop.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(backdrop)
@@ -245,7 +248,9 @@ func _ready() -> void:
 	stage.offset_right = 640.0
 	stage.offset_bottom = 360.0
 	add_child(stage)
-	_build_title()
+	select_box = Control.new()
+	select_box.size = Vector2(1280, 720)
+	stage.add_child(select_box)
 	# banner
 	_panel(Rect2(460, 162, 360, 44), PANEL_FILL, PANEL_RIM, 22)
 	sub_label = _label(Vector2(460, 162), 24, 360, GOLD)
@@ -257,7 +262,7 @@ func _ready() -> void:
 	list_box = Control.new()
 	list_box.position = Vector2(80, 220)
 	list_box.size = Vector2(420, 278)
-	stage.add_child(list_box)
+	select_box.add_child(list_box)
 	var arrows := _label(Vector2(80, 468), 13, 420, GREY)
 	arrows.text = "<  A / D  or  Left / Right  >"
 	# right panel: map + name + blurb
@@ -265,7 +270,7 @@ func _ready() -> void:
 	_panel(Rect2(538, 240, 316, 202), Color(0, 0, 0, 0.25), Color(1, 1, 1, 0.35), 8)
 	preview = Minimap.new()
 	preview.position = Vector2(546, 248)
-	stage.add_child(preview)
+	select_box.add_child(preview)
 	name_label = _label(Vector2(870, 244), 34, 316, GOLD, HORIZONTAL_ALIGNMENT_LEFT)
 	blurb_label = _label(Vector2(870, 296), 19, 316, CREAM, HORIZONTAL_ALIGNMENT_LEFT)
 	blurb_label.size.y = 130
@@ -292,7 +297,7 @@ func _ready() -> void:
 			sep.position = Vector2(x, 524)
 			sep.size = Vector2(1, 62)
 			sep.color = Color(1, 1, 1, 0.14)
-			stage.add_child(sep)
+			select_box.add_child(sep)
 	laps_label = values[0]
 	difficulty_label = values[1]
 	engine_label = values[2]
@@ -304,7 +309,7 @@ func _ready() -> void:
 	rule.position = Vector2(96, 596)
 	rule.size = Vector2(1088, 1)
 	rule.color = Color(1, 1, 1, 0.14)
-	stage.add_child(rule)
+	select_box.add_child(rule)
 	var mode_cap := _label(Vector2(96, 607), 14, 120, GOLD_DIM, HORIZONTAL_ALIGNMENT_LEFT)
 	mode_cap.text = "MODE  (G)"
 	mode_label = _label(Vector2(216, 603), 21, 760, CREAM, HORIZONTAL_ALIGNMENT_LEFT)
@@ -312,12 +317,42 @@ func _ready() -> void:
 	prompt.text = "PRESS ENTER"
 	var hint := _label(Vector2(40, 676), 14, 1200, GREY)
 	hint.text = "Left / Right: course     Up / Down: laps     Q / E: cpu     Z / C: engine     X / V: kart     G: mode     Enter: race"
+	# the logo sits above the panels; the title prompt only shows on the title screen
+	_build_title()
+	title_prompt = Label.new()
+	title_prompt.position = Vector2(340, 560)
+	title_prompt.size = Vector2(600, 60)
+	title_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_prompt.text = "PRESS ENTER"
+	UiStyle.style_sign(title_prompt, font, 40)
+	stage.add_child(title_prompt)
 	_refresh()
+	set_title(not title_seen)
+
+## Title screen on (logo large over the race, PRESS ENTER, no panels) or the select screen.
+func set_title(on: bool) -> void:
+	title_shown = on
+	if on:
+		title_seen = true
+	if select_box != null:
+		select_box.visible = not on
+	if title_prompt != null:
+		title_prompt.visible = on
+	if title_box != null:
+		title_box.position = TITLE_LOGO_POS if on else MENU_LOGO_POS
+		title_box.scale = Vector2.ONE * (TITLE_LOGO_SCALE if on else 1.0)
+	if backdrop != null:
+		backdrop.set_dim(0.0 if on else 1.0)
+
+## Leave the title screen for the select screen (any key).
+func dismiss_title() -> void:
+	if title_shown:
+		set_title(false)
 
 ## "GOKART" like the MK64 logo: a slanted, chunky red word with a gold rim over a soft dark shadow.
 func _build_title() -> void:
 	title_box = Control.new()
-	title_box.position = Vector2(240, 8)
+	title_box.position = MENU_LOGO_POS
 	title_box.size = Vector2(800, 150)
 	title_box.pivot_offset = title_box.size * 0.5
 	title_box.rotation_degrees = -4.0
@@ -338,12 +373,13 @@ func _build_title() -> void:
 			l.add_theme_constant_override("outline_size", 7)
 		title_box.add_child(l)
 
+## Select-screen panel (hidden with the rest of select_box on the title screen).
 func _panel(rect: Rect2, fill: Color, rim: Color, radius: int) -> Panel:
 	var p := Panel.new()
 	p.position = rect.position
 	p.size = rect.size
 	p.add_theme_stylebox_override("panel", UiStyle.panel_style(fill, rim, radius))
-	stage.add_child(p)
+	select_box.add_child(p)
 	return p
 
 func _label(pos: Vector2, font_size: int, w: float, col: Color, align := HORIZONTAL_ALIGNMENT_CENTER) -> Label:
@@ -352,13 +388,16 @@ func _label(pos: Vector2, font_size: int, w: float, col: Color, align := HORIZON
 	l.size = Vector2(w, font_size * 1.4)
 	l.horizontal_alignment = align
 	UiStyle.style_label(l, font, font_size, col)
-	stage.add_child(l)
+	select_box.add_child(l)
 	return l
 
 func _process(delta: float) -> void:
 	blink += delta
+	var a := 0.6 + 0.4 * sin(blink * 5.0)
 	if prompt != null:
-		prompt.modulate.a = 0.6 + 0.4 * sin(blink * 5.0)
+		prompt.modulate.a = a
+	if title_prompt != null:
+		title_prompt.modulate.a = a
 
 ## Rebuild the left-hand list: one row per course / arena, the highlighted one gold on a lit bar.
 func _refresh_list(names: Array, sel: int) -> void:
@@ -444,6 +483,8 @@ func _refresh() -> void:
 	_refresh_list(names, selected)
 	var data = TrackLibrary.make_data(selected, mirror)
 	preview.setup(data.points, PREVIEW_AREA, data.rail)
+	if attract != null:
+		attract.show_course(selected, mirror)
 
 ## Battle mode: Left/Right pick the arena instead of a track; balloons replace laps.
 func _refresh_battle() -> void:
@@ -526,6 +567,11 @@ func start_race() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
+	if title_shown:
+		# MK64: Start leaves the title screen; an option key does the same and is applied as well
+		dismiss_title()
+		if is_confirm_key(event.physical_keycode):
+			return
 	var d := direction_for_key(event.physical_keycode)
 	var ld := lap_direction_for_key(event.physical_keycode)
 	var dd := difficulty_direction_for_key(event.physical_keycode)

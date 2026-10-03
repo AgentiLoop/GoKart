@@ -60,6 +60,14 @@ const TRACKS := [
 		"control": TrackData.DEFAULT_CONTROL,
 		"width": 16.0,
 		"water": TrackData.DEFAULT_WATER,
+		# Moo Moo Farm style Monty Moles: [fraction of lap, lateral offset] per hole — three groups of
+		# three holes, staggered left / right / left about 10 m apart so there is always a way through
+		# (see scripts/moles.gd); clear of the grid, the pads and the item box rows
+		"moles": [
+			[0.36, -3.0], [0.375, 3.0], [0.39, -3.0],
+			[0.61, 3.0], [0.625, -3.0], [0.64, 3.0],
+			[0.74, -3.0], [0.755, 3.0], [0.77, -3.0],
+		],
 		"ground": Color(0.25, 0.6, 0.25),
 		"sky_top": Color(0.38, 0.65, 0.92),
 		"sky_horizon": Color(0.72, 0.84, 0.95),
