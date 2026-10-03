@@ -285,7 +285,9 @@ func _physics_process(delta: float) -> void:
 				audio.play_finish()
 			hud.show_results(battle.results_text(RaceMain.RACER_NAMES, data.name, 0))
 	var banner := ""
-	if battle.over:
+	if results_shown:
+		pass  # the results table owns the centre of the screen; no banner on top of it
+	elif battle.over:
 		banner = "YOU WIN!" if battle.winner == 0 else "BATTLE OVER"
 	elif battle.is_out(0):
 		banner = "OUT"
