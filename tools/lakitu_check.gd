@@ -56,7 +56,8 @@ func _process(_d: float) -> bool:
 	var L = load("res://scripts/lakitu.gd")
 	if stage == 0:
 		_check(cs.name == "Menu", "menu scene loaded")
-		_key(KEY_ENTER)
+		_key(KEY_ENTER)   # leaves the title screen
+		_key(KEY_ENTER)   # starts the race
 		stage = 1
 		frames = 0
 	elif stage == 1 and frames > 10:

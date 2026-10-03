@@ -6,8 +6,8 @@ extends Node3D
 const Moles := preload("res://scripts/moles.gd")
 
 const RISE := 1.3                     # m a mole travels between hidden and fully out
-const FUR := Color(0.45, 0.28, 0.14)
-const DIRT := Color(0.42, 0.27, 0.12)
+const FUR := Color(0.58, 0.38, 0.18)
+const DIRT := Color(0.52, 0.34, 0.16)
 const HOLE := Color(0.08, 0.05, 0.03)
 const SNOUT := Color(0.85, 0.7, 0.5)
 

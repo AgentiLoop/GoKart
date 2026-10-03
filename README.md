@@ -18,17 +18,20 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 
 ![Stuck behind a bus and a truck in the traffic on Sunset Speedway](assets/screenshots/sunset-speedway-traffic.png)
 
+![Monty Moles popping out of their holes on Green Hills](assets/screenshots/green-hills-moles.png)
+
 ![The results board after a race: colour swatches, gold / silver / bronze places, the player's row lit](assets/screenshots/race-results.png)
 
 ![Grand Prix results with the cup standings side by side and the trophy](assets/screenshots/gp-results.png)
 
-Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the road, drifts and fires items at random), `tools/train_shot.gd`, `tools/traffic_shot.gd`, `tools/menu_shot.gd` and `tools/hud_shot.gd`.
+Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the road, drifts and fires items at random), `tools/train_shot.gd`, `tools/traffic_shot.gd`, `tools/mole_shot.gd`, `tools/menu_shot.gd` and `tools/hud_shot.gd`.
 
 ## Features
 
 
 - **The train** (Mario Kart 64 Kalimari Desert): Dusty Canyon has a railway loop that crosses the road at two level crossings, and two steam trains (locomotive with a smoking chimney and a "64" plate, tender, three coaches) circle it without end. A crossbuck signal before each crossing flashes its red lamps and a bell rings while a train is close or passing; drive into a car and you are **thrown into the air**, spun out and shoved along the train (a Star or Boo goes straight through). CPU karts always stop and wait at a blocked crossing, like MK64's; the walls open where the rails cross and the minimap shows the railway (`scripts/train.gd`, `scripts/railway.gd`, `TrackData` `rail` layout / `crossings`, `Kart.launch`, `AiDriver.wait`)
 - **Traffic** (Mario Kart 64 Toad's Turnpike): Sunset Speedway is a public road — white cars, yellow buses, red box trucks and cyan tankers with lit headlights drive round it without end in two lanes (the fast lane on the left, the slow lane on the right), the same way as the racers, crawling in 50cc and quick in 150cc; in the **Extra** class they come **towards you** at 150cc speed like MK64's mirror mode. The traffic sets off at GO, items fly straight through it, and touching any vehicle **throws you into the air**, spins you out and shoves you along (a Star or Boo passes through). CPU karts look ahead and weave round the vehicles in their lane — through the gap between the lanes or into the other lane — and the minimap shows every vehicle as a grey dot (`scripts/traffic.gd`, `scripts/highway.gd`, `TrackData` `traffic` layout, `AiDriver.dodge_lane`)
+- **Monty Moles** (Mario Kart 64 Moo Moo Farm): Green Hills has three groups of mole holes in the road, staggered left / right / left about 10 m apart. Brown Monty Moles with tan snouts and triangular shades hop out of them and sink back in a staggered rhythm (out for 1.4 s every 3.2 s, neighbouring holes offset, facing the oncoming racers); run into a mole that is out and you are **thrown into the air** and spin out (a Star kart bowls the mole over instead). A green or red shell flying over a hole **knocks the mole away** (the shell is spent on it, pop sound) and it stays underground for 6 s before it dares to come back. CPU karts look 40 m ahead and steer round the holes — down the middle between a left and a right hole or past the outside — and the minimap shows every hole as a brown dot (`scripts/moles.gd`, `scripts/molehills.gd`, `TrackData` `moles` layout, `Main._dodge`)
 
 - **Arcade kart physics** with drifting and mini-turbo boosts (release a drift to boost), off-road slowdown and wall collisions (`scripts/kart_physics.gd`)
 - **Procedural closed-circuit tracks** with meshes, walls and animated boost pads; four tracks — a Mario Kart 64 cup's worth — (Green Hills, Sunset Speedway, Frosty Peaks and the desert course Dusty Canyon with its sweepers, hairpin and oasis) with their own layout, item boxes, hazards and sky/ground colours (`scripts/track_data.gd`, `scripts/track.gd`, `scripts/track_library.gd`)
@@ -103,6 +106,7 @@ godot --headless --path . -s tools/start_check.gd   # Rocket start / false start
 godot --headless --path . -s tools/block_check.gd   # Shell blocking check (dangling banana stops a red shell, green shell wipes out a road banana, orbiting triple shells stop a shell, triple red shells orbit red and home in one by one)
 godot --headless --path . -s tools/traffic_check.gd -- 2  # Traffic check on Sunset Speedway (vehicles built, still through the countdown, off at GO; an AI kart dodges a bus in its lane; the player is thrown into the air by a truck; arg = engine class, 3 = Extra / oncoming)
 godot --headless --path . -s tools/train_check.gd   # Train check on Dusty Canyon (railway + signals built, AI kart waits at a blocked crossing while the lamps flash and the bell rings, then pulls away; the player is thrown into the air by the locomotive -> Esc)
+godot --headless --path . -s tools/mole_check.gd    # Monty Mole check on Green Hills (holes + molehills built, moles pop through the countdown; an AI kart sent down a hole's lane steers round it; the player parked on a hole is thrown into the air as the mole comes out; a green shell knocks a mole away and is spent)
 godot --headless --path . -s tools/battle_smoke.gd -- 1  # headless battle smoke test, every kart on the battle AI (arg = arena index)
 godot --headless --path . -s tools/gp_check.gd    # Grand Prix flow check (menu -> cup race 1 -> results -> race 2 from pole -> rank out 6th -> retry the same race -> Esc)
 godot --headless --path . -s tools/tt_check.gd    # Time Trial flow check (menu -> solo run -> record + ghost saved -> race the ghost -> Esc)
@@ -113,6 +117,7 @@ godot --path . -s tools/battle_shot.gd -- 1       # Battle: menu, start pads wit
 godot --path . -s tools/lakitu_shot.gd          # Lakitu: start signal, water edge, rescue, REVERSE sign -> /tmp/gokart_lakitu_*.png
 godot --path . -s tools/train_shot.gd           # Dusty Canyon train: waiting at the crossing, thrown by the locomotive -> /tmp/gokart_train_*.png
 godot --path . -s tools/traffic_shot.gd         # Sunset Speedway traffic: behind a bus and a truck, thrown by a truck -> /tmp/gokart_traffic_*.png
+godot --path . -s tools/mole_shot.gd            # Green Hills moles: the first group popping out ahead, thrown by a mole -> /tmp/gokart_mole*.png
 godot --path . -s tools/hud_shot.gd             # restyled HUD: gold countdown sign, results boards (race / Grand Prix / Time Trial), pixel-sampled for the palette / no black outline -> /tmp/gokart_hud_*.png
 godot --path . -s tools/random_drive.gd -- 1    # random drive, 3 screenshots -> /tmp/gokart_random_*.png (arg = track index, random if omitted)
 ```
