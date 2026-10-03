@@ -1067,3 +1067,25 @@ Cycle 17: added a **fourth course, "Dusty Canyon"**, so the Grand Prix runs **fo
 - Tests: new `tests/test_train.gd` (11 tests: resample refactor, no-rail courses unchanged, Dusty Canyon geometry plain + mirrored, loop/cars, strike zone, blocked/wait/bell/lamps, kart launch, AI wait, sounds, minimap, railway node). Suite 8623 passed, 0 failed (was 8194).
 - Tools: new `tools/train_check.gd` (28/28 PASS: build, AI waits at crossing 1 while a train passes, lamps + bell, pulls away, player launched by the loco: peak y 2.6, lands, Esc) and `tools/train_shot.gd`; smoke track 3 / 3 mirrored / 0 7/7; menu/mirror/lakitu/gp/tt checks OK. `assets/screenshots/dusty-canyon-train.png` (not visually inspected). README updated.
 - Remaining MK64 ideas: staff ghosts, a visible Lakitu for AI rescues, Double Deck arena, AI false starts on Easy, AI holding a shield when a red shell is coming, a train tunnel / rail shortcut, menu preview showing the rail.
+## Cycle 18 — 2026-10-03 18:04
+Cycle 18: added the **Mario Kart 64 Kalimari Desert train** to Dusty Canyon — committed as 4d42330 (includes the pending cycle-17 progress note).
+
+**What I did**
+- Web search confirmed MK64's rules: the train loop crosses the road twice, crossing lights flash as it nears, karts that hit it are thrown into the air, and CPU drivers always stop at a crossing while the train is there.
+- `scripts/track_data.gd`: factored the spline resampling into static `resample_loop` (road build unchanged — test guards it); new layout key `"rail"` (closed-loop control points, mirrored with the course) → `rail` samples, `rail_length`, `crossings` (each rail run over the road: centre road sample, open-wall span ±2 samples, rail index + metres, pos, dir); `crossing_at`; `has_wall` is false on both sides at a crossing.
+- `scripts/track_library.gd`: Dusty Canyon rail (12 points, 694 m, 231 samples) crossing the opening straight (road 37) and the run home (road 315), both square-on (dot 0.16 / 0.00), ≥ 22 m from the centreline elsewhere; two boost pads nudged (0.1→0.14, 0.86→0.8) to clear the crossings. Verified with a throwaway probe (deleted).
+- New `scripts/train.gd` (pure model): two trains half a loop apart at 16 m/s, loco + tender + 3 coaches (25.8 m), `rail_pose`/`car_pose`, `hit_dir` strike zone, `blocked(ci)` (45 m warning until 3 m past the last car), `must_wait(idx)` (2–9 samples before a blocked crossing), `bell_near`, alternating `lamp_phase`. New `scripts/railway.gd` (Node3D): rails + sleepers mesh, crossbuck signals with two red lamps, procedural steam trains (smoking chimney, "64" plate, cowcatcher, coaches with windows), `update_train`.
+- `kart.gd` `launch(up, shove)` (spin-out gate; Star/Boo pass through; `hop` applied as velocity.y, `launches` counter); `ai_driver.gd` `wait` flag (stop, stuck timer reset); `main.gd` wiring (per-kart wait, strike → thrown 12 m/s up + shoved along the train, "crash" for the player, crossing bell); `sound_synth.gd` "bell"/"crash"; `game_audio.gd` `update_crossing`; `minimap.gd`/`hud.gd` draw the rail (fit over road + rail).
+- Tests: new `tests/test_train.gd` (11 tests). Suite **8623 passed, 0 failed** (was 8194).
+- Tools: new `tools/train_check.gd` **28/28 PASS** (railway built, AI kart waits at a blocked crossing while lamps flash and the bell rings, pulls away after the train, player launched by the loco: peak y 2.6 m, lands, Esc); `tools/train_shot.gd`; smoke track 3 / 3 mirrored / 0 all 7/7; menu/mirror/lakitu/gp/tt checks OK. `assets/screenshots/dusty-canyon-train.png` added (1280×720, not visually inspected). README, progress log, project index updated; `.agent/tool_outcomes.json` added to .gitignore.
+
+**Assumptions**: train speed/length/warning distances, the rail layout, signal and train looks are my own tuning (MK64's exact numbers not copied); a Boo ghost passes through the train like a Star (shared `spin_out` gate); the menu's track preview does not yet draw the rail.
+
+**Remaining MK64 parity ideas**: staff ghosts, a visible Lakitu for AI rescues, Double Deck arena, AI false starts on Easy, AI holding a shield when a red shell is incoming, a train tunnel / rail shortcut, rail on the menu preview.
+
+**Blockers**: none. No parity folders were given, so nothing was mirrored (folder-wise). `screenshot.png` at the repo root (untracked, not mine) left alone.
+
+# Auto-pilot session — 2026-10-03 18:25
+Goal: the menus are not Mario Kart Quality and neither is the title shot. and there is over use of black outlines on text everywhere. see Mario Kart 64 screenshots and images on the web and make better menus. focus only on the menus / screens and title shot for GoKart. make concious decisions. do not conflict with previous /auto working on the application
+Budget: no time limit, unlimited cycles
+

@@ -28,6 +28,10 @@ var reverse_time := 0.0
 ## Set each tick by the race scene: a level crossing just ahead is blocked by the train, so stop
 ## and wait for it to pass (MK64 CPU drivers always do).
 var wait := false
+## Set each tick by the race scene on a traffic course: the vehicles ahead block lane_offset, so aim
+## for dodge_lane instead until the way is clear (MK64 CPU karts weave through Toad's Turnpike traffic).
+var dodging := false
+var dodge_lane := 0.0
 
 func _init(track_data, lane := 0.0, delay := 1.5) -> void:
 	track = track_data
@@ -39,7 +43,7 @@ func _init(track_data, lane := 0.0, delay := 1.5) -> void:
 func decide(delta: float, pos: Vector3, heading: float, speed: float, controllable := true) -> Dictionary:
 	idx = track.nearest_index(pos, idx)
 	var ti: int = (idx + lookahead) % track.count
-	var target: Vector3 = track.points[ti] + track.right_of(ti) * lane_offset
+	var target: Vector3 = track.points[ti] + track.right_of(ti) * (dodge_lane if dodging else lane_offset)
 	var want := atan2(-(target.x - pos.x), -(target.z - pos.z))
 	var err := wrapf(want - heading, -PI, PI)
 	var steer := clampf(-err * steer_gain, -1.0, 1.0)

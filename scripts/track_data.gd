@@ -52,10 +52,13 @@ var rail_control: Array[Vector2] = []
 var rail := PackedVector3Array()
 var rail_length := 0.0
 var crossings: Array = []
+## Traffic (layout "traffic", Mario Kart 64 Toad's Turnpike): [fraction of lap, lane in metres right
+## of the centreline, kind] per vehicle (see scripts/traffic.gd); empty = no traffic on this course.
+var traffic_specs: Array = []
 
 ## layout (optional) may override "pads", "box_rows", "hazards" and "water" (same formats as the
-## DEFAULT_ constants), add a "rail" loop (Array of Vector2 control points) and set "mirror": true
-## to flip the course left-to-right (MK64 Extra mode).
+## DEFAULT_ constants), add a "rail" loop (Array of Vector2 control points) or "traffic" vehicles
+## and set "mirror": true to flip the course left-to-right (MK64 Extra mode).
 func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout := {}) -> void:
 	control = ctrl
 	width = road_width
@@ -63,6 +66,7 @@ func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout :=
 	box_rows = layout.get("box_rows", DEFAULT_BOX_ROWS)
 	hazard_specs = layout.get("hazards", DEFAULT_HAZARDS)
 	water_specs = layout.get("water", DEFAULT_WATER)
+	traffic_specs = layout.get("traffic", [])
 	for v in layout.get("rail", []):
 		rail_control.append(v)
 	mirrored = layout.get("mirror", false)
@@ -72,6 +76,7 @@ func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout :=
 		hazard_specs = mirror_specs(hazard_specs)
 		water_specs = mirror_water(water_specs)
 		rail_control = mirror_control(rail_control)
+		traffic_specs = mirror_specs(traffic_specs)
 	_build()
 
 ## Control points flipped left-to-right (x negated); the start line stays on x = 0.
@@ -82,11 +87,14 @@ static func mirror_control(ctrl: Array[Vector2]) -> Array[Vector2]:
 	return out
 
 ## [fraction, lateral offset] specs with the lateral side swapped, so a pad that sat on the
-## right of the road ends up at the mirror-image spot (the left) on the flipped course.
+## right of the road ends up at the mirror-image spot (the left) on the flipped course. Any further
+## elements (the traffic kind) are kept.
 static func mirror_specs(specs: Array) -> Array:
 	var out: Array = []
 	for s in specs:
-		out.append([s[0], -s[1]])
+		var m: Array = s.duplicate()
+		m[1] = -m[1]
+		out.append(m)
 	return out
 
 ## [start, end, side] water specs with the side swapped (mirrored course).

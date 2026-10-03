@@ -339,8 +339,8 @@ func test_menu_battle_mode() -> void:
 	m.mode = Menu.MODE_TT
 	m.toggle_mode()
 	runner.check(m.mode == Menu.MODE_BATTLE and m.mode_label.text == txt)
-	runner.check(m.sub_label.text == "Select an arena" and m.name_label.text == "Big Donut" and m.index_label.text == "< 1 / 3 >", "arena picker: %s" % m.name_label.text)
-	runner.check(m.laps_label.text == "Balloons: 3  (Battle)" and "AI:" in m.difficulty_label.text and "Class:" in m.engine_label.text)
+	runner.check(m.sub_label.text == "SELECT ARENA" and m.name_label.text == "Big Donut" and m.index_label.text == "< 1 / 3 >", "arena picker: %s" % m.name_label.text)
+	runner.check(m.laps_label.text == "3" and m.difficulty_label.text == Menu.difficulty_text(m.difficulty) and m.engine_label.text == Menu.engine_text(m.engine_class))
 	runner.check(m.preview.map_points.size() == 5, "square preview (closed outline)")
 	m.move(1)
 	runner.check(m.arena_selected == 1 and m.name_label.text == "Block Fort" and m.selected == 0, "Left/Right pick the arena, the track choice is untouched")

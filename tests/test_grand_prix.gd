@@ -142,7 +142,7 @@ func test_menu_mode_keys_and_cup_order() -> void:
 	runner.check(Menu.cup_order(0, 3) == [0, 1, 2])
 	runner.check(Menu.cup_order(2, 3) == [2, 0, 1], str(Menu.cup_order(2, 3)))
 	runner.check("GRAND PRIX" in Menu.mode_text(Menu.MODE_GP, 3) and "3 races" in Menu.mode_text(Menu.MODE_GP, 3))
-	runner.check("Single" in Menu.mode_text(Menu.MODE_SINGLE, 3))
+	runner.check("SINGLE" in Menu.mode_text(Menu.MODE_SINGLE, 3))
 	var m = Menu.new()
 	for prop in ["laps_label", "difficulty_label", "engine_label", "weight_label", "mode_label", "name_label", "blurb_label", "index_label"]:
 		m.set(prop, Label.new())

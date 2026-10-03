@@ -194,7 +194,7 @@ func test_ai_difficulty_levels() -> void:
 	runner.check(L.step_difficulty(0, -1) == 2 and L.step_difficulty(2, 1) == 0 and L.step_difficulty(1, 1) == 2)
 	runner.check(Menu.difficulty_direction_for_key(KEY_Q) == -1 and Menu.difficulty_direction_for_key(KEY_E) == 1)
 	runner.check(Menu.difficulty_direction_for_key(KEY_A) == 0 and Menu.difficulty_direction_for_key(KEY_ENTER) == 0)
-	runner.check(Menu.difficulty_text(0) == "AI: Easy  (Q / E)")
+	runner.check(Menu.difficulty_text(0) == "Easy")
 	# MK64 rubber-banding grows with difficulty; even Easy's full catch-up bonus keeps the AI below the player's top speed
 	for i in 3:
 		runner.check(L.difficulty_info(i).rubber_band > 0.0 and L.difficulty_info(i).rubber_band <= 0.25, "band %d" % i)
@@ -246,8 +246,8 @@ func test_mk64_engine_classes() -> void:
 	runner.check(L.engine_info(-1).name == "Extra" and L.engine_info(4).name == "50cc", "info wraps")
 	runner.check(Menu.engine_direction_for_key(KEY_Z) == -1 and Menu.engine_direction_for_key(KEY_C) == 1)
 	runner.check(Menu.engine_direction_for_key(KEY_Q) == 0 and Menu.engine_direction_for_key(KEY_ENTER) == 0)
-	runner.check(Menu.engine_text(0) == "Class: 50cc  (Z / C)")
-	runner.check(Menu.engine_text(3) == "Class: Extra  (Z / C)")
+	runner.check(Menu.engine_text(0) == "50cc")
+	runner.check(Menu.engine_text(3) == "Extra")
 	# a 50cc kart tops out lower and gets there more slowly than a 150cc kart
 	var slow := KartPhysics.new()
 	slow.apply_engine_class(L.engine_info(0).speed, L.engine_info(0).accel)

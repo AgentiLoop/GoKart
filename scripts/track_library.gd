@@ -79,6 +79,14 @@ const TRACKS := [
 		"box_rows": [0.08, 0.3, 0.55, 0.78],
 		"hazards": [[0.22, -2.5], [0.47, 2.0], [0.7, 0.0]],
 		"water": [[0.18, 0.26, -1], [0.62, 0.69, 1]],
+		# Toad's Turnpike style traffic: [fraction of lap, lane (m right of the centreline), kind]. The
+		# fast lane is on the left, the slow lane on the right; vehicles in one lane all run at the same
+		# speed so they never catch each other; nothing starts on the grid (see scripts/traffic.gd)
+		"traffic": [
+			[0.06, -4.4, "car"], [0.1, 4.4, "truck"], [0.17, 4.4, "bus"], [0.24, -4.4, "car"],
+			[0.31, 4.4, "tanker"], [0.4, -4.4, "bus"], [0.47, 4.4, "car"], [0.55, -4.4, "truck"],
+			[0.63, 4.4, "truck"], [0.71, -4.4, "car"], [0.78, 4.4, "bus"], [0.86, -4.4, "tanker"],
+		],
 		"ground": Color(0.78, 0.6, 0.34),
 		"sky_top": Color(0.35, 0.3, 0.6),
 		"sky_horizon": Color(1.0, 0.62, 0.35),

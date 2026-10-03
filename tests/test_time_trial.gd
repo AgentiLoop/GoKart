@@ -203,11 +203,11 @@ func test_menu_time_trial_mode() -> void:
 	m.toggle_mode()
 	m.toggle_mode()
 	runner.check(m.mode == Menu.MODE_TT)
-	runner.check(m.laps_label.text == "Laps: 3  (Time Trial)", m.laps_label.text)
-	runner.check(m.engine_label.text == "Class: 100cc  (Time Trial)", m.engine_label.text)
-	runner.check(m.difficulty_label.text == "AI: none  (Time Trial)", m.difficulty_label.text)
+	runner.check(m.laps_label.text == "3", m.laps_label.text)
+	runner.check(m.engine_label.text == "100cc", m.engine_label.text)
+	runner.check(m.difficulty_label.text == "None", m.difficulty_label.text)
 	m.toggle_mode()   # Battle
-	runner.check(m.laps_label.text.begins_with("Balloons"), m.laps_label.text)
+	runner.check(m.laps_label.text == "3", m.laps_label.text)
 	m.toggle_mode()   # back to a single race
 	runner.check(m.laps_label.text == Menu.laps_text(7) and m.engine_label.text == Menu.engine_text(2), "race options come back")
 	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.weight_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:

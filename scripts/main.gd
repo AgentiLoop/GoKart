@@ -25,6 +25,8 @@ const KartWeight := preload("res://scripts/kart_weight.gd")
 const Lakitu := preload("res://scripts/lakitu.gd")
 const Train := preload("res://scripts/train.gd")
 const Railway := preload("res://scripts/railway.gd")
+const Traffic := preload("res://scripts/traffic.gd")
+const Highway := preload("res://scripts/highway.gd")
 
 ## Seconds after the player crosses the line before the results panel appears.
 const RESULTS_DELAY := 2.0
@@ -79,6 +81,11 @@ var lakitu
 ## MK64 Kalimari Desert railway: the train model (inactive on courses without a rail) and its node.
 var train
 var railway = null
+## MK64 Toad's Turnpike traffic: the model (inactive on courses without traffic) and its node.
+var traffic
+var highway = null
+## Minimap colour of a traffic vehicle.
+const VEHICLE_COLOR := Color(0.4, 0.4, 0.45)
 ## Time trial only: the run being recorded, the ghost of the best run (if any) and the filed result.
 var recording = null
 var ghost = null
@@ -138,6 +145,11 @@ func _ready() -> void:
 		add_child(railway)
 
 	var engine: Dictionary = TrackLibrary.engine_info(engine_index)
+	# MK64 Toad's Turnpike: traffic in two lanes, slow in 50cc and fast in 150cc, oncoming in Extra
+	traffic = Traffic.new(data, engine.speed)
+	if traffic.active():
+		highway = Highway.new(traffic)
+		add_child(highway)
 	kart = Kart.new()
 	kart.model.apply_engine_class(engine.speed, engine.accel)
 	# MK64 weight class picked on the menu: light / medium / heavy
@@ -270,6 +282,9 @@ func _physics_process(delta: float) -> void:
 	race_start.update(delta, Input.is_action_pressed("accelerate"))
 	if railway != null:
 		railway.update_train(delta)
+	if highway != null and race_start.started:
+		# the traffic sets off at GO, so nobody is run over on the grid
+		highway.update_traffic(delta)
 	var progresses: Array = []
 	var finish_times: Array = []
 	for k in karts:
@@ -291,6 +306,15 @@ func _physics_process(delta: float) -> void:
 				k.driver.wait = train.must_wait(k.track_index)
 			var strike: Vector3 = train.hit_dir(kp)
 			if strike != Vector3.ZERO and not k.is_rescued() and k.launch(Train.LAUNCH_SPEED, strike * Train.SHOVE) and k == kart:
+				audio.play("crash")
+		if traffic.active():
+			# MK64 Toad's Turnpike: CPU karts steer round the vehicles ahead; touch one and you are thrown into the air
+			if k.driver != null:
+				var lane: float = traffic.clear_lane(k.track_index, k.driver.lane_offset, k.driver.dodge_lane if k.driver.dodging else k.driver.lane_offset)
+				k.driver.dodging = lane != k.driver.lane_offset
+				k.driver.dodge_lane = lane
+			var bump: Vector3 = traffic.hit_dir(kp)
+			if bump != Vector3.ZERO and not k.is_rescued() and k.launch(Traffic.LAUNCH_SPEED, bump * Traffic.SHOVE) and k == kart:
 				audio.play("crash")
 		var frac: float = (kp - data.points[k.track_index]).dot(data.tangents[k.track_index]) / data.spacing
 		progresses.append(RaceRanking.progress(k.tracker.lap, k.track_index, data.count, frac))
@@ -342,6 +366,9 @@ func _physics_process(delta: float) -> void:
 	if ghost != null:
 		marker_pos.append(ghost.global_position)
 		marker_col.append(GhostKart.COLOR)
+	for i in traffic.vehicles.size():
+		marker_pos.append(traffic.vehicle_pose(i).pos)
+		marker_col.append(VEHICLE_COLOR)
 	hud.update_minimap(marker_pos, marker_col)
 
 ## Time trial: record the player's pose from GO to the line and replay the ghost alongside.
