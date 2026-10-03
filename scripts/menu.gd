@@ -1,10 +1,12 @@
 extends Control
-## Title screen laid out like Mario Kart 64's select screens: a big slanted two-tone logo, a
-## "SELECT COURSE" banner, a course list on the left with a highlighted row, the map and the
-## course blurb in a framed panel on the right and a row of option cells underneath.
+## Title screen like Mario Kart 64's: on launch the logo sits over a live attract demo — four CPU
+## karts lapping the highlighted course in a 3D viewport behind the menu — with a blinking PRESS
+## ENTER. Any key brings up the select screen, laid out like MK64's: a "SELECT COURSE" banner, a
+## course list on the left with a highlighted row, the map and the course blurb in a framed panel
+## on the right and a row of option cells underneath, the demo still running dimmed behind it.
 ## Text uses drop shadows instead of thick black outlines (only the logo has a gold rim).
 ## Left/Right (A/D) pick the track and Enter/Space races it; selection is stored in
-## TrackLibrary.selected and Esc during a race comes back here.
+## TrackLibrary.selected and Esc during a race comes back here (to the select screen).
 ## G / Tab cycles the mode: Single Race -> Grand Prix (every track in turn, MK64-style cup points)
 ## -> Time Trial (solo, 100cc, triple mushroom, race the ghost of your best run) -> Battle (four
 ## karts, three balloons each, in an arena picked with Left/Right).
@@ -19,6 +21,7 @@ const ArenaData := preload("res://scripts/arena_data.gd")
 const RaceMain := preload("res://scripts/main.gd")
 const Minimap := preload("res://scripts/minimap.gd")
 const KartWeight := preload("res://scripts/kart_weight.gd")
+const Attract := preload("res://scripts/attract.gd")
 const RACE_SCENE := "res://scenes/main.tscn"
 const BATTLE_SCENE := "res://scenes/battle.tscn"
 
@@ -74,22 +77,40 @@ var engine_keys: Label
 var prompt: Label              # blinking PRESS ENTER
 var title_box: Control
 var blink := 0.0
+## Title screen: the logo over the attract demo. Shown once per launch; Esc from a race comes back
+## to the select screen instead.
+var attract = null             # Attract (SubViewportContainer) under everything but bg
+var select_box: Control        # every select-screen panel and label (hidden on the title screen)
+var title_prompt: Label        # PRESS ENTER on the title screen
+var title_shown := false
+static var title_seen := false
+const TITLE_LOGO_POS := Vector2(240, 150)   # logo position on the title screen (upper half)
+const MENU_LOGO_POS := Vector2(240, 8)      # logo position on the select screen
+const TITLE_LOGO_SCALE := 1.3
 
-## Sky gradient, faint diagonal stripes and a checkered-flag band, drawn under the panels.
+## Drawn over the attract demo and under the panels: a translucent sky-tinted shade (light on the
+## title screen so the race shows through, heavier behind the select screen), faint diagonal
+## stripes and a checkered-flag band above the key hints.
 class Backdrop extends Control:
 	var top := Color(0.1, 0.2, 0.5)
 	var bottom := Color(0.02, 0.03, 0.1)
+	var dim := 1.0        # 0 = title screen (race in full view), 1 = select screen
 	var band_y := 650.0   # stage coordinates (1280x720 layout)
 	func set_sky(sky: Color) -> void:
 		top = sky.darkened(0.15)
 		bottom = sky.darkened(0.78)
 		queue_redraw()
+	func set_dim(d: float) -> void:
+		dim = d
+		queue_redraw()
 	func _draw() -> void:
 		var w := size.x
 		var h := size.y
+		var t := Color(top, lerpf(0.0, 0.55, dim))
+		var b := Color(bottom, lerpf(0.55, 0.9, dim))
 		draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]),
-			PackedColorArray([top, top, bottom, bottom]))
-		var stripe := Color(1, 1, 1, 0.035)
+			PackedColorArray([t, t, b, b]))
+		var stripe := Color(1, 1, 1, 0.035 * dim)
 		var x := -h
 		while x < w:
 			draw_polygon(PackedVector2Array([Vector2(x, h), Vector2(x + 56, h), Vector2(x + h + 56, 0), Vector2(x + h, 0)]),
