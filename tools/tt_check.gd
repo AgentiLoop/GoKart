@@ -66,7 +66,7 @@ func _process(_d: float) -> bool:
 		frames = 0
 	elif stage == 1 and frames > 3:
 		_check(cs.mode == cs.MODE_TT and "TIME TRIAL" in cs.mode_label.text, "G G selects Time Trial: " + cs.mode_label.text)
-		_check("Time Trial" in cs.laps_label.text and "100cc" in cs.engine_label.text, "menu shows the fixed 3 laps / 100cc")
+		_check(cs.laps_label.text == "3" and cs.laps_keys.text == "Time Trial" and "100cc" in cs.engine_label.text, "menu shows the fixed 3 laps / 100cc")
 		_key(KEY_ENTER)
 		stage = 2
 		frames = 0

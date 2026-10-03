@@ -367,10 +367,10 @@ func test_mk64_extra_mirror_mode() -> void:
 	m.move_engine(1)
 	var plain := L.make_data(1)
 	var Minimap = load("res://scripts/minimap.gd")
-	var pf: Dictionary = Minimap.fit(plain.points, Vector2(280, 160), 14.0)
+	var pf: Dictionary = Minimap.fit(plain.points, Menu.PREVIEW_AREA, 14.0)
 	var plain_x: float = Minimap.to_map(plain.points[20], pf["scale"], pf["offset"]).x
 	runner.check(m.engine_class == 3 and m.blurb_label.text.contains("MIRRORED"), "Extra tags the blurb")
-	runner.check(m.preview.map_points.size() == plain.count + 1 and absf(m.preview.map_points[20].x + plain_x - 280.0) < 0.01, "preview is mirrored")
+	runner.check(m.preview.map_points.size() == plain.count + 1 and absf(m.preview.map_points[20].x + plain_x - Menu.PREVIEW_AREA.x) < 0.01, "preview is mirrored")
 	m.mode = Menu.MODE_TT
 	m._refresh()
 	runner.check(not m.blurb_label.text.contains("MIRRORED") and absf(m.preview.map_points[20].x - plain_x) < 0.01, "time trials never mirror")

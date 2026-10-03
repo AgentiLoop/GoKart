@@ -348,7 +348,7 @@ func test_menu_battle_mode() -> void:
 	m.move(-1)
 	runner.check(m.arena_selected == 2 and m.name_label.text == "Skyscraper", "wraps")
 	m.toggle_mode()
-	runner.check(m.mode == Menu.MODE_SINGLE and m.sub_label.text == "Select a track" and m.name_label.text == "Green Hills", "back to tracks")
+	runner.check(m.mode == Menu.MODE_SINGLE and m.sub_label.text == "SELECT COURSE" and m.name_label.text == "Green Hills", "back to tracks")
 	# the choice is remembered through Battle.active / Battle.arena
 	var old_active: bool = Battle.active
 	var old_arena: int = Battle.arena

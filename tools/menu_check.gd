@@ -37,6 +37,8 @@ func _process(_d: float) -> bool:
 		frames = 0
 	elif stage == 1 and frames > 3:
 		_check(cs.name_label.text == lib.info(1).name, "D selects track 1: " + cs.name_label.text)
+		_check(cs.sub_label.text == "SELECT COURSE" and cs.list_box.get_child_count() == lib.count() + 2, "course list: %d rows + lit bar + cursor" % lib.count())
+		_check(cs.font.get_font_name() != "" and cs.laps_label.get_theme_constant("outline_size") == 0, "menu text has no black outline (font %s)" % cs.font.get_font_name())
 		_key(KEY_W)
 		stage = 15
 		frames = 0

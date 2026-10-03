@@ -38,8 +38,9 @@ const LOGO_RIM := Color(1.0, 0.86, 0.3)
 const PANEL_FILL := Color(0.05, 0.07, 0.2, 0.84)
 const PANEL_RIM := Color(1.0, 0.8, 0.25, 0.95)
 const SHADOW := Color(0, 0, 0, 0.55)
+const PREVIEW_AREA := Vector2(300, 186)   # map window inside the right panel
 ## Rounded fonts in MK64's spirit; Godot falls back to its default font when none is installed.
-const FONT_NAMES := PackedStringArray(["Arial Rounded MT Bold", "Avenir Next", "Verdana"])
+const FONT_NAMES := ["Arial Rounded MT Bold", "Avenir Next", "Verdana"]
 
 var selected := 0
 var arena_selected := 0
@@ -437,7 +438,7 @@ func _refresh() -> void:
 		names.append(TrackLibrary.info(i).name)
 	_refresh_list(names, selected)
 	var data = TrackLibrary.make_data(selected, mirror)
-	preview.setup(data.points, Vector2(300, 186), data.rail)
+	preview.setup(data.points, PREVIEW_AREA, data.rail)
 
 ## Battle mode: Left/Right pick the arena instead of a track; balloons replace laps.
 func _refresh_battle() -> void:
@@ -463,7 +464,7 @@ func _refresh_battle() -> void:
 	for i in ArenaData.arena_count():
 		names.append(ArenaData.info(i).name)
 	_refresh_list(names, arena_selected)
-	preview.setup(ArenaData.make(arena_selected).outline(), Vector2(300, 186))
+	preview.setup(ArenaData.make(arena_selected).outline(), PREVIEW_AREA)
 
 ## Change the highlighted track (wraps around); the arena in battle mode.
 func move(dir: int) -> void:

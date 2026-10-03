@@ -48,8 +48,8 @@ func _process(_d: float) -> bool:
 		frames = 0
 	elif stage == 1 and frames > 3:
 		_check(cs.mode == cs.MODE_BATTLE and "BATTLE" in cs.mode_label.text, "G G G selects Battle: " + cs.mode_label.text)
-		_check(cs.sub_label.text == "Select an arena" and cs.name_label.text == "Big Donut", "arena picker: " + cs.name_label.text)
-		_check(cs.laps_label.text.begins_with("Balloons: 3"), "balloons replace laps: " + cs.laps_label.text)
+		_check(cs.sub_label.text == "SELECT ARENA" and cs.name_label.text == "Big Donut", "arena picker: " + cs.name_label.text)
+		_check(cs.laps_label.text == "3" and cs.laps_caption.text == "BALLOONS", "balloons replace laps: " + cs.laps_label.text)
 		_key(KEY_D)
 		stage = 2
 		frames = 0

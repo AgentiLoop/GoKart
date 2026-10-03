@@ -134,8 +134,8 @@ func test_ai_field_mixes_the_weight_classes() -> void:
 func test_menu_steps_the_weight_class() -> void:
 	runner.check(Menu.weight_direction_for_key(KEY_X) == -1 and Menu.weight_direction_for_key(KEY_V) == 1)
 	runner.check(Menu.weight_direction_for_key(KEY_Z) == 0 and Menu.weight_direction_for_key(KEY_ENTER) == 0)
-	runner.check(Menu.weight_text(KartWeight.HEAVY) == "Kart: Heavy - top speed, shoves others aside  (X / V)")
-	runner.check(Menu.weight_text(KartWeight.LIGHT).begins_with("Kart: Light"))
+	runner.check(Menu.weight_text(KartWeight.HEAVY) == "Heavy - top speed, shoves others aside")
+	runner.check(Menu.weight_text(KartWeight.LIGHT).begins_with("Light"))
 	var m = _menu()
 	m.weight_class = KartWeight.MEDIUM
 	m.move_weight(1)
