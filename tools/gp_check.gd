@@ -59,7 +59,7 @@ func _process(_d: float) -> bool:
 		frames = 0
 	elif stage == 3 and (cs.results_shown or Time.get_ticks_msec() - t0 > 6000):
 		_check(cs.results_shown, "results shown after the delay")
-		var txt: String = cs.hud.results_label.text
+		var txt: String = cs.hud.results_text
 		_check("CUP STANDINGS" in txt and "RACE 1 / 4" in txt, "results carry the cup standings")
 		_check("next race" in txt, "prompt for the next race")
 		_check(gp.totals[0] == 9, "player got 9 points: %s" % str(gp.totals))
@@ -100,7 +100,7 @@ func _process(_d: float) -> bool:
 		frames = 0
 	elif stage == 5 and (cs.results_shown or Time.get_ticks_msec() - t0 > 6000):
 		_check(cs.results_shown, "results shown after the delay")
-		var txt: String = cs.hud.results_label.text
+		var txt: String = cs.hud.results_text
 		_check("RANK OUT!  6th - finish 4th or better" in txt, "rank-out message: " + txt.replace("\n", " | "))
 		_check("retry the race" in txt and not "next race" in txt, "retry prompt")
 		_check(gp.retry and gp.last_rank == 6 and gp.race_index == 1, "cup flagged for a retry")

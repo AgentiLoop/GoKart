@@ -1,8 +1,8 @@
 extends SceneTree
 ## Windowed render check of the restyled race HUD (no black outlines, MK64 palette):
 ##   perl -e 'alarm 60; exec @ARGV' godot --path . -s tools/hud_shot.gd
-## Saves /tmp/gokart_hud_countdown.png (the gold "3" sign over the grid) and
-## /tmp/gokart_hud_results.png (the results table on its navy panel) and samples a few pixels.
+## Saves /tmp/gokart_hud_countdown.png (the gold "3" sign over the grid), /tmp/gokart_hud_results.png,
+## _results_gp.png and _results_tt.png (the results boards on their navy panel) and samples a few pixels.
 
 const RaceResults := preload("res://scripts/race_results.gd")
 const UiStyle := preload("res://scripts/ui_style.gd")
@@ -46,14 +46,42 @@ func _process(_d: float) -> bool:
 		main.hud.show_results(RaceResults.table_text(rows, 0))
 		main.hud.show_countdown("")
 	elif f == 50:
-		var img := _shot("hud_results")
-		var size := img.get_size()
-		var panel: Panel = main.hud.results_panel
-		var r := Rect2i(int(size.x / 2 + panel.offset_left), int(size.y / 2 + panel.offset_top), int(panel.offset_right - panel.offset_left), int(panel.offset_bottom - panel.offset_top))
-		print("results panel rect: ", r)
-		print("navy panel fill: ", _has_colour(img, Rect2i(r.position + Vector2i(8, 8), Vector2i(24, 24)), Color(UiStyle.PANEL_FILL.r, UiStyle.PANEL_FILL.g, UiStyle.PANEL_FILL.b), 0.12))
-		print("gold rim: ", _has_colour(img, Rect2i(r.position.x, r.position.y, r.size.x, 4), UiStyle.PANEL_RIM))
-		print("cream table text: ", _has_colour(img, r, UiStyle.CREAM, 0.12))
+		_sample_board("hud_results")
+	elif f == 60:
+		# Grand Prix: results + cup standings + trophy (8 racers) must still fit the window
+		var names := ["YOU", "BLUE", "GREEN", "PURPLE", "YELLOW", "ORANGE", "PINK", "TEAL"]
+		var rows := RaceResults.rows(names, [900.0, 880.0, 860.0, 840.0, 820.0, 800.0, 780.0, 760.0], [92.4, 93.1, 95.0, 97.7, -1.0, -1.0, -1.0, -1.0])
+		var gp = load("res://scripts/grand_prix.gd")
+		gp.start([0, 1, 2, 3], 8)
+		gp.race_index = 3
+		gp.add_race(rows, 0)
+		main.hud.show_results(RaceResults.table_text(rows, 0, gp.standings_text(names, 0)))
+		gp.stop()
+	elif f == 70:
+		var r := _sample_board("hud_results_gp")
+		var size := root.get_viewport().get_texture().get_image().get_size()
+		print("GP board inside the window: ", r.position.y - 23 >= 0 and r.end.y <= size.y)
+	elif f == 80:
+		var tt = load("res://scripts/time_trial.gd")
+		main.hud.show_results(tt.results_text("Green Hills", 62.5, [21.0, 20.1, 21.4], {"new_best": true, "new_best_lap": true, "rank": 1}))
+	elif f == 90:
+		_sample_board("hud_results_tt")
 		quit(0)
 		return true
 	return false
+
+## Saves the board shot and samples its panel, rim, text, title pill and the player's bar.
+func _sample_board(name: String) -> Rect2i:
+	var img := _shot(name)
+	var size := img.get_size()
+	var panel: Panel = main.hud.results_panel
+	var r := Rect2i(int(size.x / 2 + panel.offset_left), int(size.y / 2 + panel.offset_top), int(panel.offset_right - panel.offset_left), int(panel.offset_bottom - panel.offset_top))
+	print("%s panel rect: %s  rows: %d" % [name, r, main.hud.results_box.get_child_count()])
+	print("  navy panel fill: ", _has_colour(img, Rect2i(r.position + Vector2i(8, 40), Vector2i(24, 24)), Color(UiStyle.PANEL_FILL.r, UiStyle.PANEL_FILL.g, UiStyle.PANEL_FILL.b), 0.12))
+	print("  gold rim: ", _has_colour(img, Rect2i(r.position.x, r.position.y + 60, 4, 40), UiStyle.PANEL_RIM))
+	print("  cream text: ", _has_colour(img, r, UiStyle.CREAM, 0.12))
+	print("  gold text: ", _has_colour(img, r, UiStyle.GOLD, 0.12))
+	var pill := Rect2i(r.position.x + r.size.x / 2 - 100, r.position.y - 23, 200, 23)
+	print("  title pill above the top edge (gold rim + gold sign): ", _has_colour(img, pill, UiStyle.PANEL_RIM) and _has_colour(img, pill, UiStyle.GOLD, 0.12))
+	print("  black pixels inside the board: ", _has_colour(img, Rect2i(r.position + Vector2i(6, 6), r.size - Vector2i(12, 12)), Color.BLACK, 0.03))
+	return r

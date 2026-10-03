@@ -18,7 +18,9 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 
 ![Stuck behind a bus and a truck in the traffic on Sunset Speedway](assets/screenshots/sunset-speedway-traffic.png)
 
-![The results table on its navy panel after a race](assets/screenshots/race-results.png)
+![The results board after a race: colour swatches, gold / silver / bronze places, the player's row lit](assets/screenshots/race-results.png)
+
+![Grand Prix results with the cup standings side by side and the trophy](assets/screenshots/gp-results.png)
 
 Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the road, drifts and fires items at random), `tools/train_shot.gd`, `tools/traffic_shot.gd`, `tools/menu_shot.gd` and `tools/hud_shot.gd`.
 
@@ -44,7 +46,7 @@ Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the roa
 - **AI opponents** — a Mario Kart 64 field of 8 racers on a two-column grid (you start at the back) — using pure-pursuit steering, corner speed limiting, stuck recovery and item use (`scripts/ai_driver.gd`, grid in `scripts/main.gd`)
 - **Items** from rainbow `?` item boxes with a roulette: mushroom, triple mushrooms (three boosts, "x3" counter on the HUD), golden mushroom (Mario Kart 64 style: unlimited boosts for 7.5 s after the first press, never rolled by the leader), banana, banana bunch (five bananas trailing the kart, dropped one at a time), fake item box (Mario Kart 64 decoy: an upside-down "¿" box dropped behind the kart that spins out whoever drives into it, rolled mostly by the front of the pack), green shell (ricochets), red homing shell, triple shells (three orbiting green shells fired one by one), triple red shells (Mario Kart 64: three red homing shells orbiting the kart, fired one by one and shielding it meanwhile; 2nd place and back only, never the leader), blue spiny shell (hunts the leader along the road and explodes), star, lightning and Boo (Mario Kart 64 ghost: the kart turns see-through and untouchable for 5 s while a little ghost flies to a random rival, takes its item and brings it back; never rolled by the leader) (`scripts/items.gd`, `item_holder.gd`, `item_manager.gd`, `item_projectile.gd`). Getting hit spins the kart out; lightning shrinks and slows every rival (`lightning_bolt.gd`). **Shell blocking** (Mario Kart 64): a banana, fake item box, shell or banana bunch you hold dangles behind the kart and takes the hit from an incoming green or red shell (both are spent, one charge of a bunch), orbiting triple shells shield the kart the same way, and a shell that runs into a banana or fake box lying on the road wipes it out — a white puff and a "block" clink mark it; blue shells fly over everything.
 - **Visual effects**: drift sparks, boost flames, tire trails, speed lines / boost blur, and custom shaders in `shaders/`
-- **Results screen**: after you finish, an autopilot takes over and a standings table with MK64 points appears on a navy panel with a gold rim; Enter restarts, or moves on to the next cup race (`scripts/race_results.gd`)
+- **Results screen**: after you finish, an autopilot takes over and a Mario Kart 64 style results board appears — a gold title banner over a navy panel, one row per racer with a kart-colour swatch, a gold / silver / bronze place, name, time and MK64 points, your row on a lit gold bar, a blinking prompt; a Grand Prix shows the race result and the cup standings side by side with the trophy underneath, a Time Trial its laps beside the record list, a Battle the verdict as a gold sign. Enter restarts, or moves on to the next cup race (`scripts/race_results.gd`, board in `scripts/hud.gd`)
 - **Procedural audio**: synthesized engine loop (pitch follows speed), tire screech while drifting, countdown beeps, boost / mini-turbo / item / hit / explosion / lightning / star / Boo / splash / burnout / crossing-bell / train-crash sounds and a finish jingle, plus positional 3D engine hum on each AI kart, with no audio files (`scripts/ai_engine_audio.gd`, `scripts/sound_synth.gd`, `scripts/game_audio.gd`)
 - **HUD** with place, lap, item slot and a track minimap (with the railway on Dusty Canyon), styled like the menu (`scripts/ui_style.gd`): the same rounded font, gold / cream text with drop shadows and no black outlines; only the countdown and the FINISH! / YOU WIN! banners are gold "signs" with a dark red rim like the logo (`scripts/hud.gd`, `scripts/minimap.gd`)
 - **Procedural kart model** with steering front wheels and spinning wheels (`scripts/kart_model.gd`)
@@ -111,7 +113,7 @@ godot --path . -s tools/battle_shot.gd -- 1       # Battle: menu, start pads wit
 godot --path . -s tools/lakitu_shot.gd          # Lakitu: start signal, water edge, rescue, REVERSE sign -> /tmp/gokart_lakitu_*.png
 godot --path . -s tools/train_shot.gd           # Dusty Canyon train: waiting at the crossing, thrown by the locomotive -> /tmp/gokart_train_*.png
 godot --path . -s tools/traffic_shot.gd         # Sunset Speedway traffic: behind a bus and a truck, thrown by a truck -> /tmp/gokart_traffic_*.png
-godot --path . -s tools/hud_shot.gd             # restyled HUD: gold countdown sign, results table on its panel, pixel-sampled for the palette / no black outline -> /tmp/gokart_hud_*.png
+godot --path . -s tools/hud_shot.gd             # restyled HUD: gold countdown sign, results boards (race / Grand Prix / Time Trial), pixel-sampled for the palette / no black outline -> /tmp/gokart_hud_*.png
 godot --path . -s tools/random_drive.gd -- 1    # random drive, 3 screenshots -> /tmp/gokart_random_*.png (arg = track index, random if omitted)
 ```
 

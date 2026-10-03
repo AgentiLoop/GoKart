@@ -126,7 +126,7 @@ func _process(_d: float) -> bool:
 		stage = 7
 	elif stage == 7 and (cs.results_shown or Time.get_ticks_msec() - t0 > 8000):
 		_check(cs.results_shown, "results shown after the delay")
-		var txt: String = cs.hud.results_label.text
+		var txt: String = cs.hud.results_text
 		_check(txt.begins_with("BATTLE - Block Fort\nYOU WIN!"), "panel: " + txt.split("\n")[1])
 		_check("> 1st  YOU      2 balloons" in txt and "  4th  BLUE     exploded" in txt, txt)
 		_check(cs.hud.banner_label.text == "YOU WIN!", "banner: " + cs.hud.banner_label.text)

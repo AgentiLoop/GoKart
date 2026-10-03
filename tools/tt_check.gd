@@ -91,7 +91,7 @@ func _process(_d: float) -> bool:
 		stage = 4
 	elif stage == 4 and (cs.results_shown or Time.get_ticks_msec() - t0 > 6000):
 		_check(cs.results_shown, "results shown after the delay")
-		var txt: String = cs.hud.results_label.text
+		var txt: String = cs.hud.results_text
 		_check(txt.begins_with("TIME TRIAL - Green Hills"), "time trial results panel")
 		_check("NEW RECORD!" in txt and "BEST LAP  0:16.000   NEW!" in txt, "new record + best lap flagged")
 		_check("> 1st  0:50.000" in txt and "race your ghost" in txt, "record list and ghost prompt")
