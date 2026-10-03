@@ -18,7 +18,7 @@ Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the roa
 - **Procedural closed-circuit tracks** with meshes, walls and animated boost pads; three tracks (Green Hills, Sunset Speedway, Frosty Peaks) with their own layout, item boxes, hazards and sky/ground colours (`scripts/track_data.gd`, `scripts/track.gd`, `scripts/track_library.gd`)
 - **UI scales with the window** (canvas_items stretch, anchored HUD drawn above the speed effects so it stays sharp); 4x MSAA and steady, shadow-free striped walls
 - **AI difficulty** Easy / Medium / Hard on the title menu (`TrackLibrary.DIFFICULTIES`), with Mario Kart 64–style **rubber-banding**: AI karts that fall behind you get a top-speed bonus and karts far ahead ease off, scaled by difficulty (`AiDriver.rubber_band`)
-- **Engine classes** 50cc / 100cc / 150cc like Mario Kart 64 (Z / C on the title menu): the class scales every kart's top speed and acceleration, player and AI alike (`TrackLibrary.ENGINE_CLASSES`, `KartPhysics.apply_engine_class`)
+- **Engine classes** 50cc / 100cc / 150cc / Extra like Mario Kart 64 (Z / C on the title menu): the class scales every kart's top speed and acceleration, player and AI alike; **Extra** is MK64's mirror mode — 150cc speed on every course flipped left-to-right (the menu preview flips too, pads and hazards swap sides) (`TrackLibrary.ENGINE_CLASSES`, `KartPhysics.apply_engine_class`, `TrackData` `mirror` layout flag)
 - **Title menu** to pick the track (A / D or arrows) and the lap count (W / S, 1/2/3/5/7 laps), Enter to race; Esc in a race returns to it (`scripts/menu.gd`)
 - **Grand Prix cup** (G on the menu): every track is raced in turn, Mario Kart 64 points (9 / 6 / 3 / 1) add up after each race, the standings follow the results and the cup ends with a gold, silver or bronze trophy (`scripts/grand_prix.gd`)
 - **Time Trials** (G again on the menu), Mario Kart 64 style: race alone for 3 laps at 100cc with a triple mushroom and no item boxes; the five best times and the best lap of each track are saved (`user://time_trials.cfg`) and your fastest run comes back as a see-through, untouchable ghost kart that drives the exact same path on the next attempt (`scripts/time_trial.gd`, `scripts/ghost_recording.gd`, `scripts/ghost_kart.gd`)
@@ -41,7 +41,7 @@ Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the roa
 | Space or Shift | Drift (release for mini-turbo) |
 | E, Enter or Ctrl | Use the held item (a hint shows under the item name) |
 | Q / E (menu) | AI difficulty: Easy / Medium (default) / Hard |
-| Z / C (menu) | Engine class: 50cc / 100cc / 150cc (default) |
+| Z / C (menu) | Engine class: 50cc / 100cc / 150cc (default) / Extra (150cc on mirrored courses) |
 | G or Tab (menu) | Mode: Single Race / Grand Prix / Time Trial |
 | Enter | Race again (or your ghost) or next cup race (on the results screen) / start race (menu) |
 | Esc | Back to the track menu |
@@ -73,12 +73,14 @@ godot --path .          # run the game (opens the title menu: scenes/menu.tscn)
 
 ```sh
 ./run_tests.sh                                  # headless unit tests (tests/)
-godot --headless --path . -s tools/smoke.gd -- 1  # headless race smoke test with AI karts (arg = track index)
+godot --headless --path . -s tools/smoke.gd -- 1  # headless race smoke test with AI karts (args = track index, engine class: `-- 2 3` = Frosty Peaks mirrored)
 godot --headless --path . -s tools/menu_check.gd  # menu -> race -> Esc flow check
+godot --headless --path . -s tools/mirror_check.gd  # Extra (mirror) flow check (menu -> C -> mirrored race with 8 karts -> Esc)
 godot --headless --path . -s tools/gp_check.gd    # Grand Prix flow check (menu -> cup race 1 -> results -> race 2 -> Esc)
 godot --headless --path . -s tools/tt_check.gd    # Time Trial flow check (menu -> solo run -> record + ghost saved -> race the ghost -> Esc)
 godot --path . -s tools/screenshot.gd           # visual check, writes /tmp/gokart_*.png
 godot --path . -s tools/tt_shot.gd              # Time Trial with a synthetic ghost on the course -> /tmp/gokart_tt_*.png
+godot --path . -s tools/mirror_shot.gd          # Extra class: mirrored menu preview + race -> /tmp/gokart_mirror_*.png
 godot --path . -s tools/random_drive.gd -- 1    # random drive, 3 screenshots -> /tmp/gokart_random_*.png (arg = track index, random if omitted)
 ```
 

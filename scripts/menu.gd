@@ -3,7 +3,7 @@ extends Control
 ## Selection is stored in TrackLibrary.selected; Esc during a race comes back here.
 ## G / Tab cycles the mode: Single Race -> Grand Prix (every track in turn, MK64-style cup points)
 ## -> Time Trial (solo, 100cc, triple mushroom, race the ghost of your best run).
-## Z / C step the MK64 engine class (50cc / 100cc / 150cc).
+## Z / C step the MK64 engine class (50cc / 100cc / 150cc / Extra = 150cc on mirrored courses).
 
 const TrackLibrary := preload("res://scripts/track_library.gd")
 const GrandPrix := preload("res://scripts/grand_prix.gd")
@@ -74,6 +74,10 @@ static func engine_direction_for_key(keycode: int) -> int:
 
 static func engine_text(i: int) -> String:
 	return "Class: %s  (Z / C)" % TrackLibrary.engine_info(i).name
+
+## Track blurb, tagged when the Extra class flips the course.
+static func blurb_text(blurb: String, mirror: bool) -> String:
+	return blurb + "  -  MIRRORED (Extra)" if mirror else blurb
 
 static func laps_text(n: int) -> String:
 	return "Laps: %d  (W / S)" % n
@@ -157,8 +161,10 @@ func _label(pos: Vector2, font_size: int, w: float, col: Color) -> Label:
 func _refresh() -> void:
 	var info := TrackLibrary.info(selected)
 	name_label.text = info.name
-	blurb_label.text = info.blurb
 	index_label.text = counter_text(selected, TrackLibrary.count())
+	# MK64 Extra class races every course flipped left-to-right (never in a time trial: 100cc)
+	var mirror: bool = mode != MODE_TT and TrackLibrary.is_mirrored(engine_class)
+	blurb_label.text = blurb_text(info.blurb, mirror)
 	if mode == MODE_TT:
 		# MK64 time trials: always 3 laps, no AI, 100cc
 		laps_label.text = "Laps: %d  (Time Trial)" % TimeTrial.LAPS
@@ -170,7 +176,7 @@ func _refresh() -> void:
 		engine_label.text = engine_text(engine_class)
 	mode_label.text = mode_text(mode, TrackLibrary.count())
 	bg.color = info.sky_top.darkened(0.45)
-	preview.setup(TrackLibrary.make_data(selected).points, Vector2(280, 195))
+	preview.setup(TrackLibrary.make_data(selected, mirror).points, Vector2(280, 195))
 
 ## Change the highlighted track (wraps around).
 func move(dir: int) -> void:

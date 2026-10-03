@@ -34,14 +34,20 @@ static var engine_class := 2
 
 ## Mario Kart 64 engine classes. speed / accel multiply EVERY kart's top speed and acceleration
 ## (player and AI alike), so 50cc is a gentle cruise and 150cc the full-speed race.
+## "Extra" is MK64's mirror mode: 150cc speed on every course flipped left-to-right.
 const ENGINE_CLASSES := [
-	{"name": "50cc", "speed": 0.75, "accel": 0.8},
-	{"name": "100cc", "speed": 0.88, "accel": 0.9},
-	{"name": "150cc", "speed": 1.0, "accel": 1.0},
+	{"name": "50cc", "speed": 0.75, "accel": 0.8, "mirror": false},
+	{"name": "100cc", "speed": 0.88, "accel": 0.9, "mirror": false},
+	{"name": "150cc", "speed": 1.0, "accel": 1.0, "mirror": false},
+	{"name": "Extra", "speed": 1.0, "accel": 1.0, "mirror": true},
 ]
 
 static func engine_info(i: int) -> Dictionary:
 	return ENGINE_CLASSES[posmod(i, ENGINE_CLASSES.size())]
+
+## True when engine class i races the mirrored courses (MK64 Extra mode).
+static func is_mirrored(i: int) -> bool:
+	return engine_info(i).mirror
 
 ## Next/previous engine class (wraps around).
 static func step_engine(current: int, dir: int) -> int:
@@ -100,12 +106,15 @@ static func count() -> int:
 static func info(i: int) -> Dictionary:
 	return TRACKS[posmod(i, TRACKS.size())]
 
-static func make_data(i: int) -> TrackData:
+## mirror = true builds the course flipped left-to-right (MK64 Extra mode).
+static func make_data(i: int, mirror := false) -> TrackData:
 	var d := info(i)
 	var ctrl: Array[Vector2] = []
 	for v in d.control:
 		ctrl.append(v)
-	return TrackData.new(ctrl, d.width, d)
+	var layout := d.duplicate()
+	layout["mirror"] = mirror
+	return TrackData.new(ctrl, d.width, layout)
 
 ## Wraps around: step(1, +1) == 0 when there are only 2 tracks.
 static func step(i: int, dir: int) -> int:

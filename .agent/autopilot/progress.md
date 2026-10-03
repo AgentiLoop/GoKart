@@ -801,3 +801,30 @@ Cycle 7: added the Mario Kart 64 **Boo** item — committed as ce8e7b0 (the pend
 - `tools/tt_check.gd` (headless flow, stashes/restores the real records) and `tools/tt_shot.gd` (windowed, synthetic ghost); `tools/gp_check.gd` updated to `mode`.
 - Tests: `tests/test_time_trial.gd` (10 tests); `test_grand_prix` menu test updated. Suite 5966 passed, 0 failed. tt_check OK, gp_check OK, menu_check OK, smoke 7/7. Windowed tt_shot: ghost on course, no errors (/tmp/gokart_tt_ghost.png not inspected).
 - Remaining MK64 ideas: mirror mode ("Extra"), battle mode, Lakitu rescue, staff ghosts, bananas/fake boxes blocking shells.
+## Cycle 8 — 2026-10-03 15:22
+Cycle 8: added Mario Kart 64 **Time Trials** with a ghost — committed as 9cb6f3b.
+
+**What I did**
+- `scripts/time_trial.gd` (new, static like GrandPrix): `active` flag, per-track records (five best times + best lap), `submit()` / `record_rank()`, `save()` / `load_records()` to `user://time_trials.cfg` (ConfigFile), `hud_text()`, `results_text()`. MK64 rules: 100cc, 3 laps, solo, triple mushroom, no item boxes.
+- `scripts/ghost_recording.gd` (new, pure): samples the player's position/heading at 30 Hz from GO, `pose_at(t)` interpolates (lerp / lerp_angle), `finish()`, dict round-trip for saving.
+- `scripts/ghost_kart.gd` (new): a KartModel at 40 % alpha on a plain Node3D (no body → untouchable, passes through everything), `setup(rec)` / `update_ghost(delta)` with rolling wheels.
+- `scripts/menu.gd`: `mode` cycles Single Race → Grand Prix → Time Trial on G/Tab (`MODE_*`, `next_mode`, `mode_text(int, n)`); TT shows "Laps: 3 / AI: none / Class: 100cc (Time Trial)"; the menu remembers Time Trial after Esc.
+- `scripts/main.gd`: in TT no AI karts, 100cc, 3 laps, player alone on the front-row centre, `ItemManager.setup(..., course_items=false)` (no boxes/hazards), triple mushroom granted, recording runs from GO, the best-run ghost replays alongside (also on the minimap), finishing files the time + ghost and saves, results panel lists laps / best lap / five records / "race your ghost".
+- `scripts/item_manager.gd`: optional `course_items` argument on `setup`.
+- Tools: `tools/tt_check.gd` (headless flow: menu → G G → solo race checks → forced finish → record + ghost saved → race again with ghost → Esc; stashes and restores the player's real records) passes 26/26; `tools/tt_shot.gd` (windowed, synthetic centre-line ghost) ran on Metal with no errors (`/tmp/gokart_tt_ghost.png`, `/tmp/gokart_tt_menu.png` saved, not visually inspected). `tools/gp_check.gd` updated for `mode`.
+- Tests: `tests/test_time_trial.gd` (10 tests: sampling rate, interpolation/clamping, dict round-trip, MK64 rules, top-5 + ghost replacement, save/load round-trip incl. "Green Hills" section, HUD/results text, ghost kart replay + transparency, no course items + triple mushroom, menu mode); `test_grand_prix.gd` menu test updated. Suite **5966 passed, 0 failed** (was 5888). gp_check OK, menu_check OK, smoke 7/7 AI karts racing. README features/controls/testing updated; progress log appended.
+
+**Assumptions**: records are keyed by track name and TT is always 3 laps (so times are comparable); a ghost is replaced only by a new fastest time; 30 Hz sample rate and 40 % ghost alpha are my choices; no staff ghosts. ObjectDB leak warning at test exit is 46 orphan Node3Ds (was 44) — same frameless-test pattern noted in earlier cycles.
+
+**Remaining MK64 parity ideas**: mirror mode ("Extra"), battle mode, Lakitu rescue when far off-road, staff ghosts, dropped bananas/fake boxes blocking shells.
+
+**Blockers**: none. No parity folders were given, so nothing was mirrored.
+
+
+## Cycle 9 (session 5) — MK64 Extra (mirror) class
+- `scripts/track_library.gd`: `ENGINE_CLASSES` gains `"mirror"` + a 4th entry `Extra` (speed 1.0 / accel 1.0, mirror true); `is_mirrored(i)`; `make_data(i, mirror := false)` passes the flag through the layout.
+- `scripts/track_data.gd`: `mirrored` flag; layout `"mirror": true` flips the control points (`mirror_control`, x negated — start line stays on x = 0) and swaps the lateral side of pad / hazard specs (`mirror_specs`). Box rows are symmetric so they need no change. Everything downstream (walls, gate, grid, AI, laps, minimap) derives from the data.
+- `scripts/main.gd`: builds the track with `is_mirrored(engine_index)` (never in a time trial: 100cc). `scripts/menu.gd`: `blurb_text(blurb, mirror)` tags the blurb "- MIRRORED (Extra)", the minimap preview flips; Z / C now cycle 50cc / 100cc / 150cc / Extra.
+- Tests: `test_mk64_engine_classes` updated (4 classes, wraps), new `test_mk64_extra_mirror_mode` (exact x-reflection, right/left swap, opposite loop direction, pads/hazards mirrored and on road, AI finishes a lap on every mirrored course, helpers, menu blurb/preview, TT never mirrors). Suite 6083 passed, 0 failed.
+- Tools: `tools/mirror_check.gd` (headless menu -> C -> mirrored race with 8 karts on road -> Esc -> menu remembers Extra) passes; `tools/smoke.gd` takes an engine class as 2nd arg (`-- 2 3`: Frosty Peaks mirrored -> 7/7 AI racing); `tools/mirror_shot.gd` windowed run on Metal with no errors (/tmp/gokart_mirror_menu.png, /tmp/gokart_mirror_race.png not inspected). menu_check / gp_check / tt_check still OK.
+- Remaining MK64 ideas: battle mode, Lakitu rescue, staff ghosts, bananas/fake boxes blocking shells.

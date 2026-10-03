@@ -227,19 +227,23 @@ func test_mk64_eight_racer_grid() -> void:
 
 func test_mk64_engine_classes() -> void:
 	## 50cc / 100cc / 150cc scale every kart's top speed and acceleration; 150cc is the full-speed default.
+	## Extra is MK64's mirror mode: 150cc tuning on flipped courses.
 	var L := TrackLibrary
-	runner.check(L.ENGINE_CLASSES.size() == 3)
-	runner.check(L.engine_info(0).name == "50cc" and L.engine_info(1).name == "100cc" and L.engine_info(2).name == "150cc")
+	runner.check(L.ENGINE_CLASSES.size() == 4)
+	runner.check(L.engine_info(0).name == "50cc" and L.engine_info(1).name == "100cc" and L.engine_info(2).name == "150cc" and L.engine_info(3).name == "Extra")
 	runner.check(L.engine_class == 2, "150cc is the default")
 	runner.check(L.engine_info(0).speed < L.engine_info(1).speed and L.engine_info(1).speed < L.engine_info(2).speed, "faster classes")
 	runner.check(L.engine_info(0).accel < L.engine_info(1).accel and L.engine_info(1).accel < L.engine_info(2).accel, "quicker classes")
 	runner.check(is_equal_approx(L.engine_info(2).speed, 1.0) and is_equal_approx(L.engine_info(2).accel, 1.0), "150cc is the base tuning")
+	runner.check(is_equal_approx(L.engine_info(3).speed, 1.0) and is_equal_approx(L.engine_info(3).accel, 1.0), "Extra runs at 150cc speed")
+	runner.check(L.is_mirrored(3) and not L.is_mirrored(0) and not L.is_mirrored(1) and not L.is_mirrored(2), "only Extra mirrors")
 	runner.check(L.engine_info(0).speed >= 0.7, "50cc is still a race, not a crawl")
-	runner.check(L.step_engine(0, -1) == 2 and L.step_engine(2, 1) == 0 and L.step_engine(1, 1) == 2)
-	runner.check(L.engine_info(-1).name == "150cc" and L.engine_info(3).name == "50cc", "info wraps")
+	runner.check(L.step_engine(0, -1) == 3 and L.step_engine(3, 1) == 0 and L.step_engine(1, 1) == 2 and L.step_engine(2, 1) == 3)
+	runner.check(L.engine_info(-1).name == "Extra" and L.engine_info(4).name == "50cc", "info wraps")
 	runner.check(Menu.engine_direction_for_key(KEY_Z) == -1 and Menu.engine_direction_for_key(KEY_C) == 1)
 	runner.check(Menu.engine_direction_for_key(KEY_Q) == 0 and Menu.engine_direction_for_key(KEY_ENTER) == 0)
 	runner.check(Menu.engine_text(0) == "Class: 50cc  (Z / C)")
+	runner.check(Menu.engine_text(3) == "Class: Extra  (Z / C)")
 	# a 50cc kart tops out lower and gets there more slowly than a 150cc kart
 	var slow := KartPhysics.new()
 	slow.apply_engine_class(L.engine_info(0).speed, L.engine_info(0).accel)
@@ -273,6 +277,96 @@ func test_mk64_engine_classes() -> void:
 	runner.check(m.engine_class == 1 and m.engine_label.text == Menu.engine_text(1))
 	m.move_engine(1)
 	m.move_engine(1)
+	runner.check(m.engine_class == 3 and m.engine_label.text.contains("Extra"), "150cc steps up to Extra")
+	m.move_engine(1)
 	runner.check(m.engine_class == 0 and m.engine_label.text.contains("50cc"), "wraps to 50cc")
+	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
+		n.free()
+
+func test_mk64_extra_mirror_mode() -> void:
+	## MK64 "Extra": every course flipped left-to-right. The mirrored geometry is the exact
+	## reflection (x negated) of the original, pads / hazards swap sides, and it stays drivable.
+	var L := TrackLibrary
+	for n in L.count():
+		var a := L.make_data(n)
+		var b := L.make_data(n, true)
+		runner.check(not a.mirrored and b.mirrored, "track %d mirrored flag" % n)
+		runner.check(a.count == b.count and is_equal_approx(a.length, b.length), "track %d same length" % n)
+		var max_err := 0.0
+		for i in a.count:
+			max_err = maxf(max_err, (Vector3(-a.points[i].x, 0, a.points[i].z) - b.points[i]).length())
+		runner.check(max_err < 0.01, "track %d is the x-reflection (err %f)" % [n, max_err])
+		runner.check(absf(b.heading_at(0)) < 0.3, "track %d mirrored start still heads along -Z" % n)
+		var right_err := 0.0
+		for i in a.count:
+			# the mirrored right-hand vector is the reflection of the original's LEFT-hand vector
+			var ar := a.right_of(i)
+			right_err = maxf(right_err, (Vector3(ar.x, 0, -ar.z) - b.right_of(i)).length())
+		runner.check(right_err < 0.01, "track %d right and left swap sides (err %f)" % [n, right_err])
+		runner.check(b.min_separation() > b.width * 1.5, "track %d mirrored separation" % n)
+		runner.check(a.pads.size() == b.pads.size() and a.hazard_positions.size() == b.hazard_positions.size(), "track %d same items" % n)
+		for i in a.pads.size():
+			var want := Vector3(-a.pads[i].center.x, 0, a.pads[i].center.z)
+			runner.check(want.distance_to(b.pads[i].center) < 0.01, "track %d pad %d mirrored" % [n, i])
+			runner.check(b.is_on_road(b.pads[i].center), "track %d mirrored pad on road" % n)
+		for i in a.hazard_positions.size():
+			var want := Vector3(-a.hazard_positions[i].x, 0, a.hazard_positions[i].z)
+			runner.check(want.distance_to(b.hazard_positions[i]) < 0.01, "track %d hazard %d mirrored" % [n, i])
+		for bx in b.item_box_positions:
+			runner.check(b.is_on_road(bx), "track %d mirrored box on road" % n)
+		# the mirrored course turns the other way round
+		var turn_a := 0.0
+		var turn_b := 0.0
+		for i in a.count:
+			turn_a += a.tangents[i].cross(a.tangents[(i + 1) % a.count]).y
+			turn_b += b.tangents[i].cross(b.tangents[(i + 1) % b.count]).y
+		runner.check(turn_a * turn_b < 0.0, "track %d loops the opposite way (%f vs %f)" % [n, turn_a, turn_b])
+		# an AI kart still gets round the flipped course
+		var k := KartPhysics.new()
+		var drv := AiDriver.new(b, 0.0, 1.0)
+		var lt := LapTracker.new(b.count, 8, 1)
+		var start := b.count - 4
+		var pos := b.points[start]
+		var head := b.heading_at(start)
+		var idx := -1
+		var time := 0.0
+		while not lt.is_finished and time < 200.0:
+			idx = b.nearest_index(pos, idx)
+			var out: Dictionary = drv.decide(DT, pos, head, k.speed)
+			k.surface_scale = 1.0 if b.is_on_road(pos, idx) else 0.5
+			head += k.step(DT, out.throttle, out.brake, out.steer, out.drift)
+			pos += Vector3(-sin(head), 0, -cos(head)) * k.speed * DT
+			lt.update(DT, idx)
+			time += DT
+		runner.check(lt.is_finished, "track %d mirrored: AI did not finish a lap (cp %d)" % [n, lt.next_cp])
+	# the pure helpers
+	var ctrl: Array[Vector2] = [Vector2(1, 2), Vector2(-3, 4)]
+	var mc := TrackData.mirror_control(ctrl)
+	runner.check(mc[0] == Vector2(-1, 2) and mc[1] == Vector2(3, 4))
+	runner.check(TrackData.mirror_specs([[0.2, 3.0], [0.5, 0.0]]) == [[0.2, -3.0], [0.5, 0.0]])
+	# the menu tags the blurb and flips the preview only in the Extra class, never in a time trial
+	runner.check(Menu.blurb_text("Bends", false) == "Bends" and Menu.blurb_text("Bends", true).contains("MIRRORED"))
+	var m = Menu.new()
+	m.laps_label = Label.new()
+	m.difficulty_label = Label.new()
+	m.engine_label = Label.new()
+	m.mode_label = Label.new()
+	m.name_label = Label.new()
+	m.blurb_label = Label.new()
+	m.index_label = Label.new()
+	m.bg = ColorRect.new()
+	m.preview = load("res://scripts/minimap.gd").new()
+	m.selected = 1
+	m.engine_class = 2
+	m.move_engine(1)
+	var plain := L.make_data(1)
+	var Minimap = load("res://scripts/minimap.gd")
+	var pf: Dictionary = Minimap.fit(plain.points, Vector2(280, 195), 14.0)
+	var plain_x: float = Minimap.to_map(plain.points[20], pf["scale"], pf["offset"]).x
+	runner.check(m.engine_class == 3 and m.blurb_label.text.contains("MIRRORED"), "Extra tags the blurb")
+	runner.check(m.preview.map_points.size() == plain.count + 1 and absf(m.preview.map_points[20].x + plain_x - 280.0) < 0.01, "preview is mirrored")
+	m.mode = Menu.MODE_TT
+	m._refresh()
+	runner.check(not m.blurb_label.text.contains("MIRRORED") and absf(m.preview.map_points[20].x - plain_x) < 0.01, "time trials never mirror")
 	for n in [m.laps_label, m.difficulty_label, m.engine_label, m.mode_label, m.name_label, m.blurb_label, m.index_label, m.bg, m.preview, m]:
 		n.free()

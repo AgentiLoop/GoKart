@@ -30,15 +30,38 @@ var hazard_specs: Array = DEFAULT_HAZARDS
 var pads: Array = []
 var item_box_positions: Array[Vector3] = []
 var hazard_positions: Array[Vector3] = []
+## Mario Kart 64 "Extra" (mirror) mode: the whole course is flipped left-to-right.
+var mirrored := false
 
-## layout (optional) may override "pads", "box_rows" and "hazards" (same formats as the DEFAULT_ constants).
+## layout (optional) may override "pads", "box_rows" and "hazards" (same formats as the DEFAULT_ constants)
+## and set "mirror": true to flip the course left-to-right (MK64 Extra mode).
 func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout := {}) -> void:
 	control = ctrl
 	width = road_width
 	pad_specs = layout.get("pads", DEFAULT_PADS)
 	box_rows = layout.get("box_rows", DEFAULT_BOX_ROWS)
 	hazard_specs = layout.get("hazards", DEFAULT_HAZARDS)
+	mirrored = layout.get("mirror", false)
+	if mirrored:
+		control = mirror_control(ctrl)
+		pad_specs = mirror_specs(pad_specs)
+		hazard_specs = mirror_specs(hazard_specs)
 	_build()
+
+## Control points flipped left-to-right (x negated); the start line stays on x = 0.
+static func mirror_control(ctrl: Array[Vector2]) -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for v in ctrl:
+		out.append(Vector2(-v.x, v.y))
+	return out
+
+## [fraction, lateral offset] specs with the lateral side swapped, so a pad that sat on the
+## right of the road ends up at the mirror-image spot (the left) on the flipped course.
+static func mirror_specs(specs: Array) -> Array:
+	var out: Array = []
+	for s in specs:
+		out.append([s[0], -s[1]])
+	return out
 
 static func _catmull(p0: Vector2, p1: Vector2, p2: Vector2, p3: Vector2, t: float) -> Vector2:
 	var t2 := t * t

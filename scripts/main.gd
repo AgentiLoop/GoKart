@@ -104,15 +104,17 @@ func _ready() -> void:
 	ground.position = Vector3(60, -0.5, 20)
 	add_child(ground)
 
-	track = Track.new(TrackLibrary.make_data(TrackLibrary.selected))
-	add_child(track)
-	var data: TrackData = track.data
 	# MK64 time trials: solo, 3 laps, 100cc, a triple mushroom and no items on the course
 	var time_trial: bool = TimeTrial.active
 	var laps: int = TimeTrial.LAPS if time_trial else TrackLibrary.laps
+	var engine_index: int = TimeTrial.ENGINE_CLASS if time_trial else TrackLibrary.engine_class
+	# MK64 Extra class: the course is raced flipped left-to-right
+	track = Track.new(TrackLibrary.make_data(TrackLibrary.selected, TrackLibrary.is_mirrored(engine_index)))
+	add_child(track)
+	var data: TrackData = track.data
 	tracker = LapTracker.new(data.count, 8, laps)
 
-	var engine: Dictionary = TrackLibrary.engine_info(TimeTrial.ENGINE_CLASS if time_trial else TrackLibrary.engine_class)
+	var engine: Dictionary = TrackLibrary.engine_info(engine_index)
 	kart = Kart.new()
 	kart.model.apply_engine_class(engine.speed, engine.accel)
 	# the player starts in the right slot of the back row, just behind the line, facing along the track
