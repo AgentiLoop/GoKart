@@ -51,6 +51,7 @@ var hud
 var items
 var kart_index := 0
 var karts: Array = []   # karts[0] is the player
+var ai_base_speed: Array = []   # top speed of each AI kart before rubber-banding (karts[1..] order)
 var race_start := RaceStart.new()
 var finish_timer := 0.0
 var results_shown := false
@@ -123,6 +124,7 @@ func _ready() -> void:
 		ai.kart_id = karts.size()
 		add_child(ai)
 		ai.model.max_speed *= spec[2] * TrackLibrary.difficulty_info(TrackLibrary.difficulty).speed
+		ai_base_speed.append(ai.model.max_speed)
 		var engine_sfx := AiEngineAudio.new()
 		engine_sfx.kart = ai
 		ai.add_child(engine_sfx)
@@ -208,6 +210,11 @@ func _physics_process(delta: float) -> void:
 		progresses.append(RaceRanking.progress(k.tracker.lap, k.track_index, data.count, frac))
 		finish_times.append(k.tracker.race_time if k.tracker.is_finished else -1.0)
 	kart_index = kart.track_index
+	# MK64 rubber-banding: AI karts behind the player get a top-speed bonus, karts far ahead ease off
+	var band: float = TrackLibrary.difficulty_info(TrackLibrary.difficulty).rubber_band
+	for i in range(1, karts.size()):
+		var gap: float = (progresses[0] - progresses[i]) * data.spacing
+		karts[i].model.max_speed = ai_base_speed[i - 1] * AiDriver.rubber_band(gap, band)
 	var banner := "START" if tracker.lap == 0 else ("FINISH" if tracker.lap >= tracker.total_laps else "CONTINUE")
 	if banner != track.banner_text:
 		track.set_banner(banner)

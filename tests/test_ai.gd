@@ -214,3 +214,49 @@ func test_ai_uses_blue_shell_after_delay() -> void:
 	var d := AiDriver.new(null, 0.0, 1.0)
 	runner.check(not d.wants_use(0.5, Items.Type.BLUE_SHELL, INF, INF), "before delay")
 	runner.check(d.wants_use(0.6, Items.Type.BLUE_SHELL, INF, INF), "blue shell after delay")
+
+func test_mk64_rubber_banding() -> void:
+	## MK64 AI: a kart far behind the player gets a top-speed bonus, a kart far ahead eases off,
+	## nothing changes inside the dead zone, and the effect is capped at the full strength.
+	var s := 0.14
+	runner.check(AiDriver.rubber_band(0.0, s) == 1.0)
+	runner.check(AiDriver.rubber_band(AiDriver.BAND_DEAD, s) == 1.0, "dead zone edge")
+	runner.check(AiDriver.rubber_band(-AiDriver.BAND_DEAD, s) == 1.0)
+	var mid := AiDriver.rubber_band((AiDriver.BAND_DEAD + AiDriver.BAND_RANGE) * 0.5, s)
+	runner.check(is_equal_approx(mid, 1.0 + 0.5 * s), "mid=%f" % mid)
+	runner.check(is_equal_approx(AiDriver.rubber_band(AiDriver.BAND_RANGE, s), 1.0 + s))
+	runner.check(is_equal_approx(AiDriver.rubber_band(500.0, s), 1.0 + s), "capped when far behind")
+	runner.check(is_equal_approx(AiDriver.rubber_band(-AiDriver.BAND_RANGE, s), 1.0 - s))
+	runner.check(is_equal_approx(AiDriver.rubber_band(-500.0, s), 1.0 - s), "capped when far ahead")
+	# monotonic: more gap never means less speed
+	var last := 0.0
+	for g in range(-200, 201, 5):
+		var f := AiDriver.rubber_band(float(g), s)
+		runner.check(f >= last, "not monotonic at gap %d" % g)
+		last = f
+	# strength 0 switches it off
+	runner.check(AiDriver.rubber_band(300.0, 0.0) == 1.0 and AiDriver.rubber_band(-300.0, 0.0) == 1.0)
+
+func test_rubber_banding_keeps_a_slow_ai_in_touch() -> void:
+	## A kart with 90% of the player's top speed falls away on a straight without rubber-banding
+	## but settles within BAND_RANGE of the player with it (Medium strength, 60 s of flat-out driving).
+	for banded in [false, true]:
+		var player := KartPhysics.new()
+		var ai := KartPhysics.new()
+		var base: float = ai.max_speed * 0.9
+		ai.max_speed = base
+		var p_dist := 0.0
+		var a_dist := 0.0
+		for f in int(60.0 / DT):
+			if banded:
+				ai.max_speed = base * AiDriver.rubber_band(p_dist - a_dist, 0.14)
+			player.step(DT, 1.0, 0.0, 0.0, false)
+			ai.step(DT, 1.0, 0.0, 0.0, false)
+			p_dist += player.speed * DT
+			a_dist += ai.speed * DT
+		var gap := p_dist - a_dist
+		if banded:
+			runner.check(gap <= AiDriver.BAND_RANGE, "banded gap=%f" % gap)
+			runner.check(gap > 0.0, "the slower kart must still trail the player, gap=%f" % gap)
+		else:
+			runner.check(gap > AiDriver.BAND_RANGE, "unbanded gap=%f" % gap)

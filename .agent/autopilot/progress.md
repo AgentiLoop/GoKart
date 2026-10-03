@@ -644,3 +644,25 @@ Cycle 1: added a Mario Kart 64–style **Grand Prix cup** and committed it (e903
 - `scripts/main.gd`: RACER_COUNT 8, RACER_NAMES (YOU, BLUE, GREEN, PURPLE, YELLOW, ORANGE, PINK, TEAL), 7 AI_SPECS on a two-column, four-row grid (GRID_LANE 2.4, rows 3 samples apart, faster karts in front, player right slot of the back row), 7 AI_START_BOOSTS. `menu.gd` starts cups with RaceMain.RACER_COUNT. `hud.gd` results font 30 -> 24 (8 rows + 8 standings fit 720 px).
 - Tests: `test_mk64_eight_racer_grid` in tests/test_tracks.gd (slots on road / behind the line / no overlap on every track); suite 3528 passed, 0 failed. smoke 7/7 AI racing (all reached lap 3 or late lap 2 in 60 s); gp_check (points [9,6,3,1,0,0,0,0]) and menu_check pass.
 - Not seen on screen. Remaining MK64 ideas: engine classes 50/100/150cc, mirror mode, time trials with ghost, battle mode, Lakitu rescue, fake item box / golden mushroom / banana bunch, AI rubber-banding.
+## Cycle 2 — 2026-10-03 14:35
+Cycle 2: GoKart now fields a Mario Kart 64–style **8-racer grid**, committed as 2df2057.
+
+**What I did**
+- `scripts/main.gd`: `RACER_COUNT = 8`, `RACER_NAMES` = YOU, BLUE, GREEN, PURPLE, YELLOW, ORANGE, PINK, TEAL; 7 `AI_SPECS` laid out as a two-column, four-row grid (`GRID_LANE` 2.4 m, rows 3 samples = 9 m apart, faster karts on the front rows 0.98 → 0.88 speed scale, each with its own colour); 7 `AI_START_BOOSTS`. The player takes the right slot of the back row (MK64 style).
+- `scripts/menu.gd`: Grand Prix cups start with `RaceMain.RACER_COUNT` instead of a hard-coded 4.
+- `scripts/hud.gd`: results panel font 30 → 24 and re-centred so 8 result rows + 8 cup-standings rows fit a 720 px window.
+- `tests/test_tracks.gd`: new `test_mk64_eight_racer_grid` — 8 names/7 specs, every grid slot on the road and behind the line on all 3 tracks, no two slots within 3.5 m, front rows faster. Suite: **3528 passed, 0 failed** (up from 3383).
+- Headless checks (all under perl alarm): `tools/smoke.gd` → 7/7 AI karts racing (all on lap 3 or late lap 2 at 60 s, player 1st); `tools/gp_check.gd` passes with points `[9, 6, 3, 1, 0, 0, 0, 0]`; `tools/menu_check.gd` passes.
+- README feature line and `tools/smoke.gd` header updated; progress log appended.
+
+**Assumptions**: colour-named racers rather than Nintendo characters; player always starts last (MK64 first-race feel); speed spread per grid row is my choice. The ObjectDB "leaked instances" warning at test exit pre-exists (Node3D stubs in older tests) and is unchanged. Not seen on screen.
+
+**Remaining MK64 parity ideas**: engine classes 50/100/150cc (could replace Easy/Medium/Hard), mirror mode, time trials with a ghost, battle mode, Lakitu rescue when far off-road, fake item box / golden mushroom / banana bunch, AI rubber-banding.
+
+**Blockers**: none. No parity folders were given, so nothing was mirrored.
+
+
+## Cycle 3 (session 5) — MK64 rubber-banding
+- `scripts/ai_driver.gd`: static `rubber_band(gap, strength)` (BAND_DEAD 10 m dead zone, linear to full strength at BAND_RANGE 90 m, capped, symmetric: bonus behind the player / penalty ahead). `scripts/track_library.gd`: DIFFICULTIES gain `rubber_band` 0.08 / 0.14 / 0.2. `scripts/main.gd`: `ai_base_speed` per AI kart; every physics frame sets `model.max_speed = base * rubber_band((player_progress - ai_progress) * spacing, band)`.
+- Tests: `test_mk64_rubber_banding` + `test_rubber_banding_keeps_a_slow_ai_in_touch` in tests/test_ai.gd, difficulty test extended in tests/test_tracks.gd; suite 3626 passed, 0 failed. smoke 7/7 AI racing with a tight pack (player 3rd-6th through the run instead of a runaway 1st); gp_check and menu_check pass.
+- Not seen on screen. Remaining MK64 ideas: engine classes 50/100/150cc, mirror mode, time trials with ghost, battle mode, Lakitu rescue, fake item box / golden mushroom / banana bunch.

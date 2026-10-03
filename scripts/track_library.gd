@@ -14,10 +14,12 @@ const LAP_OPTIONS := [1, 2, 3, 5, 7]
 static var difficulty := 1
 
 ## speed: multiplier on every AI kart's top speed. start_boost: multiplier on the AI rocket-start boost.
+## rubber_band: MK64-style catch-up strength (max fraction of top speed gained when far behind the
+## player or lost when far ahead; see AiDriver.rubber_band).
 const DIFFICULTIES := [
-	{"name": "Easy", "speed": 0.72, "start_boost": 0.0},
-	{"name": "Medium", "speed": 0.85, "start_boost": 0.5},
-	{"name": "Hard", "speed": 1.0, "start_boost": 1.0},
+	{"name": "Easy", "speed": 0.72, "start_boost": 0.0, "rubber_band": 0.08},
+	{"name": "Medium", "speed": 0.85, "start_boost": 0.5, "rubber_band": 0.14},
+	{"name": "Hard", "speed": 1.0, "start_boost": 1.0, "rubber_band": 0.2},
 ]
 
 static func difficulty_info(i: int) -> Dictionary:

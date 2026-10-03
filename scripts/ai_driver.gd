@@ -11,6 +11,10 @@ const REVERSE_TIME := 0.9
 const CORNER_SAMPLES := 12     # samples ahead used to measure how sharp the upcoming bend is
 const CORNER_TURN_RATE := 1.5  # rad/s the AI is willing to turn at when picking a corner speed
 const MIN_CORNER_SPEED := 14.0
+## Mario Kart 64 rubber-banding: gaps inside BAND_DEAD metres leave the AI alone; from there the
+## top-speed bonus (behind the player) or penalty (ahead) grows linearly to its full value at BAND_RANGE.
+const BAND_DEAD := 10.0
+const BAND_RANGE := 90.0
 
 var track
 var lane_offset := 0.0      # metres right of the centerline to aim for
@@ -59,6 +63,14 @@ func corner_speed(i: int) -> float:
 	if ang < 0.01:
 		return INF
 	return maxf(CORNER_TURN_RATE * CORNER_SAMPLES * track.spacing / ang, MIN_CORNER_SPEED)
+
+## Top-speed multiplier for an AI kart that is `gap` metres behind the player (negative = ahead).
+## strength is the largest fraction added when far behind or removed when far ahead (0 = off).
+static func rubber_band(gap: float, strength: float) -> float:
+	if strength <= 0.0 or absf(gap) <= BAND_DEAD:
+		return 1.0
+	var g := (absf(gap) - BAND_DEAD) / (BAND_RANGE - BAND_DEAD)
+	return 1.0 + signf(gap) * clampf(g, 0.0, 1.0) * strength
 
 ## Should the AI use its held item now? gap_ahead / gap_behind: distance to the nearest
 ## rival in front / behind (INF if none).

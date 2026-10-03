@@ -193,6 +193,11 @@ func test_ai_difficulty_levels() -> void:
 	runner.check(Menu.difficulty_direction_for_key(KEY_Q) == -1 and Menu.difficulty_direction_for_key(KEY_E) == 1)
 	runner.check(Menu.difficulty_direction_for_key(KEY_A) == 0 and Menu.difficulty_direction_for_key(KEY_ENTER) == 0)
 	runner.check(Menu.difficulty_text(0) == "AI: Easy  (Q / E)")
+	# MK64 rubber-banding grows with difficulty; even Easy's full catch-up bonus keeps the AI below the player's top speed
+	for i in 3:
+		runner.check(L.difficulty_info(i).rubber_band > 0.0 and L.difficulty_info(i).rubber_band <= 0.25, "band %d" % i)
+	runner.check(L.difficulty_info(0).rubber_band < L.difficulty_info(1).rubber_band and L.difficulty_info(1).rubber_band < L.difficulty_info(2).rubber_band)
+	runner.check(L.difficulty_info(0).speed * (1.0 + L.difficulty_info(0).rubber_band) < 1.0)
 
 func test_mk64_eight_racer_grid() -> void:
 	## Mario Kart 64 fields 8 racers on a two-column grid; every slot must sit on the road
