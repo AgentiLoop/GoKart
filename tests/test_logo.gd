@@ -67,17 +67,27 @@ func test_letter_layers() -> void:
 	var m = _menu()
 	var letter: Control = m.title_box.get_child(0)
 	var labels: Array = letter.get_children()
-	runner.check(labels.size() == Menu.LOGO_DEPTH + 3, "shadow + %d extrusion layers + rim + fill: %d" % [Menu.LOGO_DEPTH, labels.size()])
-	var shadow: Label = labels[0]
-	runner.check(shadow.get_theme_color("font_color") == Menu.LOGO_SHADOW and shadow.position == Menu.LOGO_DEPTH_STEP * Menu.LOGO_DEPTH + Menu.LOGO_SHADOW_OFF, "soft navy shadow beyond the extrusion")
+	var taps := 9   # the soft shadow: a centre copy and a ring of 8 around it, no rim, blurred
+	runner.check(labels.size() == taps + Menu.LOGO_DEPTH + 2, "%d shadow taps + %d extrusion layers + rim + fill: %d" % [taps, Menu.LOGO_DEPTH, labels.size()])
+	var shadow_at: Vector2 = Menu.LOGO_DEPTH_STEP * Menu.LOGO_DEPTH + Menu.LOGO_SHADOW_OFF
+	var tap_alpha := 1.0 - pow(1.0 - Menu.LOGO_SHADOW.a, 1.0 / taps)
+	var stacked := 1.0
+	for s in taps:
+		var shadow: Label = labels[s]
+		var c: Color = shadow.get_theme_color("font_color")
+		runner.check(Color(c, 1.0) == Color(Menu.LOGO_SHADOW, 1.0) and is_equal_approx(c.a, tap_alpha) and shadow.get_theme_constant("outline_size") == 0, "shadow tap %d is faint navy with no rim" % s)
+		var off: Vector2 = shadow.position - shadow_at
+		runner.check(is_equal_approx(off.length(), 0.0 if s == 0 else Menu.LOGO_SHADOW_BLUR), "shadow tap %d sits on the centre / the blur ring" % s)
+		stacked *= 1.0 - c.a
+	runner.check(is_equal_approx(1.0 - stacked, Menu.LOGO_SHADOW.a), "the taps stack to the soft shadow's alpha")
 	for d in Menu.LOGO_DEPTH:
-		var layer: Label = labels[1 + d]
+		var layer: Label = labels[taps + d]
 		runner.check(layer.get_theme_color("font_color") == Menu.LOGO_EXTRUDE and layer.get_theme_color("font_outline_color") == Menu.LOGO_EXTRUDE, "extrusion layer %d is navy" % d)
 		runner.check(layer.position.is_equal_approx(Menu.LOGO_DEPTH_STEP * (Menu.LOGO_DEPTH - d)), "layers stack from the back to the front")
-	var rim: Label = labels[Menu.LOGO_DEPTH + 1]
+	var rim: Label = labels[taps + Menu.LOGO_DEPTH]
 	runner.check(rim.get_theme_color("font_color") == UiStyle.SIGN_RIM and rim.get_theme_color("font_outline_color") == UiStyle.SIGN_RIM and rim.position == Vector2.ZERO, "dark red rim layer under the fill")
 	runner.check(rim.get_theme_constant("outline_size") == 7, "rim 7 px, as wide as the old logo rim (the sign rule: size / 16)")
-	var fill: Label = labels[Menu.LOGO_DEPTH + 2]
+	var fill: Label = labels[taps + Menu.LOGO_DEPTH + 1]
 	runner.check(fill.get_theme_constant("outline_size") == 0 and fill.material is ShaderMaterial and fill.material.shader == Menu.LogoShader, "fill painted by the gradient shader, no outline of its own")
 	var mat: ShaderMaterial = fill.material
 	runner.check(mat.get_shader_parameter("top_color") == Menu.LOGO_TOP and mat.get_shader_parameter("mid_color") == Menu.LOGO_MID and mat.get_shader_parameter("bottom_color") == Menu.LOGO_RED, "yellow at the top, orange, red at the baseline")
