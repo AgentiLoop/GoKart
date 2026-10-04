@@ -1,9 +1,20 @@
 extends Control
 ## Top-down track minimap: the road outline plus a dot per kart (player drawn larger, with a ring).
+## Styled like Mario Kart 64's course map: the route in one light colour, see-through, laid straight
+## over the scene — no box behind it and no black rim round it. The route gets the HUD's drop
+## shadow (a navy copy offset down-right, as the text has) to lift it off the scenery, the start
+## line is a short gold tick across the route and the player's dot wears a gold ring.
 
-const ROAD_COLOR := Color(1, 1, 1, 0.85)
-const OUTLINE_COLOR := Color(0, 0, 0, 0.6)
-const BG_COLOR := Color(0, 0, 0, 0.35)
+const UiStyle := preload("res://scripts/ui_style.gd")
+
+const ROAD_COLOR := Color(UiStyle.CREAM, 0.9)
+const SHADOW_COLOR := Color(UiStyle.PANEL_FILL, 0.5)   # navy, not black — the HUD's drop shadow for the route
+const SHADOW_OFFSET := Vector2(2, 2)
+const ROAD_WIDTH := 5.0
+const START_COLOR := UiStyle.GOLD
+const START_LENGTH := 12.0                            # the start tick, across the route at sample 0
+const START_WIDTH := 3.0
+const PLAYER_RING := UiStyle.GOLD
 const RAIL_COLOR := Color(0.55, 0.55, 0.6, 0.9)   # MK64 shows the railway on the Kalimari Desert map
 
 var map_points := PackedVector2Array()
@@ -31,6 +42,17 @@ static func fit(points: PackedVector3Array, area: Vector2, pad: float) -> Dictio
 
 static func to_map(p: Vector3, map_scale_: float, offset: Vector2) -> Vector2:
 	return Vector2(p.x, p.z) * map_scale_ + offset
+
+## The start-line tick: the two ends of a line `length` long across the route at its first point
+## (perpendicular to the first segment). Empty when there is no segment to cross.
+static func start_tick(points: PackedVector2Array, length: float) -> PackedVector2Array:
+	if points.size() < 2:
+		return PackedVector2Array()
+	var dir := points[1] - points[0]
+	if dir.length_squared() < 0.000001:
+		return PackedVector2Array()
+	var across := dir.normalized().orthogonal() * length * 0.5
+	return PackedVector2Array([points[0] - across, points[0] + across])
 
 ## rail (optional): the railway loop, drawn under the road; the map is fitted around both.
 func setup(points: PackedVector3Array, area: Vector2, rail := PackedVector3Array()) -> void:
@@ -61,16 +83,22 @@ func set_markers(positions: Array, colors: Array) -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), BG_COLOR)
 	if rail_points.size() > 1:
 		draw_polyline(rail_points, RAIL_COLOR, 2.0, true)
 	if map_points.size() > 1:
-		draw_polyline(map_points, OUTLINE_COLOR, 8.0, true)
-		draw_polyline(map_points, ROAD_COLOR, 4.0, true)
+		var shadow := PackedVector2Array()
+		for p in map_points:
+			shadow.append(p + SHADOW_OFFSET)
+		draw_polyline(shadow, SHADOW_COLOR, ROAD_WIDTH, true)
+		draw_polyline(map_points, ROAD_COLOR, ROAD_WIDTH, true)
+		var tick := start_tick(map_points, START_LENGTH)
+		if tick.size() == 2:
+			draw_line(tick[0], tick[1], START_COLOR, START_WIDTH, true)
 	# AI first so the player (index 0) is drawn on top
 	for i in range(marker_positions.size() - 1, -1, -1):
 		var is_player := i == 0
 		var r := 6.0 if is_player else 4.5
+		draw_circle(marker_positions[i] + SHADOW_OFFSET, r, SHADOW_COLOR)
 		if is_player:
-			draw_circle(marker_positions[i], r + 2.0, Color.WHITE)
+			draw_circle(marker_positions[i], r + 2.0, PLAYER_RING)
 		draw_circle(marker_positions[i], r, marker_colors[i])
