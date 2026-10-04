@@ -2,7 +2,7 @@ extends Control
 ## Title screen like Mario Kart 64's: on launch the logo sits over a live attract demo — four CPU
 ## karts lapping the highlighted course in a 3D viewport behind the menu — with a blinking PRESS
 ## ENTER. Any key brings up the select screen, laid out like MK64's: a "SELECT COURSE" banner, a
-## course list on the left with a highlighted row, the map and the course blurb in a framed panel
+## course list on the left (a course picture beside each name, the picked row lit), the map and the course blurb in a framed panel
 ## on the right and a row of option cells underneath, the demo still running dimmed behind it.
 ## Text uses drop shadows instead of thick black outlines; only the logo's letters — set on an arch,
 ## shaded yellow to red, standing out of a navy extrusion like MK64's 3D block letters — have a rim.
@@ -95,6 +95,15 @@ const MODE_H := 32.0
 const MODE_NAMES := ["SINGLE RACE", "GRAND PRIX", "TIME TRIAL", "BATTLE"]
 const LOCKED := Color(0.72, 0.76, 0.86, 0.8)     # a fixed value (time trial laps / engine, battle balloons)
 const UNLIT := Color(0.98, 0.97, 0.92, 0.55)     # a choice that is not picked
+## Course list rows: MK64's map-select pictures — a little landscape in the course's own colours
+## with the road loop across it — beside each name; the picked row's picture is framed in gold.
+const LIST_ROW_Y := 44.0
+const LIST_ROW_STEP := 50.0
+const LIST_BAR_H := 44.0
+const THUMB_POS := Vector2(24, 2)
+const THUMB_SIZE := Vector2(64, 40)
+const LIST_NAME_X := 100.0
+var picture_cache: Dictionary = {}   # "t<i>:<mirror>" / "a<i>" -> {"points", "theme"}
 ## Title screen: the logo over the attract demo. Shown once per launch; Esc from a race comes back
 ## to the select screen instead.
 var attract = null             # Attract (SubViewportContainer) under everything but bg
@@ -160,6 +169,48 @@ class Backdrop extends Control:
 			for c in cols:
 				var col := Color(0.95, 0.95, 0.95, 0.9) if (c + r) % 2 == 0 else Color(0.05, 0.05, 0.08, 0.9)
 				draw_rect(Rect2(c * sq, y0 + r * sq, sq, sq), col)
+
+## A course picture like MK64's map-select thumbnails: a sky gradient over a ground strip in the
+## course's own colours (sky_top / sky_horizon / ground) with the road loop laid across the ground,
+## framed in gold when the row is the picked one.
+class CourseThumb extends Control:
+	const HORIZON := 0.42        # share of the picture that is sky
+	const ROAD := Color(0.93, 0.93, 0.9)
+	const FRAME := Color(1, 1, 1, 0.4)
+	const FRAME_LIT := Color(1.0, 0.82, 0.22)
+	var sky_top := Color(0.4, 0.6, 0.9)
+	var sky_horizon := Color(0.8, 0.9, 1.0)
+	var ground := Color(0.3, 0.6, 0.3)
+	var loop := PackedVector2Array()
+	var lit := false
+	## Where the road loop sits inside a picture of `area`: fitted into the ground strip under the
+	## horizon (pad px in from the edges), closed back to its first point. Pure.
+	static func loop_points(points: PackedVector3Array, area: Vector2, pad: float) -> PackedVector2Array:
+		var top := area.y * HORIZON
+		var f := Minimap.fit(points, Vector2(area.x, area.y - top), pad)
+		var out := PackedVector2Array()
+		for p in points:
+			out.append(Minimap.to_map(p, f.scale, f.offset) + Vector2(0, top))
+		if not out.is_empty():
+			out.append(out[0])
+		return out
+	func setup(points: PackedVector3Array, theme: Dictionary, area: Vector2) -> void:
+		size = area
+		sky_top = theme.sky_top
+		sky_horizon = theme.sky_horizon
+		ground = theme.ground
+		loop = loop_points(points, area, 5.0)
+		queue_redraw()
+	func _draw() -> void:
+		var h := size.y * HORIZON
+		draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(size.x, 0), Vector2(size.x, h), Vector2(0, h)]),
+			PackedColorArray([sky_top, sky_top, sky_horizon, sky_horizon]))
+		draw_rect(Rect2(0, h, size.x, size.y - h), ground)
+		draw_rect(Rect2(0, h, size.x, 3), Color(sky_horizon, 0.45))   # haze at the horizon
+		if loop.size() > 1:
+			draw_polyline(loop, ground.darkened(0.5), 4.0, true)
+			draw_polyline(loop, ROAD, 2.0, true)
+		draw_rect(Rect2(Vector2.ZERO, size), FRAME_LIT if lit else FRAME, false, 2.0)
 
 ## Key -> step direction (-1 / +1) or 0 when the key does not change the track.
 static func direction_for_key(keycode: int) -> int:
@@ -487,42 +538,68 @@ func _process(delta: float) -> void:
 	if title_prompt != null:
 		title_prompt.modulate.a = a
 
-## Rebuild the left-hand list: one row per course / arena, the highlighted one gold on a lit bar.
-func _refresh_list(names: Array, sel: int) -> void:
+## Rebuild the left-hand list: one row per course / arena — a course picture (MK64's map-select
+## thumbnails) beside the name — the highlighted one gold on a lit bar with its picture framed in
+## gold. `pictures[i]` = {"points": PackedVector3Array, "theme": Dictionary with sky_top /
+## sky_horizon / ground} for row i.
+func _refresh_list(names: Array, sel: int, pictures: Array) -> void:
 	if list_box == null:
 		return
 	for c in list_box.get_children():
 		list_box.remove_child(c)
 		c.queue_free()
 	for i in names.size():
-		var y := 44.0 + 50.0 * i
+		var y := LIST_ROW_Y + LIST_ROW_STEP * i
 		var is_sel := i == sel
 		if is_sel:
 			var bar := Panel.new()
 			bar.position = Vector2(16, y)
-			bar.size = Vector2(388, 44)
+			bar.size = Vector2(388, LIST_BAR_H)
 			bar.add_theme_stylebox_override("panel", UiStyle.lit_style(10))
 			list_box.add_child(bar)
-		var row := Label.new()
-		row.position = Vector2(60, y + 5)
-		row.size = Vector2(330, 34)
-		row.text = names[i]
-		row.add_theme_font_override("font", font)
-		row.add_theme_font_size_override("font_size", 24)
-		row.add_theme_color_override("font_color", GOLD if is_sel else CREAM)
-		row.add_theme_color_override("font_shadow_color", SHADOW)
-		row.add_theme_constant_override("shadow_offset_x", 2)
-		row.add_theme_constant_override("shadow_offset_y", 2)
+		var row := Control.new()
+		row.name = "Row%d" % i
+		row.position = Vector2(0, y)
+		row.size = Vector2(420, LIST_ROW_STEP)
 		list_box.add_child(row)
-		if is_sel:
-			var cursor := Label.new()
-			cursor.position = Vector2(30, y + 5)
-			cursor.size = Vector2(30, 34)
-			cursor.text = ">"
-			cursor.add_theme_font_override("font", font)
-			cursor.add_theme_font_size_override("font_size", 24)
-			cursor.add_theme_color_override("font_color", GOLD)
-			list_box.add_child(cursor)
+		var thumb := CourseThumb.new()
+		thumb.name = "Thumb"
+		thumb.position = THUMB_POS
+		thumb.setup(pictures[i].points, pictures[i].theme, THUMB_SIZE)
+		thumb.lit = is_sel
+		row.add_child(thumb)
+		var label := Label.new()
+		label.name = "Name"
+		label.position = Vector2(LIST_NAME_X, 5)
+		label.size = Vector2(404 - LIST_NAME_X - 8, 34)
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.text = names[i]
+		UiStyle.style_label(label, font, 24, GOLD if is_sel else CREAM)
+		label.add_theme_constant_override("shadow_offset_x", 2)
+		label.add_theme_constant_override("shadow_offset_y", 2)
+		row.add_child(label)
+
+## Course picture for a list row, cached per course / arena (the road loop is resampled geometry).
+func _picture(points: PackedVector3Array, theme: Dictionary) -> Dictionary:
+	return {"points": points, "theme": theme}
+
+func _track_pictures(mirror: bool) -> Array:
+	var out: Array = []
+	for i in TrackLibrary.count():
+		var key := "t%d:%s" % [i, mirror]
+		if not picture_cache.has(key):
+			picture_cache[key] = _picture(TrackLibrary.make_data(i, mirror).points, TrackLibrary.info(i))
+		out.append(picture_cache[key])
+	return out
+
+func _arena_pictures() -> Array:
+	var out: Array = []
+	for i in ArenaData.arena_count():
+		var key := "a%d" % i
+		if not picture_cache.has(key):
+			picture_cache[key] = _picture(ArenaData.make(i).outline(), ArenaData.info(i))
+		out.append(picture_cache[key])
+	return out
 
 func _set_text(l: Label, text: String) -> void:
 	if l != null:
@@ -637,7 +714,7 @@ func _refresh() -> void:
 	var names: Array = []
 	for i in TrackLibrary.count():
 		names.append(TrackLibrary.info(i).name)
-	_refresh_list(names, selected)
+	_refresh_list(names, selected, _track_pictures(mirror))
 	var data = TrackLibrary.make_data(selected, mirror)
 	preview.setup(data.points, PREVIEW_AREA, data.rail)
 	if attract != null:
@@ -667,7 +744,7 @@ func _refresh_battle() -> void:
 	var names: Array = []
 	for i in ArenaData.arena_count():
 		names.append(ArenaData.info(i).name)
-	_refresh_list(names, arena_selected)
+	_refresh_list(names, arena_selected, _arena_pictures())
 	preview.setup(ArenaData.make(arena_selected).outline(), PREVIEW_AREA)
 	_refresh_options()
 

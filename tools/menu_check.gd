@@ -41,7 +41,7 @@ func _process(_d: float) -> bool:
 		_check(cs.name_label.text == lib.info(1).name, "D selects track 1: " + cs.name_label.text)
 		_check(not cs.title_shown and cs.select_box.visible and not cs.title_prompt.visible, "D also brings up the select screen")
 		_check(cs.attract.course == 1 and cs.attract.track.data.count == lib.make_data(1).count, "demo switches to track 1")
-		_check(cs.sub_label.text == "SELECT COURSE" and cs.list_box.get_child_count() == lib.count() + 2, "course list: %d rows + lit bar + cursor" % lib.count())
+		_check(cs.sub_label.text == "SELECT COURSE" and cs.list_box.get_child_count() == lib.count() + 1, "course list: %d rows + lit bar" % lib.count())
 		_check(cs.font.get_font_name() != "" and cs.laps_label.get_theme_constant("outline_size") == 0, "menu text has no black outline (font %s)" % cs.font.get_font_name())
 		_key(KEY_W)
 		stage = 15
