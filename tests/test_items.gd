@@ -1369,6 +1369,10 @@ func test_mk64_tossed_banana_flies_an_arc_and_lands_ahead() -> void:
 	p.step(1.0, t)
 	runner.check(p.position == rest, "sits still after landing")
 	runner.check(p.hits(rest + Vector3(0.5, 0, 0), 1.0, 1))
+	runner.check(not p.hits(rest, 1.0, 0) and p.age < ItemProjectile.TOSS_OWNER_GRACE, "the thrower is safe a while longer: it lands just ahead of them")
+	p.age = ItemProjectile.TOSS_OWNER_GRACE
+	runner.check(p.hits(rest, 1.0, 0), "then it can hit the thrower too")
+	runner.check(ItemProjectile.make_banana(Vector3.ZERO, 0).owner_grace == ItemProjectile.OWNER_GRACE, "a plain drop keeps the short grace")
 	# a toss with no track (bare model) still lands
 	var q = ItemProjectile.make_fake_box(Vector3(5, 0, 5), 0)
 	q.toss(0.0, 0.0)

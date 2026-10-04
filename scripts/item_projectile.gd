@@ -28,6 +28,7 @@ const ORBIT_SHIELD := 1.9   # a shell inside this ring is stopped by one of the 
 const TOSS_SPEED := 16.0    # m/s added to the kart's own speed
 const TOSS_UP := 6.0        # m/s upward at the throw
 const TOSS_GRAVITY := 16.0  # m/s² (snappy arc: ~0.75 s in the air, a metre high)
+const TOSS_OWNER_GRACE := 2.5   # seconds the thrower is safe from its own toss (it lands just ahead of them)
 
 var kind := Items.Type.BANANA
 var position := Vector3.ZERO
@@ -42,6 +43,7 @@ var target_id := -1   # kart a blue shell is locked on to (the race leader when 
 var target_pos = null   # Vector3 of the kart a red shell homes on (set by the item manager), or null
 var homing := true   # red shells only: false when fired backwards (MK64: then it just flies straight)
 var rest_y := 0.0    # dropped items: the road height a tossed banana / fake box lands on
+var owner_grace := OWNER_GRACE   # seconds before the thrower can be hit by this item
 
 static func make_shell(pos: Vector3, heading: float, owner := -1) -> Object:
 	var p = load("res://scripts/item_projectile.gd").new()
@@ -74,6 +76,7 @@ static func make_blue_shell(pos: Vector3, heading: float, owner := -1, target :=
 ## `kart_speed`; it flies an arc and comes to rest at its current height (see step).
 func toss(heading: float, kart_speed: float) -> void:
 	rest_y = position.y
+	owner_grace = TOSS_OWNER_GRACE
 	velocity = Vector3(-sin(heading), 0, -cos(heading)) * (maxf(kart_speed, 0.0) + TOSS_SPEED) + Vector3(0, TOSS_UP, 0)
 
 ## True while a tossed banana / fake box is still in the air.
@@ -226,7 +229,7 @@ func hits(pos: Vector3, kart_radius: float, kart_id: int) -> bool:
 		return false
 	if kind == Items.Type.BLUE_SHELL and kart_id != target_id:
 		return false   # a blue shell only has eyes for the leader
-	if kart_id == owner_id and age < OWNER_GRACE:
+	if kart_id == owner_id and age < owner_grace:
 		return false
 	return Vector2(pos.x - position.x, pos.z - position.z).length() <= radius + kart_radius
 
