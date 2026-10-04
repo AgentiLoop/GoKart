@@ -21,8 +21,21 @@ const CAM_BACK := 7.0
 const CAM_UP := 3.0
 const CAM_LERP := 3.0
 const OFFROAD_SCALE := 0.5
+## Course picture (MK64's course select shows a picture of the course beside the map): a second
+## viewport looks into the same world through a camera flying along the road — above and to the
+## right of the centre line, looking down the road ahead — so the select screen's window shows the
+## course itself rather than another view of the chase camera's kart.
+const FLY_SPEED := 14.0      # m/s along the centre line
+const FLY_UP := 8.0
+const FLY_SIDE := 6.0        # to the right of the centre line
+const FLY_AHEAD := 9         # samples (27 m) ahead the camera looks at
+const FLY_LOOK_UP := 0.5
 
 var viewport: SubViewport
+var picture: SubViewport            # the course picture's viewport (shares the demo world)
+var picture_box: SubViewportContainer
+var picture_cam: Camera3D = null
+var fly_s := 0.0                    # fly-over position along the loop, in samples
 var world: Node3D = null
 var track = null
 var data: TrackData = null
@@ -45,8 +58,27 @@ static func chase_pose(pos: Vector3, heading: float) -> Vector3:
 static func next_target(current: int, count: int) -> int:
 	return posmod(current + 1, maxi(count, 1))
 
+## Point `s` samples along the closed loop of `points` (fractional s interpolates, wraps). Pure.
+static func loop_sample(points: PackedVector3Array, s: float) -> Vector3:
+	var n := points.size()
+	if n == 0:
+		return Vector3.ZERO
+	var w := fposmod(s, float(n))
+	var i := int(floor(w))
+	return points[i].lerp(points[(i + 1) % n], w - i)
+
+## Fly-over camera for a point `pos` on the centre line looking towards `ahead` on it: FLY_SIDE to
+## the right of the road, FLY_UP above it, aimed a little above the road at `ahead`. Pure.
+static func fly_pose(pos: Vector3, ahead: Vector3) -> Dictionary:
+	var dir := Vector3(ahead.x - pos.x, 0.0, ahead.z - pos.z)
+	dir = dir.normalized() if dir.length() > 0.001 else Vector3(0, 0, -1)
+	var right := dir.cross(Vector3.UP)
+	return {"pos": pos + right * FLY_SIDE + Vector3(0, FLY_UP, 0), "look": ahead + Vector3(0, FLY_LOOK_UP, 0)}
+
 ## The viewport is built in _init so the menu can hand it a course as soon as it is created (also
 ## headless, where a child added during _initialize gets no _ready); the rect is fitted in _ready.
+## The course picture's viewport shares the demo world and holds only the fly-over camera; the menu
+## puts `picture_box` in the select screen's window.
 func _init() -> void:
 	stretch = true
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -55,9 +87,28 @@ func _init() -> void:
 	viewport.handle_input_locally = false
 	viewport.msaa_3d = Viewport.MSAA_4X
 	add_child(viewport)
+	picture_box = SubViewportContainer.new()
+	picture_box.name = "CoursePicture"
+	picture_box.stretch = true
+	picture_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	picture = SubViewport.new()
+	picture.world_3d = viewport.find_world_3d()
+	picture.handle_input_locally = false
+	picture.msaa_3d = Viewport.MSAA_4X
+	picture_box.add_child(picture)
+	picture_cam = Camera3D.new()
+	picture_cam.fov = 60.0
+	picture.add_child(picture_cam)
+	picture_cam.current = true
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+## The picture container belongs to whoever placed it (the menu's select box); when nobody did, it
+## goes with the demo.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and picture_box != null and picture_box.get_parent() == null:
+		picture_box.free()
 
 ## Run the demo on course i (mirrored for the Extra class); rebuilds the world only on a change.
 func show_course(i: int, mirror := false) -> void:
@@ -98,6 +149,17 @@ func show_course(i: int, mirror := false) -> void:
 	cam_timer = 0.0
 	# local coordinates: the world node sits at the origin (and may not be in the tree yet)
 	cam.look_at_from_position(chase_pose(karts[0].position, karts[0].heading), karts[0].position + Vector3(0, 1.0, 0))
+	# the course picture starts its fly-over at the start line, looking down the first straight
+	fly_s = 0.0
+	_fly(0.0)
+
+## Move the course picture's camera `delta` seconds further along the road.
+func _fly(delta: float) -> void:
+	if picture_cam == null or data == null or data.count == 0:
+		return
+	fly_s = fposmod(fly_s + FLY_SPEED / data.spacing * delta, float(data.count))
+	var pose := fly_pose(loop_sample(data.points, fly_s), loop_sample(data.points, fly_s + FLY_AHEAD))
+	picture_cam.look_at_from_position(pose.pos, pose.look)
 
 ## Sky, sun and ground like the race scene, in the course's colours.
 func _build_environment(theme: Dictionary) -> void:
@@ -154,3 +216,5 @@ func _process(delta: float) -> void:
 	var k = karts[cam_target]
 	cam.global_position = cam.global_position.lerp(chase_pose(k.global_position, k.heading), clampf(CAM_LERP * delta, 0.0, 1.0))
 	cam.look_at(k.global_position + Vector3(0, 1.0, 0))
+	if picture_box.is_visible_in_tree():
+		_fly(delta)

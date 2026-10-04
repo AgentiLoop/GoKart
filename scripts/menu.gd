@@ -2,8 +2,10 @@ extends Control
 ## Title screen like Mario Kart 64's: on launch the logo sits over a live attract demo — four CPU
 ## karts lapping the highlighted course in a 3D viewport behind the menu — with a blinking PRESS
 ## ENTER. Any key brings up the select screen, laid out like MK64's: a "SELECT COURSE" banner, a
-## course list on the left (a course picture beside each name, the picked row lit), the map and the course blurb in a framed panel
-## on the right and a row of option cells underneath, the demo still running dimmed behind it.
+## course list on the left (a course picture beside each name, the picked row lit), a live picture
+## of the course — a camera flying along the road in the demo's world — with the map outline in its
+## corner and the course blurb in a framed panel on the right and a row of option cells underneath,
+## the demo still running dimmed behind it.
 ## Text uses drop shadows instead of thick black outlines; only the logo's letters — set on an arch,
 ## shaded yellow to red, standing out of a navy extrusion like MK64's 3D block letters — have a rim.
 ## Left/Right (A/D) pick the track and Enter/Space races it; selection is stored in
@@ -43,7 +45,12 @@ const LOGO_RED := UiStyle.LOGO_RED
 const PANEL_FILL := UiStyle.PANEL_FILL
 const PANEL_RIM := UiStyle.PANEL_RIM
 const SHADOW := UiStyle.SHADOW
-const PREVIEW_AREA := Vector2(300, 186)   # map window inside the right panel
+## The right panel's picture window shows the course itself (the demo world seen from a camera
+## flying along the road, MK64's course picture) with the map outline laid over its bottom-right
+## corner on a small panel.
+const PICTURE_RECT := Rect2(540, 242, 312, 198)
+const PREVIEW_AREA := Vector2(150, 96)    # map outline over the picture's corner
+const MAP_POS := Vector2(696, 338)        # PICTURE_RECT's bottom-right less the area and a 6 px margin
 ## Rounded fonts in MK64's spirit; Godot falls back to its default font when none is installed.
 const FONT_NAMES := UiStyle.FONT_NAMES
 
@@ -352,11 +359,27 @@ func _ready() -> void:
 	select_box.add_child(list_box)
 	var arrows := _label(Vector2(80, 468), 13, 420, GREY)
 	arrows.text = "<  A / D  or  Left / Right  >"
-	# right panel: map + name + blurb
+	# right panel: the course picture (MK64's course select shows a picture of the course beside
+	# the map) — the demo world seen from a camera flying along the road, in a framed window — with
+	# the map outline in the picture's corner, then the name and the blurb
 	_panel(Rect2(520, 220, 680, 278), PANEL_FILL, PANEL_RIM, 16)
-	_panel(Rect2(538, 240, 316, 202), Color(0, 0, 0, 0.25), Color(1, 1, 1, 0.35), 8)
+	if attract != null:
+		attract.picture_box.position = PICTURE_RECT.position
+		attract.picture_box.size = PICTURE_RECT.size
+		select_box.add_child(attract.picture_box)
+	var frame := Panel.new()
+	frame.name = "PictureFrame"
+	frame.position = PICTURE_RECT.position - Vector2(2, 2)
+	frame.size = PICTURE_RECT.size + Vector2(4, 4)
+	var frame_style := StyleBoxFlat.new()
+	frame_style.bg_color = Color.TRANSPARENT
+	frame_style.border_color = Color(1, 1, 1, 0.5)
+	frame_style.set_border_width_all(2)
+	frame.add_theme_stylebox_override("panel", frame_style)
+	select_box.add_child(frame)
+	_panel(Rect2(MAP_POS - Vector2(4, 4), PREVIEW_AREA + Vector2(8, 8)), Color(PANEL_FILL, 0.6), Color(1, 1, 1, 0.35), 6)
 	preview = Minimap.new()
-	preview.position = Vector2(546, 248)
+	preview.position = MAP_POS
 	select_box.add_child(preview)
 	name_label = _label(Vector2(870, 244), 34, 316, GOLD, HORIZONTAL_ALIGNMENT_LEFT)
 	blurb_label = _label(Vector2(870, 296), 19, 316, CREAM, HORIZONTAL_ALIGNMENT_LEFT)
