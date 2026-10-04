@@ -113,6 +113,18 @@ const TRACKS := [
 		"box_rows": [0.06, 0.28, 0.5, 0.74],
 		"hazards": [[0.2, 2.5], [0.45, -2.0], [0.68, 0.0]],
 		"water": [[0.15, 0.22, 1], [0.62, 0.69, -1]],
+		# Frappe Snowland style snowmen: [fraction of lap, lateral offset] per snowman — two by the
+		# edges after the esses, a field of five staggered rows (singles, a pair and a gate, ~14 m
+		# apart) on the run after the long sweeper, a left / right pair before the last pad and a
+		# gate near the end (see scripts/snowmen.gd); every row leaves a way through, clear of the
+		# grid, the pads, the item box rows and the bananas
+		"snowmen": [
+			[0.39, -4.5], [0.41, 4.5],
+			[0.52, -4.5], [0.52, 2.6], [0.536, 4.0], [0.552, -1.0],
+			[0.568, -4.5], [0.568, 4.5], [0.584, 2.0],
+			[0.78, 3.0], [0.795, -3.0],
+			[0.9, -5.0], [0.915, 5.0],
+		],
 		"ground": Color(0.9, 0.93, 0.98),
 		"sky_top": Color(0.12, 0.15, 0.32),
 		"sky_horizon": Color(0.6, 0.72, 0.9),

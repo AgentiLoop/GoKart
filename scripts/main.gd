@@ -29,6 +29,8 @@ const Traffic := preload("res://scripts/traffic.gd")
 const Highway := preload("res://scripts/highway.gd")
 const Moles := preload("res://scripts/moles.gd")
 const Molehills := preload("res://scripts/molehills.gd")
+const Snowmen := preload("res://scripts/snowmen.gd")
+const Snowfield := preload("res://scripts/snowfield.gd")
 
 ## Seconds after the player crosses the line before the results panel appears.
 const RESULTS_DELAY := 2.0
@@ -93,6 +95,11 @@ var moles
 var molehills = null
 ## Minimap colour of a mole hole.
 const MOLE_COLOR := Color(0.45, 0.3, 0.15)
+## MK64 Frappe Snowland snowmen: the model (inactive on courses without snowmen) and its node.
+var snowmen
+var snowfield = null
+## Minimap colour of a snowman.
+const SNOWMAN_COLOR := Color(0.92, 0.95, 1.0)
 ## Time trial only: the run being recorded, the ghost of the best run (if any) and the filed result.
 var recording = null
 var ghost = null
@@ -162,6 +169,11 @@ func _ready() -> void:
 	if moles.active():
 		molehills = Molehills.new(moles)
 		add_child(molehills)
+	# MK64 Frappe Snowland: snowmen stand about the road in rows
+	snowmen = Snowmen.new(data)
+	if snowmen.active():
+		snowfield = Snowfield.new(snowmen)
+		add_child(snowfield)
 	kart = Kart.new()
 	kart.model.apply_engine_class(engine.speed, engine.accel)
 	# MK64 weight class picked on the menu: light / medium / heavy
@@ -299,6 +311,8 @@ func _physics_process(delta: float) -> void:
 		highway.update_traffic(delta)
 	if molehills != null:
 		molehills.update_moles(delta)
+	if snowfield != null:
+		snowfield.update_snowmen(delta)
 	var progresses: Array = []
 	var finish_times: Array = []
 	for k in karts:
@@ -341,6 +355,21 @@ func _physics_process(delta: float) -> void:
 						audio.play("pop")
 				elif k.launch(Moles.LAUNCH_SPEED, moles.shove_dir(mi, kp) * Moles.SHOVE) and k == kart:
 					audio.play("crash")
+		if snowmen.active():
+			# MK64 Frappe Snowland: CPU karts weave through the snowmen; run into one and you are thrown
+			# into the air and it bursts into snow, a Star kart bursts it and drives on
+			if k.driver != null:
+				_dodge(k.driver, snowmen, k.track_index)
+			var si: int = snowmen.snowman_at(kp)
+			if si >= 0 and not k.is_rescued():
+				if k.model.is_star():
+					snowmen.smash(si)
+					if k == kart:
+						audio.play("pop")
+				elif k.launch(Snowmen.LAUNCH_SPEED, snowmen.shove_dir(si, kp) * Snowmen.SHOVE):
+					snowmen.smash(si)
+					if k == kart:
+						audio.play("crash")
 		var frac: float = (kp - data.points[k.track_index]).dot(data.tangents[k.track_index]) / data.spacing
 		progresses.append(RaceRanking.progress(k.tracker.lap, k.track_index, data.count, frac))
 		finish_times.append(k.tracker.race_time if k.tracker.is_finished else -1.0)
@@ -349,6 +378,13 @@ func _physics_process(delta: float) -> void:
 		# MK64: a green or red shell knocks a mole that is out away (and is spent on it)
 		for p in items.projectiles.duplicate():
 			if p.alive and Items.is_blockable_shell(p.kind) and moles.knock_at(p.position, p.radius + Moles.HIT_RADIUS) >= 0:
+				p.alive = false
+				items._remove_projectile(p)
+				audio.play("pop", -6.0)
+	if snowmen.active():
+		# MK64: a green or red shell smashes a snowman (and is spent on it)
+		for p in items.projectiles.duplicate():
+			if p.alive and Items.is_blockable_shell(p.kind) and snowmen.smash_at(p.position, p.radius + Snowmen.HIT_RADIUS) >= 0:
 				p.alive = false
 				items._remove_projectile(p)
 				audio.play("pop", -6.0)
@@ -404,9 +440,12 @@ func _physics_process(delta: float) -> void:
 	for m in moles.moles:
 		marker_pos.append(m.pos)
 		marker_col.append(MOLE_COLOR)
+	for sm in snowmen.snowmen:
+		marker_pos.append(sm.pos)
+		marker_col.append(SNOWMAN_COLOR)
 	hud.update_minimap(marker_pos, marker_col)
 
-## Points an AI driver at the lane `hazards` (the traffic or the moles) says is clear ahead of it:
+## Points an AI driver at the lane `hazards` (the traffic, the moles or the snowmen) says is clear ahead of it:
 ## its own lane when free, otherwise a dodge lane it keeps until the way is clear.
 func _dodge(driver, hazards, idx: int) -> void:
 	var lane: float = hazards.clear_lane(idx, driver.lane_offset, driver.dodge_lane if driver.dodging else driver.lane_offset)

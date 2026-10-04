@@ -58,10 +58,13 @@ var traffic_specs: Array = []
 ## Monty Mole holes (layout "moles", Mario Kart 64 Moo Moo Farm): [fraction of lap, lateral offset]
 ## per hole (see scripts/moles.gd); empty = no moles on this course.
 var mole_specs: Array = []
+## Snowmen (layout "snowmen", Mario Kart 64 Frappe Snowland): [fraction of lap, lateral offset] per
+## snowman (see scripts/snowmen.gd); empty = no snowmen on this course.
+var snowman_specs: Array = []
 
 ## layout (optional) may override "pads", "box_rows", "hazards" and "water" (same formats as the
-## DEFAULT_ constants), add a "rail" loop (Array of Vector2 control points), "traffic" vehicles or
-## "moles" and set "mirror": true to flip the course left-to-right (MK64 Extra mode).
+## DEFAULT_ constants), add a "rail" loop (Array of Vector2 control points), "traffic" vehicles,
+## "moles" or "snowmen" and set "mirror": true to flip the course left-to-right (MK64 Extra mode).
 func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout := {}) -> void:
 	control = ctrl
 	width = road_width
@@ -71,6 +74,7 @@ func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout :=
 	water_specs = layout.get("water", DEFAULT_WATER)
 	traffic_specs = layout.get("traffic", [])
 	mole_specs = layout.get("moles", [])
+	snowman_specs = layout.get("snowmen", [])
 	for v in layout.get("rail", []):
 		rail_control.append(v)
 	mirrored = layout.get("mirror", false)
@@ -82,6 +86,7 @@ func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout :=
 		rail_control = mirror_control(rail_control)
 		traffic_specs = mirror_specs(traffic_specs)
 		mole_specs = mirror_specs(mole_specs)
+		snowman_specs = mirror_specs(snowman_specs)
 	_build()
 
 ## Control points flipped left-to-right (x negated); the start line stays on x = 0.
