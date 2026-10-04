@@ -70,6 +70,7 @@ func setup(player_kart, item_manager) -> void:
 	kart.model.drift_started.connect(func(_d): play("drift_start"))
 	kart.model.drift_level_changed.connect(func(level): if level > 0: play("mini_turbo"))
 	kart.model.boost_started.connect(func(_l): play("boost"))
+	kart.model.draft_started.connect(func(): play("draft", -4.0))
 	kart.model.spin_started.connect(func(): play("hit"))
 	kart.model.star_started.connect(func(): play("star"))
 	kart.model.ghost_started.connect(func(): play("boo"))

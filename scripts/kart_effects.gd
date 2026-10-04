@@ -1,6 +1,6 @@
 extends Node3D
-## Visual effects for a kart: drift sparks (GPUParticles3D), boost flames (GPUParticles3D)
-## and tire trails (ribbon meshes). Listens to KartPhysics signals.
+## Visual effects for a kart: drift sparks (GPUParticles3D), boost flames (GPUParticles3D),
+## tire trails (ribbon meshes) and the grey wind of an MK64 slipstream burst. Listens to KartPhysics signals.
 
 const TireTrail := preload("res://scripts/tire_trail.gd")
 
@@ -18,6 +18,7 @@ const FLAME_COLORS := [
 ]
 const FLASH_DECAY := 4.0      # 1/s: mini-turbo flash fades in ~0.25 s
 const SMOKE_COLOR := Color(0.75, 0.75, 0.75, 0.6)   # false-start tire smoke
+const WIND_COLOR := Color(0.82, 0.82, 0.85, 0.5)    # MK64 draft: grey wind streaming past the kart
 
 var model            # KartPhysics
 var sparks: Array[GPUParticles3D] = []
@@ -26,6 +27,7 @@ var trails: Array = []
 var wheel_nodes: Array[Node3D] = []
 var pops: Array[GPUParticles3D] = []   # one-shot star burst when a drift level is reached
 var smoke: Array[GPUParticles3D] = []  # grey tire smoke at the rear wheels during a false-start burnout
+var wind: Array[GPUParticles3D] = []   # grey wind streaks along both sides during a slipstream burst
 var flash_light: OmniLight3D
 var flash_amount := 0.0                 # 1 right at mini-turbo release, decays to 0
 var flash_color := Color.WHITE
@@ -69,6 +71,11 @@ func setup(physics_model, wheel_offsets: Array) -> void:
 			sm.position = off + Vector3(0, 0.15, 0.3)
 			add_child(sm)
 			smoke.append(sm)
+		else:
+			var w := _make_wind()
+			w.position = Vector3(off.x * 1.4, 0.5, off.z - 0.6)
+			add_child(w)
+			wind.append(w)
 	flash_light = OmniLight3D.new()
 	flash_light.position = Vector3(0, 0.8, 0.6)
 	flash_light.omni_range = 6.0
@@ -83,6 +90,8 @@ func setup(physics_model, wheel_offsets: Array) -> void:
 	model.star_ended.connect(_on_star_ended)
 	model.stall_started.connect(_on_stall_started)
 	model.stall_ended.connect(_on_stall_ended)
+	model.draft_started.connect(_on_draft_started)
+	model.draft_ended.connect(_on_draft_ended)
 	star_glitter = _make_glitter()
 	star_glitter.position = Vector3(0, 0.7, 0)
 	add_child(star_glitter)
@@ -283,6 +292,42 @@ func _on_stall_started() -> void:
 func _on_stall_ended() -> void:
 	for s in smoke:
 		s.emitting = false
+
+## MK64 slipstream burst: grey wind streams back past both sides of the kart (MK64's draft wind is grey, not blue).
+func _on_draft_started() -> void:
+	for w in wind:
+		w.emitting = true
+
+func _on_draft_ended() -> void:
+	for w in wind:
+		w.emitting = false
+
+func _make_wind() -> GPUParticles3D:
+	var p := GPUParticles3D.new()
+	p.amount = 40
+	p.lifetime = 0.3
+	p.local_coords = false
+	p.emitting = false
+	p.visibility_aabb = AABB(Vector3(-5, -5, -5), Vector3(10, 10, 10))
+	var pm := ParticleProcessMaterial.new()
+	pm.direction = Vector3(0, 0, 1)   # streams back along the kart
+	pm.spread = 6.0
+	pm.initial_velocity_min = 14.0
+	pm.initial_velocity_max = 20.0
+	pm.gravity = Vector3.ZERO
+	pm.scale_min = 0.8
+	pm.scale_max = 1.4
+	pm.color = WIND_COLOR
+	pm.color_ramp = _fade_ramp()
+	p.process_material = pm
+	var q := QuadMesh.new()
+	q.size = Vector2(0.1, 0.7)   # a tall sliver: a streak, not a puff
+	var m := _particle_material(Color(1, 1, 1, 1))
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_MIX   # wind is grey, it does not glow
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y   # the streak stays upright along the direction of travel
+	q.material = m
+	p.draw_pass_1 = q
+	return p
 
 func _make_smoke() -> GPUParticles3D:
 	var p := GPUParticles3D.new()

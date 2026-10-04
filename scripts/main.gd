@@ -10,6 +10,7 @@ const LapTracker := preload("res://scripts/lap_tracker.gd")
 const Hud := preload("res://scripts/hud.gd")
 const ItemManager := preload("res://scripts/item_manager.gd")
 const AiDriver := preload("res://scripts/ai_driver.gd")
+const Slipstream := preload("res://scripts/slipstream.gd")
 const RaceRanking := preload("res://scripts/race_ranking.gd")
 const RaceStart := preload("res://scripts/race_start.gd")
 const RaceResults := preload("res://scripts/race_results.gd")
@@ -394,6 +395,18 @@ func _physics_process(delta: float) -> void:
 	for i in range(1, karts.size()):
 		var gap: float = (progresses[0] - progresses[i]) * data.spacing
 		karts[i].model.max_speed = ai_base_speed[i - 1] * AiDriver.rubber_band(gap, band)
+	# MK64 slipstream: a kart that trails close behind another for a couple of seconds gets a brief burst of speed
+	var wake_pos: Array = []
+	var wake_fwd: Array = []
+	var wake_spd: Array = []
+	for k in karts:
+		wake_pos.append(k.global_position)
+		wake_fwd.append(Vector3(-sin(k.heading), 0, -cos(k.heading)))
+		wake_spd.append(k.model.speed)
+	for i in karts.size():
+		var k = karts[i]
+		var lead: int = Slipstream.leader(i, wake_pos, wake_fwd, wake_spd) if race_start.started and not k.is_rescued() else -1
+		k.model.update_draft(delta, lead >= 0)
 	var banner := "START" if tracker.lap == 0 else ("FINISH" if tracker.lap >= tracker.total_laps else "CONTINUE")
 	if banner != track.banner_text:
 		track.set_banner(banner)

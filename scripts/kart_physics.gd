@@ -1,6 +1,7 @@
 extends RefCounted
 ## Pure arcade kart model (no scene dependencies) so it can be unit tested.
-## Handles speed, steering, Mario Kart 64 style powerslides and the stick-toggle mini-turbo.
+## Handles speed, steering, Mario Kart 64 style powerslides, the stick-toggle mini-turbo and the
+## slipstream draft boost (the race scene says each frame whether the kart sits in another's wake).
 
 signal drift_started(direction: int)
 signal drift_level_changed(level: int)
@@ -16,6 +17,8 @@ signal ghost_started
 signal ghost_ended
 signal stall_started
 signal stall_ended
+signal draft_started
+signal draft_ended
 
 var max_speed := 30.0
 var reverse_max_speed := 10.0
@@ -59,9 +62,47 @@ var ghost_duration := 5.0       # seconds a Boo keeps the kart see-through and u
 var ghost_time := 0.0
 var stall_duration := 1.5       # MK64 false start: the tires burn out and the kart goes nowhere
 var stall_time := 0.0
+## MK64 slipstream: trail close behind another kart for draft_charge_time and the kart gets a brief
+## burst of speed (the top speed rises by draft_speed_factor for draft_boost_duration).
+var draft_charge_time := 2.0
+var draft_boost_duration := 1.5
+var draft_speed_factor := 1.15
+var draft_time := 0.0           # seconds spent in another kart's wake so far (0 when out of it)
+var draft_boost_time := 0.0
 
 func is_boosting() -> bool:
 	return boost_time > 0.0
+
+func is_drafting() -> bool:
+	return draft_time > 0.0
+
+func is_draft_boosting() -> bool:
+	return draft_boost_time > 0.0
+
+## Called every physics frame with whether the kart sits in another kart's wake (Slipstream.in_wake):
+## the time in the wake adds up and after draft_charge_time the draft boost fires (and the count
+## starts over); leaving the wake, a spin or a false start drops the charge. Returns true on the
+## frame the boost fires.
+func update_draft(delta: float, in_wake: bool) -> bool:
+	if not in_wake or is_spinning() or is_stalled():
+		draft_time = 0.0
+		return false
+	draft_time += delta
+	if draft_time < draft_charge_time:
+		return false
+	draft_time = 0.0
+	var was := is_draft_boosting()
+	draft_boost_time = draft_boost_duration
+	if not was:
+		draft_started.emit()
+	return true
+
+## Drops the draft boost (a hit, a dead stop); emits draft_ended if one was running.
+func _end_draft() -> void:
+	draft_time = 0.0
+	if draft_boost_time > 0.0:
+		draft_boost_time = 0.0
+		draft_ended.emit()
 
 func is_stalled() -> bool:
 	return stall_time > 0.0
@@ -127,6 +168,8 @@ func current_max_speed() -> float:
 		return max_speed * boost_speed_factor
 	if is_star():
 		return max_speed * star_speed_factor
+	if is_draft_boosting():
+		return max_speed * draft_speed_factor * surface_scale
 	if is_shrunk():
 		return max_speed * shrink_speed_factor * surface_scale
 	return max_speed * surface_scale
@@ -147,6 +190,7 @@ func spin_out() -> bool:
 	boost_time = 0.0
 	boost_level = 0
 	boost_from_drift = false
+	_end_draft()
 	speed *= 0.5
 	if drifting:
 		drifting = false
@@ -166,6 +210,7 @@ func stop() -> void:
 		boost_level = 0
 		boost_from_drift = false
 		boost_ended.emit()
+	_end_draft()
 	drifting = false
 	drift_direction = 0
 	drift_charge = 0.0
@@ -232,6 +277,12 @@ func step(delta: float, throttle: float, brake: float, steer: float, drift_held:
 			boost_from_drift = false
 			boost_ended.emit()
 
+	if draft_boost_time > 0.0:
+		draft_boost_time -= delta
+		if draft_boost_time <= 0.0:
+			draft_boost_time = 0.0
+			draft_ended.emit()
+
 	if star_time > 0.0:
 		star_time -= delta
 		if star_time <= 0.0:
@@ -280,7 +331,7 @@ func step(delta: float, throttle: float, brake: float, steer: float, drift_held:
 	# --- speed
 	var top := current_max_speed()
 	if throttle > 0.0:
-		var a := boost_acceleration if is_boosting() else acceleration
+		var a := boost_acceleration if is_boosting() or is_draft_boosting() else acceleration
 		speed = minf(speed + a * throttle * delta, top) if speed < top else maxf(speed - friction * delta, top)
 	elif brake > 0.0:
 		if speed > 0.0:
