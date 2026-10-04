@@ -10,7 +10,8 @@ extends Control
 ## shaded yellow to red, standing out of a navy extrusion like MK64's 3D block letters — have a rim.
 ## Sound (MenuAudio): the title theme under the title screen, the select theme under the select
 ## screen, a tick for the cursor / an option, a chime for Enter.
-## Left/Right (A/D) pick the track and Enter races it; selection is stored in
+## Up / Down move the cursor frame from row to row (course list, laps, CPU, engine, kart, mode)
+## and Left / Right (A / D) change the row it is on; Enter races. The selection is stored in
 ## TrackLibrary.selected and Esc during a race comes back here (to the select screen).
 ## G / Tab cycles the mode: Single Race -> Grand Prix (every track in turn, MK64-style cup points)
 ## -> Time Trial (solo, 100cc, triple mushroom, race the ghost of your best run) -> Battle (four
@@ -81,15 +82,34 @@ var font: Font
 var list_box: Control          # course / arena list (left panel)
 var list_caption: Label
 var laps_caption: Label
-var laps_keys: Label
-var difficulty_keys: Label
-var engine_keys: Label
+var cell_captions: Array = []  # LAPS / CPU / ENGINE / KART captions (gold on the focused row)
+var mode_caption: Label
+var laps_note: Label           # why a cell is locked ("Time Trial" / "Battle"), else empty
+var difficulty_note: Label
+var engine_note: Label
 var prompt: Label              # blinking PRESS ENTER
 var title_box: Control
 var blink := 0.0
 ## Option rows (MK64 Select Mode idiom): every choice of a cell in a row of pills, the picked one
 ## gold on a lit bar. Rebuilt on every refresh; index 0-3 = the cells, 4 = the mode tabs.
 var option_rows: Array = [null, null, null, null, null]
+## The cursor (MK64 menus: one stick and one button): Up / Down move a gold frame from row to row —
+## the course list, then laps / CPU / engine / kart, then the mode tabs — and Left / Right change
+## whatever the frame is on. Only the focused row's lit bar glows; the others keep a dim rim. The
+## dedicated keys (W / S, Q / E, Z / C, X / V, G) still work as shortcuts and leave the frame alone.
+const FOCUS_LIST := 0
+const FOCUS_LAPS := 1
+const FOCUS_CPU := 2
+const FOCUS_ENGINE := 3
+const FOCUS_KART := 4
+const FOCUS_MODE := 5
+const FOCUS_COUNT := 6
+const FOCUS_PAD := 6.0                          # the frame sits this far outside the row
+const FOCUS_LIST_RECT := Rect2(90, 258, 400, 212)   # around the list rows (stage coordinates)
+const FOCUS_RIM := Color(1.0, 0.85, 0.3)
+const DIM_BAR := Color(1.0, 0.82, 0.22, 0.4)    # rim of a lit bar in a row the cursor is not on
+var focus := FOCUS_LIST
+var focus_frame: Panel
 const CELL_W := 280.0
 const CELL_PAD := 16.0
 const PILL_Y := 530.0
@@ -254,14 +274,49 @@ static func direction_for_key(keycode: int) -> int:
 			return 1
 	return 0
 
-## Key -> lap option step (-1 / +1), 0 for anything else.
+## Key -> lap option step (-1 / +1), 0 for anything else (W / S; the arrows move the cursor).
 static func lap_direction_for_key(keycode: int) -> int:
 	match keycode:
-		KEY_UP, KEY_W:
+		KEY_W:
 			return 1
-		KEY_DOWN, KEY_S:
+		KEY_S:
 			return -1
 	return 0
+
+## Key -> cursor row step: Up = the row above (-1), Down = the row below (+1), 0 for anything else.
+static func focus_direction_for_key(keycode: int) -> int:
+	match keycode:
+		KEY_UP:
+			return -1
+		KEY_DOWN:
+			return 1
+	return 0
+
+## Rows the cursor skips in a mode: a time trial fixes laps / CPU / engine, a battle the balloons.
+static func locked_rows(m: int) -> Array:
+	match m:
+		MODE_TT:
+			return [FOCUS_LAPS, FOCUS_CPU, FOCUS_ENGINE]
+		MODE_BATTLE:
+			return [FOCUS_LAPS]
+	return []
+
+## The row the cursor lands on stepping `dir` from `current`, wrapping round and skipping the
+## locked rows (a cursor on a row that just locked moves on too). Pure.
+static func next_focus(current: int, dir: int, locked: Array) -> int:
+	var f := current
+	for i in FOCUS_COUNT:
+		f = posmod(f + dir, FOCUS_COUNT)
+		if not locked.has(f):
+			return f
+	return current
+
+## Where the cursor frame sits for a row (stage coordinates): round the list rows, or FOCUS_PAD
+## outside an option row / the mode tabs. Pure.
+static func focus_rect(f: int) -> Rect2:
+	if f == FOCUS_LIST:
+		return FOCUS_LIST_RECT
+	return row_rect(f - 1).grow(FOCUS_PAD)
 
 ## Key -> AI difficulty step (-1 / +1), 0 for anything else.
 static func difficulty_direction_for_key(keycode: int) -> int:
@@ -324,7 +379,11 @@ static func mode_text(m: int, track_count: int) -> String:
 
 ## Next mode in the G / Tab cycle (wraps around).
 static func next_mode(m: int) -> int:
-	return posmod(m + 1, MODE_COUNT)
+	return step_mode(m, 1)
+
+## The mode `dir` tabs along (Left / Right with the cursor on the mode row; wraps around).
+static func step_mode(m: int, dir: int) -> int:
+	return posmod(m + dir, MODE_COUNT)
 
 ## Cup order for a Grand Prix: every track once, starting from the highlighted one.
 static func cup_order(first: int, track_count: int) -> Array:
@@ -390,8 +449,9 @@ func _ready() -> void:
 	list_box.position = Vector2(80, 220)
 	list_box.size = Vector2(420, 278)
 	select_box.add_child(list_box)
-	var arrows := _label(Vector2(80, 468), 13, 420, GREY)
-	arrows.text = "<  A / D  or  Left / Right  >"
+	# one line for the whole screen (MK64's screens carry no key hints; this menu has a keyboard)
+	var hint := _label(Vector2(80, 468), 13, 420, GREY)
+	hint.text = "Up / Down  pick a row     Left / Right  change it"
 	# right panel: the course picture (MK64's course select shows a picture of the course beside
 	# the map) — the demo world seen from a camera flying along the road, in a framed window — with
 	# the map outline in the picture's corner, then the name and the blurb
@@ -423,18 +483,17 @@ func _ready() -> void:
 	# cell shows all its options as a row of pills with the chosen one gold on a lit bar
 	_panel(Rect2(80, 500, 1120, 142), PANEL_FILL, PANEL_RIM, 16)
 	var captions := ["LAPS", "CPU", "ENGINE", "KART"]
-	var keys := ["W / S", "Q / E", "Z / C", "X / V"]
 	var values: Array[Label] = []
-	var key_labels: Array[Label] = []
+	var notes: Array[Label] = []
 	for i in 4:
 		var x := 80.0 + 280.0 * i
 		var cap := _label(Vector2(x + CELL_PAD, 508), 14, 140, GOLD_DIM, HORIZONTAL_ALIGNMENT_LEFT)
 		cap.text = captions[i]
+		cell_captions.append(cap)
 		if i == 0:
 			laps_caption = cap
 		var k := _label(Vector2(x + CELL_PAD, 510), 12, CELL_W - 2 * CELL_PAD, GREY, HORIZONTAL_ALIGNMENT_RIGHT)
-		k.text = keys[i]
-		key_labels.append(k)
+		notes.append(k)
 		var v := _label(Vector2(x + CELL_PAD, PILL_Y), PILL_FONT, CELL_W - 2 * CELL_PAD, CREAM)
 		v.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		values.append(v)
@@ -447,9 +506,9 @@ func _ready() -> void:
 	laps_label = values[0]
 	difficulty_label = values[1]
 	engine_label = values[2]
-	laps_keys = key_labels[0]
-	difficulty_keys = key_labels[1]
-	engine_keys = key_labels[2]
+	laps_note = notes[0]
+	difficulty_note = notes[1]
+	engine_note = notes[2]
 	# the kart cell lights a weight name and explains it underneath
 	weight_label = values[3]
 	weight_label.position = Vector2(80.0 + 280.0 * 3, BLURB_Y)
@@ -460,12 +519,22 @@ func _ready() -> void:
 	rule.size = Vector2(1088, 1)
 	rule.color = Color(1, 1, 1, 0.14)
 	select_box.add_child(rule)
-	var mode_cap := _label(Vector2(96, 606), 14, 100, GOLD_DIM, HORIZONTAL_ALIGNMENT_LEFT)
-	mode_cap.text = "MODE  (G)"
+	mode_caption = _label(Vector2(96, 606), 14, 100, GOLD_DIM, HORIZONTAL_ALIGNMENT_LEFT)
+	mode_caption.text = "MODE"
 	mode_label = _label(Vector2(MODE_BLURB_X, MODE_Y), 14, 1184 - MODE_BLURB_X, GREY, HORIZONTAL_ALIGNMENT_LEFT)
 	mode_label.size.y = MODE_H
 	mode_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	mode_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# the cursor frame (MK64's menus light the thing the stick is on), placed by _apply_focus
+	focus_frame = Panel.new()
+	focus_frame.name = "FocusFrame"
+	var focus_style := StyleBoxFlat.new()
+	focus_style.bg_color = Color.TRANSPARENT
+	focus_style.border_color = FOCUS_RIM
+	focus_style.set_border_width_all(3)
+	focus_style.set_corner_radius_all(12)
+	focus_frame.add_theme_stylebox_override("panel", focus_style)
+	select_box.add_child(focus_frame)
 	# blinking PRESS ENTER under the checkered band, like the title screen's
 	prompt = _label(Vector2(340, 674), 24, 600, GOLD)
 	prompt.text = "PRESS ENTER"
@@ -706,6 +775,8 @@ func _process(delta: float) -> void:
 		prompt.modulate.a = a
 	if title_prompt != null:
 		title_prompt.modulate.a = a * prompt_fade
+	if focus_frame != null:
+		focus_frame.modulate.a = 0.9 + 0.1 * sin(blink * 5.0)   # a gentle pulse, never faint
 
 ## Rebuild the left-hand list: one row per course / arena — a course picture (MK64's map-select
 ## thumbnails) beside the name — the highlighted one gold on a lit bar with its picture framed in
@@ -724,7 +795,7 @@ func _refresh_list(names: Array, sel: int, pictures: Array) -> void:
 			var bar := Panel.new()
 			bar.position = Vector2(16, y)
 			bar.size = Vector2(388, LIST_BAR_H)
-			bar.add_theme_stylebox_override("panel", UiStyle.lit_style(10))
+			bar.add_theme_stylebox_override("panel", bar_style(focus == FOCUS_LIST, 10))
 			list_box.add_child(bar)
 		var row := Control.new()
 		row.name = "Row%d" % i
@@ -805,6 +876,33 @@ func _refresh_options() -> void:
 	_option_row(2, [] if locked_tt else names_of(TrackLibrary.ENGINE_CLASSES), engine_class, engine_label)
 	_option_row(3, names_of(KartWeight.CLASSES), weight_class, null)
 	_option_row(4, MODE_NAMES, mode, null)
+	# a cursor left on a row the new mode locks moves down to the next live row
+	if locked_rows(mode).has(focus):
+		focus = next_focus(focus, 1, locked_rows(mode))
+	_apply_focus()
+
+## The lit bar behind a picked choice: glowing (fill + gold rim) on the row the cursor is on, a
+## dim rim alone on the others.
+static func bar_style(focused: bool, radius: int) -> StyleBoxFlat:
+	var sb := UiStyle.lit_style(radius)
+	if not focused:
+		sb.bg_color = Color(GOLD, 0.07)
+		sb.border_color = DIM_BAR
+	return sb
+
+## Put the cursor frame round the focused row and light that row's caption.
+func _apply_focus() -> void:
+	if focus_frame != null:
+		var r := focus_rect(focus)
+		focus_frame.position = r.position
+		focus_frame.size = r.size
+		select_box.move_child(focus_frame, -1)
+	for i in cell_captions.size():
+		cell_captions[i].add_theme_color_override("font_color", GOLD if focus == FOCUS_LAPS + i else GOLD_DIM)
+	if mode_caption != null:
+		mode_caption.add_theme_color_override("font_color", GOLD if focus == FOCUS_MODE else GOLD_DIM)
+	if list_caption != null:
+		list_caption.add_theme_color_override("font_color", GOLD if focus == FOCUS_LIST else GOLD_DIM)
 
 ## One row of choice pills: the picked choice gold on a lit bar — the cell's own value label when
 ## it has one, so the checks keep reading laps_label / difficulty_label / engine_label — and the
@@ -832,7 +930,7 @@ func _option_row(slot: int, names: Array, active: int, value_label: Label) -> vo
 			var bar := Panel.new()
 			bar.position = slot_rect.position + Vector2(2, 0)
 			bar.size = slot_rect.size - Vector2(4, 0)
-			bar.add_theme_stylebox_override("panel", UiStyle.lit_style(8))
+			bar.add_theme_stylebox_override("panel", bar_style(focus == FOCUS_LAPS + slot, 8))
 			row.add_child(bar)
 			if value_label != null:
 				value_label.position = rect.position + slot_rect.position
@@ -866,15 +964,14 @@ func _refresh() -> void:
 		laps_label.text = laps_text(TimeTrial.LAPS)
 		difficulty_label.text = "None"
 		engine_label.text = engine_text(TimeTrial.ENGINE_CLASS)
-		for k in [laps_keys, difficulty_keys, engine_keys]:
+		for k in [laps_note, difficulty_note, engine_note]:
 			_set_text(k, "Time Trial")
 	else:
 		laps_label.text = laps_text(laps)
 		difficulty_label.text = difficulty_text(difficulty)
 		engine_label.text = engine_text(engine_class)
-		_set_text(laps_keys, "W / S")
-		_set_text(difficulty_keys, "Q / E")
-		_set_text(engine_keys, "Z / C")
+		for k in [laps_note, difficulty_note, engine_note]:
+			_set_text(k, "")
 	mode_label.text = mode_text(mode, TrackLibrary.count())
 	weight_label.text = weight_text(weight_class)
 	bg.color = info.sky_top.darkened(0.45)
@@ -900,11 +997,11 @@ func _refresh_battle() -> void:
 	index_label.text = counter_text(arena_selected, ArenaData.arena_count())
 	blurb_label.text = info.blurb
 	laps_label.text = "%d" % Battle.BALLOONS
-	_set_text(laps_keys, "Battle")
+	_set_text(laps_note, "Battle")
 	difficulty_label.text = difficulty_text(difficulty)
 	engine_label.text = engine_text(engine_class)
-	_set_text(difficulty_keys, "Q / E")
-	_set_text(engine_keys, "Z / C")
+	_set_text(difficulty_note, "")
+	_set_text(engine_note, "")
 	mode_label.text = mode_text(mode, TrackLibrary.count())
 	weight_label.text = weight_text(weight_class)
 	bg.color = info.sky_top.darkened(0.45)
@@ -943,9 +1040,35 @@ func move_difficulty(dir: int) -> void:
 
 ## Step the mode: Single Race -> Grand Prix -> Time Trial -> Battle -> Single Race.
 func toggle_mode() -> void:
-	mode = next_mode(mode)
+	move_mode(1)
+
+## Step the mode either way (Left / Right with the cursor on the mode tabs).
+func move_mode(dir: int) -> void:
+	mode = step_mode(mode, dir)
 	_sound("option")
 	_refresh()
+
+## Up / Down: move the cursor to the next live row (wrapping, skipping the locked ones).
+func move_focus(dir: int) -> void:
+	focus = next_focus(focus, dir, locked_rows(mode))
+	_sound("cursor")
+	_refresh()
+
+## Left / Right: change whatever row the cursor is on.
+func move_focused(dir: int) -> void:
+	match focus:
+		FOCUS_LAPS:
+			move_laps(dir)
+		FOCUS_CPU:
+			move_difficulty(dir)
+		FOCUS_ENGINE:
+			move_engine(dir)
+		FOCUS_KART:
+			move_weight(dir)
+		FOCUS_MODE:
+			move_mode(dir)
+		_:
+			move(dir)
 
 ## Change the engine class (wraps around 50cc / 100cc / 150cc / Extra).
 func move_engine(dir: int) -> void:
@@ -990,12 +1113,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		if is_confirm_key(event.physical_keycode):
 			dismiss_title()
 		return
+	# the cursor keys first (MK64: one stick), then the shortcut keys
+	var fd := focus_direction_for_key(event.physical_keycode)
 	var d := direction_for_key(event.physical_keycode)
 	var ld := lap_direction_for_key(event.physical_keycode)
 	var dd := difficulty_direction_for_key(event.physical_keycode)
 	var ed := engine_direction_for_key(event.physical_keycode)
 	var wd := weight_direction_for_key(event.physical_keycode)
-	if is_mode_key(event.physical_keycode):
+	if fd != 0:
+		move_focus(fd)
+	elif d != 0:
+		move_focused(d)
+	elif is_mode_key(event.physical_keycode):
 		toggle_mode()
 	elif dd != 0:
 		move_difficulty(dd)
@@ -1003,8 +1132,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		move_engine(ed)
 	elif wd != 0:
 		move_weight(wd)
-	elif d != 0:
-		move(d)
 	elif ld != 0:
 		move_laps(ld)
 	elif is_confirm_key(event.physical_keycode):

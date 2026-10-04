@@ -109,8 +109,8 @@ func test_menu_keys() -> void:
 	runner.check(Menu.is_confirm_key(KEY_ENTER) and Menu.is_confirm_key(KEY_KP_ENTER))
 	runner.check(not Menu.is_confirm_key(KEY_A) and not Menu.is_confirm_key(KEY_SPACE))
 	runner.check(Menu.counter_text(0, 2) == "< 1 / 2 >")
-	runner.check(Menu.lap_direction_for_key(KEY_W) == 1 and Menu.lap_direction_for_key(KEY_UP) == 1)
-	runner.check(Menu.lap_direction_for_key(KEY_S) == -1 and Menu.lap_direction_for_key(KEY_DOWN) == -1)
+	runner.check(Menu.lap_direction_for_key(KEY_W) == 1 and Menu.lap_direction_for_key(KEY_UP) == 0, "W raises laps; Up moves the cursor")
+	runner.check(Menu.lap_direction_for_key(KEY_S) == -1 and Menu.lap_direction_for_key(KEY_DOWN) == 0, "S lowers laps; Down moves the cursor")
 	runner.check(Menu.lap_direction_for_key(KEY_A) == 0 and Menu.lap_direction_for_key(KEY_ENTER) == 0)
 	runner.check(Menu.laps_text(5).contains("5"))
 
