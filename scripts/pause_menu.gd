@@ -165,7 +165,7 @@ func open() -> void:
 	_apply_cursor()
 	_apply_pop()
 	visible = true
-	get_tree().paused = true
+	_set_paused(true)
 	_play("pause")
 
 ## Back to the race exactly where it stopped.
@@ -174,7 +174,7 @@ func resume() -> void:
 		return
 	shown = false
 	visible = false
-	get_tree().paused = false
+	_set_paused(false)
 	_play("resume")
 
 func move(dir: int) -> void:
@@ -192,7 +192,7 @@ func pick(option: int) -> void:
 			# the same race from the grid, with its course intro, nothing scored (a cup keeps its points)
 			_play("confirm")
 			_hand_over_voice()
-			get_tree().paused = false
+			_set_paused(false)
 			shown = false
 			CourseIntro.pending = true
 			get_tree().reload_current_scene()
@@ -205,12 +205,17 @@ func pick(option: int) -> void:
 func _leave(to_title: bool) -> void:
 	_play("confirm")
 	_hand_over_voice()
-	get_tree().paused = false
+	_set_paused(false)
 	shown = false
 	GrandPrix.stop()
 	if to_title:
 		load(MENU_SCRIPT).title_seen = false
 	get_tree().change_scene_to_file(MENU_SCENE)
+
+## The whole tree under this layer freezes / goes on (unit tests drive the panel outside the tree).
+func _set_paused(on: bool) -> void:
+	if is_inside_tree():
+		get_tree().paused = on
 
 ## The chime outlives the scene change: the voice moves to the scene root and frees itself.
 func _hand_over_voice() -> void:
