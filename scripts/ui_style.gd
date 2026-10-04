@@ -63,6 +63,16 @@ static func style_label3d(l: Label3D, font_size: int, col: Color, rim: Color) ->
 static func board_rim(board: Color) -> Color:
 	return board.darkened(0.55)
 
+## Lit gold bar behind the highlighted choice (the course list row, an option pill): a translucent
+## gold fill with a thin gold rim.
+static func lit_style(radius := 10) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(GOLD, 0.22)
+	sb.border_color = GOLD
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(radius)
+	return sb
+
 ## Navy panel with a gold rim and a soft shadow (menu panels, results table).
 static func panel_style(fill := PANEL_FILL, rim := PANEL_RIM, radius := 16) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()

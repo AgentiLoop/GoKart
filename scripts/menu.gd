@@ -77,6 +77,24 @@ var engine_keys: Label
 var prompt: Label              # blinking PRESS ENTER
 var title_box: Control
 var blink := 0.0
+## Option rows (MK64 Select Mode idiom): every choice of a cell in a row of pills, the picked one
+## gold on a lit bar. Rebuilt on every refresh; index 0-3 = the cells, 4 = the mode tabs.
+var option_rows: Array = [null, null, null, null, null]
+const CELL_W := 280.0
+const CELL_PAD := 16.0
+const PILL_Y := 530.0
+const PILL_H := 32.0
+const PILL_FONT := 19
+const BLURB_Y := 566.0
+const BLURB_FONT := 12
+const MODE_X := 200.0          # mode tabs start here, 4 x MODE_TAB_W, the mode blurb to the right
+const MODE_TAB_W := 150.0
+const MODE_BLURB_X := 816.0
+const MODE_Y := 598.0
+const MODE_H := 32.0
+const MODE_NAMES := ["SINGLE RACE", "GRAND PRIX", "TIME TRIAL", "BATTLE"]
+const LOCKED := Color(0.72, 0.76, 0.86, 0.8)     # a fixed value (time trial laps / engine, battle balloons)
+const UNLIT := Color(0.98, 0.97, 0.92, 0.55)     # a choice that is not picked
 ## Title screen: the logo over the attract demo. Shown once per launch; Esc from a race comes back
 ## to the select screen instead.
 var attract = null             # Attract (SubViewportContainer) under everything but bg
@@ -276,47 +294,56 @@ func _ready() -> void:
 	blurb_label.size.y = 130
 	blurb_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	index_label = _label(Vector2(870, 452), 17, 316, GREY, HORIZONTAL_ALIGNMENT_LEFT)
-	# option cells
-	_panel(Rect2(80, 512, 1120, 128), PANEL_FILL, PANEL_RIM, 16)
+	# option cells: MK64 lists every choice and lights the picked one (Select Mode screen), so each
+	# cell shows all its options as a row of pills with the chosen one gold on a lit bar
+	_panel(Rect2(80, 500, 1120, 142), PANEL_FILL, PANEL_RIM, 16)
 	var captions := ["LAPS", "CPU", "ENGINE", "KART"]
 	var keys := ["W / S", "Q / E", "Z / C", "X / V"]
 	var values: Array[Label] = []
 	var key_labels: Array[Label] = []
 	for i in 4:
 		var x := 80.0 + 280.0 * i
-		var cap := _label(Vector2(x, 520), 14, 280, GOLD_DIM)
+		var cap := _label(Vector2(x + CELL_PAD, 508), 14, 140, GOLD_DIM, HORIZONTAL_ALIGNMENT_LEFT)
 		cap.text = captions[i]
 		if i == 0:
 			laps_caption = cap
-		values.append(_label(Vector2(x, 540), 25, 280, CREAM))
-		var k := _label(Vector2(x, 574), 12, 280, GREY)
+		var k := _label(Vector2(x + CELL_PAD, 510), 12, CELL_W - 2 * CELL_PAD, GREY, HORIZONTAL_ALIGNMENT_RIGHT)
 		k.text = keys[i]
 		key_labels.append(k)
+		var v := _label(Vector2(x + CELL_PAD, PILL_Y), PILL_FONT, CELL_W - 2 * CELL_PAD, CREAM)
+		v.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		values.append(v)
 		if i > 0:
 			var sep := ColorRect.new()
-			sep.position = Vector2(x, 524)
-			sep.size = Vector2(1, 62)
+			sep.position = Vector2(x, 512)
+			sep.size = Vector2(1, 70)
 			sep.color = Color(1, 1, 1, 0.14)
 			select_box.add_child(sep)
 	laps_label = values[0]
 	difficulty_label = values[1]
 	engine_label = values[2]
-	weight_label = values[3]
 	laps_keys = key_labels[0]
 	difficulty_keys = key_labels[1]
 	engine_keys = key_labels[2]
+	# the kart cell lights a weight name and explains it underneath
+	weight_label = values[3]
+	weight_label.position = Vector2(80.0 + 280.0 * 3, BLURB_Y)
+	weight_label.size = Vector2(CELL_W, 18)
+	UiStyle.style_label(weight_label, font, BLURB_FONT, GREY)
 	var rule := ColorRect.new()
-	rule.position = Vector2(96, 596)
+	rule.position = Vector2(96, 590)
 	rule.size = Vector2(1088, 1)
 	rule.color = Color(1, 1, 1, 0.14)
 	select_box.add_child(rule)
-	var mode_cap := _label(Vector2(96, 607), 14, 120, GOLD_DIM, HORIZONTAL_ALIGNMENT_LEFT)
+	var mode_cap := _label(Vector2(96, 606), 14, 100, GOLD_DIM, HORIZONTAL_ALIGNMENT_LEFT)
 	mode_cap.text = "MODE  (G)"
-	mode_label = _label(Vector2(216, 603), 21, 760, CREAM, HORIZONTAL_ALIGNMENT_LEFT)
-	prompt = _label(Vector2(960, 603), 21, 224, GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+	mode_label = _label(Vector2(MODE_BLURB_X, MODE_Y), 14, 1184 - MODE_BLURB_X, GREY, HORIZONTAL_ALIGNMENT_LEFT)
+	mode_label.size.y = MODE_H
+	mode_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	mode_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# blinking PRESS ENTER under the checkered band, like the title screen's
+	prompt = _label(Vector2(340, 674), 24, 600, GOLD)
 	prompt.text = "PRESS ENTER"
-	var hint := _label(Vector2(40, 676), 14, 1200, GREY)
-	hint.text = "Left / Right: course     Up / Down: laps     Q / E: cpu     Z / C: engine     X / V: kart     G: mode     Enter: race"
 	# the logo sits above the panels; the title prompt only shows on the title screen
 	_build_title()
 	title_prompt = Label.new()
@@ -413,12 +440,7 @@ func _refresh_list(names: Array, sel: int) -> void:
 			var bar := Panel.new()
 			bar.position = Vector2(16, y)
 			bar.size = Vector2(388, 44)
-			var sb := StyleBoxFlat.new()
-			sb.bg_color = Color(1.0, 0.82, 0.22, 0.22)
-			sb.border_color = GOLD
-			sb.set_border_width_all(2)
-			sb.set_corner_radius_all(10)
-			bar.add_theme_stylebox_override("panel", sb)
+			bar.add_theme_stylebox_override("panel", UiStyle.lit_style(10))
 			list_box.add_child(bar)
 		var row := Label.new()
 		row.position = Vector2(60, y + 5)
@@ -444,6 +466,80 @@ func _refresh_list(names: Array, sel: int) -> void:
 func _set_text(l: Label, text: String) -> void:
 	if l != null:
 		l.text = text
+
+## Choice lists for the option rows (pure data, shared with the tests).
+static func lap_names() -> Array:
+	var out: Array = []
+	for n in TrackLibrary.LAP_OPTIONS:
+		out.append(laps_text(n))
+	return out
+
+static func names_of(classes: Array) -> Array:
+	var out: Array = []
+	for c in classes:
+		out.append(c.name)
+	return out
+
+## Where a row of choice pills sits: slots 0-3 inside the option cells, 4 = the mode tab strip.
+static func row_rect(slot: int) -> Rect2:
+	if slot == 4:
+		return Rect2(MODE_X, MODE_Y, MODE_TAB_W * MODE_NAMES.size(), MODE_H)
+	return Rect2(80.0 + CELL_W * slot + CELL_PAD, PILL_Y, CELL_W - 2 * CELL_PAD, PILL_H)
+
+## Rebuild the five option rows for the current state. A locked cell (time trial laps / CPU /
+## engine, battle balloons) shows its fixed value alone in grey instead of a row of choices.
+func _refresh_options() -> void:
+	if select_box == null:
+		return
+	var locked_laps := mode == MODE_TT or mode == MODE_BATTLE
+	var locked_tt := mode == MODE_TT
+	_option_row(0, [] if locked_laps else lap_names(), TrackLibrary.LAP_OPTIONS.find(laps), laps_label)
+	_option_row(1, [] if locked_tt else names_of(TrackLibrary.DIFFICULTIES), difficulty, difficulty_label)
+	_option_row(2, [] if locked_tt else names_of(TrackLibrary.ENGINE_CLASSES), engine_class, engine_label)
+	_option_row(3, names_of(KartWeight.CLASSES), weight_class, null)
+	_option_row(4, MODE_NAMES, mode, null)
+
+## One row of choice pills: the picked choice gold on a lit bar — the cell's own value label when
+## it has one, so the checks keep reading laps_label / difficulty_label / engine_label — and the
+## others dim cream. An empty list parks the value label alone across the row in the locked colour.
+func _option_row(slot: int, names: Array, active: int, value_label: Label) -> void:
+	var old = option_rows[slot]
+	if old != null:
+		select_box.remove_child(old)
+		old.queue_free()
+	var rect := row_rect(slot)
+	var row := Control.new()
+	row.position = rect.position
+	row.size = rect.size
+	select_box.add_child(row)
+	option_rows[slot] = row
+	if value_label != null:
+		value_label.position = rect.position
+		value_label.size = rect.size
+		value_label.add_theme_color_override("font_color", LOCKED)
+		select_box.move_child(value_label, -1)
+	var w := rect.size.x / maxi(names.size(), 1)
+	for i in names.size():
+		var slot_rect := Rect2(Vector2(w * i, 0), Vector2(w, rect.size.y))
+		if i == active:
+			var bar := Panel.new()
+			bar.position = slot_rect.position + Vector2(2, 0)
+			bar.size = slot_rect.size - Vector2(4, 0)
+			bar.add_theme_stylebox_override("panel", UiStyle.lit_style(8))
+			row.add_child(bar)
+			if value_label != null:
+				value_label.position = rect.position + slot_rect.position
+				value_label.size = slot_rect.size
+				value_label.add_theme_color_override("font_color", GOLD)
+				continue
+		var l := Label.new()
+		l.position = slot_rect.position
+		l.size = slot_rect.size
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		l.text = names[i]
+		UiStyle.style_label(l, font, PILL_FONT, GOLD if i == active else UNLIT)
+		row.add_child(l)
 
 func _refresh() -> void:
 	if mode == MODE_BATTLE:
@@ -485,6 +581,7 @@ func _refresh() -> void:
 	preview.setup(data.points, PREVIEW_AREA, data.rail)
 	if attract != null:
 		attract.show_course(selected, mirror)
+	_refresh_options()
 
 ## Battle mode: Left/Right pick the arena instead of a track; balloons replace laps.
 func _refresh_battle() -> void:
@@ -511,6 +608,7 @@ func _refresh_battle() -> void:
 		names.append(ArenaData.info(i).name)
 	_refresh_list(names, arena_selected)
 	preview.setup(ArenaData.make(arena_selected).outline(), PREVIEW_AREA)
+	_refresh_options()
 
 ## Change the highlighted track (wraps around); the arena in battle mode.
 func move(dir: int) -> void:

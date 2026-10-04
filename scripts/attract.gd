@@ -45,8 +45,9 @@ static func chase_pose(pos: Vector3, heading: float) -> Vector3:
 static func next_target(current: int, count: int) -> int:
 	return posmod(current + 1, maxi(count, 1))
 
-func _ready() -> void:
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+## The viewport is built in _init so the menu can hand it a course as soon as it is created (also
+## headless, where a child added during _initialize gets no _ready); the rect is fitted in _ready.
+func _init() -> void:
 	stretch = true
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	viewport = SubViewport.new()
@@ -54,6 +55,9 @@ func _ready() -> void:
 	viewport.handle_input_locally = false
 	viewport.msaa_3d = Viewport.MSAA_4X
 	add_child(viewport)
+
+func _ready() -> void:
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 ## Run the demo on course i (mirrored for the Extra class); rebuilds the world only on a change.
 func show_course(i: int, mirror := false) -> void:
