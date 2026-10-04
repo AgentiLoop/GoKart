@@ -198,9 +198,11 @@ func _build() -> void:
 	_rod_tip = Node3D.new()
 	_rod_tip.position = Vector3(0.3, 1.8, 1.8)
 	add_child(_rod_tip)
-	# start signal: a dark box with three lamps, red / red / blue
+	# start signal: a dark box with three lamps, red / red / blue. Lakitu's node faces away from the
+	# player (rotation.y = heading + PI), so the signal is turned 180° to point its lamps at the racer.
 	_signal = Node3D.new()
 	_signal.position = Vector3(0, -1.6, 0)
+	_signal.rotation.y = PI
 	_rod_tip.add_child(_signal)
 	_box(_signal, Vector3(0.6, 1.7, 0.25), Vector3(0, 0, 0), Color(0.12, 0.12, 0.14))
 	for i in 3:
