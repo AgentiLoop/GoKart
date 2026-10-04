@@ -1,6 +1,7 @@
 extends RefCounted
 ## Procedural course music, Mario Kart 64 style: every course has its own tune, the battle arenas
-## share one and the Star has its own theme. Each song is a short three-voice chiptune loop (lead,
+## share one, the Star has its own theme, and the title screen and the select screens each have
+## their own tune like MK64's "Title" and "Selection Screens" (keys "title" / "menu"). Each song is a short three-voice chiptune loop (lead,
 ## bass, drums) written as step patterns and rendered to a looping AudioStreamWAV through
 ## SoundSynth — no audio files, like the sound effects. The race scene speeds the loop up on the
 ## final lap (pitch_scale), as MK64 does.
@@ -55,6 +56,18 @@ const SONGS := {
 		"lead": "G5 B5 D6 B5 G5 B5 D6 . | A5 C6 E6 C6 A5 C6 E6 . | B5 D6 G6 D6 B5 D6 G6 . | D6 . C6 . A5 . . .",
 		"bass": "G3 - D3 - G3 - D3 - | A3 - E3 - A3 - E3 - | G3 - D3 - B3 - D3 - | D3 - A3 - D3 - - -",
 		"drums": "x h s h x h s h | x h s h x h s h | x h s h x h s h | x h s h x - - -",
+	},
+	"title": {   # the title screen: a brassy, syncopated fanfare over a marching bass (MK64's title tune)
+		"bpm": 140,
+		"lead": "C5 . G4 . C5 . E5 . | G5 . . . E5 G5 C6 . | A5 . G5 . E5 . C5 . | D5 . E5 D5 . . - - | C5 . G4 . C5 . E5 . | G5 . . . A5 G5 F5 . | E5 . G5 . C6 . B5 . | C6 . . . . . - -",
+		"bass": "C3 - C3 - G2 - G2 - | C3 - C3 - E3 - G3 - | F3 - F3 - C3 - C3 - | G2 - G2 - B2 - D3 - | C3 - C3 - G2 - G2 - | C3 - C3 - F3 - F3 - | A2 - A2 - G2 - G2 - | C3 - G2 - C3 - - -",
+		"drums": "x h s h x h s h | x h s h x h s h | x h s h x h s h | x h s h x h s h | x h s h x h s h | x h s h x h s h | x h s h x h s h | x - s - x - - -",
+	},
+	"menu": {   # the select screens: a two-bar bass ostinato in B flat with brief licks on top (MK64's Selection Screens)
+		"bpm": 112,
+		"lead": "- - - - - - - - | - - - - F5 G5 Bb5 . | - - - - - - - - | D6 . C6 Bb5 . . - - | - - - - - - - - | - - - - Bb5 C6 D6 . | F6 . Eb6 D6 . C6 . . | Bb5 . . . - - - -",
+		"bass": "Bb2 - Bb2 F2 Bb2 - D3 F3 | Eb3 - Eb3 Bb2 F2 - F2 A2 | Bb2 - Bb2 F2 Bb2 - D3 F3 | Eb3 - Eb3 Bb2 F2 - F2 A2 | Bb2 - Bb2 F2 Bb2 - D3 F3 | Eb3 - Eb3 Bb2 F2 - F2 A2 | Bb2 - Bb2 F2 Bb2 - D3 F3 | Eb3 - Eb3 Bb2 F2 - F2 A2",
+		"drums": "x - h - s - h - | x - h - s - h - | x - h - s - h - | x - h - s - h - | x - h - s - h - | x - h - s - h - | x - h - s - h - | x - h - s - - -",
 	},
 }
 

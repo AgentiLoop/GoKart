@@ -153,4 +153,7 @@ static func effect_library() -> Dictionary:
 		"finish_ok": arpeggio([659.0, 784.0, 659.0, 784.0, 880.0], 0.12, 0.5),          # 2nd - 4th
 		"finish_out": arpeggio([659.0, 587.0, 523.0, 494.0, 440.0], 0.18, 0.45),        # 5th or worse: a sagging fanfare
 		"final_lap": arpeggio([523.0, 659.0, 784.0, 1047.0, 784.0, 1047.0, 1319.0], 0.075, 0.5),   # MK64 "Final Lap!" jingle
+		"cursor": sweep(1400.0, 1900.0, 0.05, 0.35),      # menu: the cursor moves to another course
+		"option": sweep(900.0, 1300.0, 0.06, 0.35),       # menu: an option / the mode changes
+		"confirm": arpeggio([1047.0, 1319.0, 1568.0, 2093.0], 0.08, 0.45),   # menu: Enter (leave the title, start the race)
 	}

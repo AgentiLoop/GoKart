@@ -8,6 +8,8 @@ extends Control
 ## the demo still running dimmed behind it.
 ## Text uses drop shadows instead of thick black outlines; only the logo's letters — set on an arch,
 ## shaded yellow to red, standing out of a navy extrusion like MK64's 3D block letters — have a rim.
+## Sound (MenuAudio): the title theme under the title screen, the select theme under the select
+## screen, a tick for the cursor / an option, a chime for Enter.
 ## Left/Right (A/D) pick the track and Enter/Space races it; selection is stored in
 ## TrackLibrary.selected and Esc during a race comes back here (to the select screen).
 ## G / Tab cycles the mode: Single Race -> Grand Prix (every track in turn, MK64-style cup points)
@@ -25,6 +27,7 @@ const RaceMain := preload("res://scripts/main.gd")
 const Minimap := preload("res://scripts/minimap.gd")
 const KartWeight := preload("res://scripts/kart_weight.gd")
 const Attract := preload("res://scripts/attract.gd")
+const MenuAudio := preload("res://scripts/menu_audio.gd")
 const RACE_SCENE := "res://scenes/main.tscn"
 const BATTLE_SCENE := "res://scenes/battle.tscn"
 
@@ -114,6 +117,7 @@ var picture_cache: Dictionary = {}   # "t<i>:<mirror>" / "a<i>" -> {"points", "t
 ## Title screen: the logo over the attract demo. Shown once per launch; Esc from a race comes back
 ## to the select screen instead.
 var attract = null             # Attract (SubViewportContainer) under everything but bg
+var audio = null               # MenuAudio: title / select tunes and the menu sounds
 var select_box: Control        # every select-screen panel and label (hidden on the title screen)
 var title_prompt: Label        # PRESS ENTER on the title screen
 var title_shown := false
@@ -332,6 +336,8 @@ func _ready() -> void:
 	# the live race behind everything (MK64 title screen), then the shade, then the 2D layout
 	attract = Attract.new()
 	add_child(attract)
+	audio = MenuAudio.new()
+	add_child(audio)
 	backdrop = Backdrop.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(backdrop)
@@ -462,11 +468,19 @@ func set_title(on: bool) -> void:
 		title_box.scale = Vector2.ONE * (TITLE_LOGO_SCALE if on else 1.0)
 	if backdrop != null:
 		backdrop.set_dim(0.0 if on else 1.0)
+	if audio != null:
+		audio.set_title(on)
 
 ## Leave the title screen for the select screen (any key).
 func dismiss_title() -> void:
 	if title_shown:
 		set_title(false)
+		_sound("confirm")
+
+## A menu sound effect (MenuAudio), when the menu has its audio node.
+func _sound(effect: String) -> void:
+	if audio != null:
+		audio.play(effect)
 
 ## Where a logo letter whose centre is `centre_x` from the word's middle sits on the arch: how far
 ## it drops below the crown and the tilt that follows the arc (negative = leaning left). Pure.
@@ -777,34 +791,44 @@ func move(dir: int) -> void:
 		arena_selected = ArenaData.step(arena_selected, dir)
 	else:
 		selected = TrackLibrary.step(selected, dir)
+	_sound("cursor")
 	_refresh()
 
 ## Change the lap count (wraps around the available options).
 func move_laps(dir: int) -> void:
 	laps = TrackLibrary.step_laps(laps, dir)
+	_sound("option")
 	_refresh()
 
 ## Change the AI difficulty (wraps around Easy / Medium / Hard).
 func move_difficulty(dir: int) -> void:
 	difficulty = TrackLibrary.step_difficulty(difficulty, dir)
+	_sound("option")
 	_refresh()
 
 ## Step the mode: Single Race -> Grand Prix -> Time Trial -> Battle -> Single Race.
 func toggle_mode() -> void:
 	mode = next_mode(mode)
+	_sound("option")
 	_refresh()
 
 ## Change the engine class (wraps around 50cc / 100cc / 150cc / Extra).
 func move_engine(dir: int) -> void:
 	engine_class = TrackLibrary.step_engine(engine_class, dir)
+	_sound("option")
 	_refresh()
 
 ## Change the kart weight class (wraps around Light / Medium / Heavy).
 func move_weight(dir: int) -> void:
 	weight_class = KartWeight.step(weight_class, dir)
+	_sound("option")
 	_refresh()
 
+## Enter: the confirm chime and the tune are handed to the scene root (they outlive the menu),
+## then the race / battle scene loads.
 func start_race() -> void:
+	if audio != null:
+		audio.leave()
 	TrackLibrary.selected = selected
 	TrackLibrary.difficulty = difficulty
 	TrackLibrary.engine_class = engine_class
