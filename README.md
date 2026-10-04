@@ -12,7 +12,7 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 
 ![The select screen: the course list with a picture beside each course, a live picture of the course flown along the road with the map outline in its corner, the option rows — every choice listed, the picked one lit — and the player's kart turning in its portrait window, over the dimmed demo](assets/screenshots/title-menu.png)
 
-![The course intro: the camera flies along the road before the countdown while the course name card sits in the corner as a gold sign](assets/screenshots/course-intro.png)
+![The course intro for Dusty Canyon: the camera flies over the desert road before the countdown while the course name card sits in the corner as a gold sign](assets/screenshots/course-intro.png)
 
 ![The pause screen: Esc freezes the race under a navy / gold panel — CONTINUE, RETRY, COURSE CHANGE, QUIT](assets/screenshots/pause.png)
 
@@ -31,6 +31,8 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 ![The results board after a race: colour swatches, gold / silver / bronze places, the player's row lit](assets/screenshots/race-results.png)
 
 ![Grand Prix results with the cup standings side by side and the trophy](assets/screenshots/gp-results.png)
+
+![Battle mode: four karts on their start pads with three balloons each and Lakitu's start signal overhead](assets/screenshots/battle.png)
 
 ![A green shell in the MK64 style item window during the countdown](assets/screenshots/item-window.png)
 
