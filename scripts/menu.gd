@@ -30,6 +30,7 @@ const Minimap := preload("res://scripts/minimap.gd")
 const KartWeight := preload("res://scripts/kart_weight.gd")
 const Attract := preload("res://scripts/attract.gd")
 const MenuAudio := preload("res://scripts/menu_audio.gd")
+const CourseIntro := preload("res://scripts/course_intro.gd")
 const RACE_SCENE := "res://scenes/main.tscn"
 const BATTLE_SCENE := "res://scenes/battle.tscn"
 
@@ -1173,6 +1174,7 @@ func start_race() -> void:
 		GrandPrix.start(cup_order(selected, TrackLibrary.count()), RaceMain.RACER_COUNT)
 	else:
 		GrandPrix.stop()
+	CourseIntro.pending = true   # MK64: the race opens with a fly-over of the course under its name
 	get_tree().change_scene_to_file(RACE_SCENE)
 
 func _unhandled_input(event: InputEvent) -> void:

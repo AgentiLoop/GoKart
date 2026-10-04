@@ -33,6 +33,7 @@ const Moles := preload("res://scripts/moles.gd")
 const Molehills := preload("res://scripts/molehills.gd")
 const Snowmen := preload("res://scripts/snowmen.gd")
 const Snowfield := preload("res://scripts/snowfield.gd")
+const CourseIntro := preload("res://scripts/course_intro.gd")
 
 ## Seconds after the player crosses the line before the results panel appears.
 const RESULTS_DELAY := 2.0
@@ -106,6 +107,9 @@ const SNOWMAN_COLOR := Color(0.92, 0.95, 1.0)
 var recording = null
 var ghost = null
 var tt_result := {}
+## MK64 course intro: seconds into the fly-over (-1 once the countdown is running); the countdown
+## waits for it, Enter / the throttle skip it.
+var intro_t := -1.0
 
 func _ready() -> void:
 	var env := WorldEnvironment.new()
@@ -243,6 +247,13 @@ func _ready() -> void:
 		hud.show_cup(TimeTrial.hud_text(_track_name()))
 	else:
 		hud.show_cup(GrandPrix.race_label() if GrandPrix.active else "")
+	if CourseIntro.pending:
+		# from the menu (or on to the next cup race): the camera flies over the course under the
+		# course's name card before the countdown; tools that load the scene directly skip it
+		CourseIntro.pending = false
+		intro_t = 0.0
+		hud.show_intro(_track_name(), CourseIntro.caption(GrandPrix.race_label() if GrandPrix.active else "", time_trial, engine.name, laps))
+		_fly_camera()
 	audio = GameAudio.new()
 	add_child(audio)
 	audio.setup(kart, items)
@@ -289,6 +300,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if results_shown and event is InputEventKey and event.pressed and not event.echo \
 			and (event.physical_keycode == KEY_ENTER or event.physical_keycode == KEY_KP_ENTER):
+		CourseIntro.pending = true   # the next race (same course again or the next cup race) opens with its intro
 		if GrandPrix.active:
 			if GrandPrix.retry:
 				# MK64: ranked out (5th or worse) — the same race is run again, nothing scored
@@ -303,13 +315,22 @@ func _unhandled_input(event: InputEvent) -> void:
 				get_tree().change_scene_to_file("res://scenes/menu.tscn")
 			return
 		get_tree().reload_current_scene()
+	if intro_t >= 0.0 and event is InputEventKey and event.pressed and not event.echo \
+			and (event.physical_keycode == KEY_ENTER or event.physical_keycode == KEY_KP_ENTER):
+		_end_intro()   # MK64: Start skips the course intro
 
 func _back() -> Vector3:
 	return Vector3(sin(kart.heading), 0, cos(kart.heading))
 
 func _physics_process(delta: float) -> void:
 	var data: TrackData = track.data
-	race_start.update(delta, Input.is_action_pressed("accelerate"))
+	if intro_t >= 0.0:
+		# the course intro: the countdown waits, the throttle skips the fly-over
+		intro_t += delta
+		if CourseIntro.finished(intro_t, Input.is_action_pressed("accelerate")):
+			_end_intro()
+	else:
+		race_start.update(delta, Input.is_action_pressed("accelerate"))
 	if railway != null:
 		railway.update_train(delta)
 	if highway != null and race_start.started:
@@ -451,7 +472,7 @@ func _physics_process(delta: float) -> void:
 			else:
 				hud.show_results(RaceResults.table_text(rows, 0))
 	hud.update_hud(tracker, kart.model.speed, kart.model.is_boosting(), kart.model.drift_level, items.holder.display_item(items.time), Hud.place_text(place, karts.size()), kart.model.is_star(), kart.model.is_shrunk(), items.holder.charges, items.holder.golden_time, kart.model.is_ghost())
-	hud.show_countdown(race_start.label())
+	hud.show_countdown(race_start.label() if intro_t < 0.0 else "")
 	var marker_pos: Array = []
 	var marker_col: Array = []
 	for k in karts:
@@ -497,7 +518,26 @@ func _finish_time_trial() -> void:
 func _track_name() -> String:
 	return TrackLibrary.info(TrackLibrary.selected).name
 
+## The intro's fly-over camera for the current moment of the intro.
+func _fly_camera() -> void:
+	var pose := CourseIntro.cam_pose(maxf(intro_t, 0.0), track.data.points, track.data.spacing)
+	cam.look_at_from_position(pose.pos, pose.look)
+
+## The intro is over (or skipped): the HUD comes back, the camera cuts to its spot behind the
+## player and the countdown starts from the next physics frame.
+func _end_intro() -> void:
+	if intro_t < 0.0:
+		return
+	intro_t = -1.0
+	hud.end_intro()
+	cam.look_at_from_position(kart.global_position + _back() * 6.0 + Vector3(0, 3.0, 0), kart.global_position + Vector3(0, 1.0, 0))
+
 func _process(delta: float) -> void:
+	if intro_t >= 0.0:
+		_fly_camera()
+		var card := CourseIntro.card_pose(intro_t)
+		hud.intro_pose(card.alpha, card.y)
+		return
 	var target := kart.global_position + _back() * 6.0 + Vector3(0, 3.0, 0)
 	cam.global_position = cam.global_position.lerp(target, clampf(6.0 * delta, 0.0, 1.0))
 	cam.look_at(kart.global_position + Vector3(0, 1.0, 0))

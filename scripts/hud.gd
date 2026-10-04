@@ -48,6 +48,13 @@ const REVEAL_STAGGER := 0.07
 const REVEAL_TIME := 0.22
 const REVEAL_SLIDE := 48.0
 const TICK_DB := -8.0
+## Course intro card (MK64 names the course over the fly-by, bottom left): its inset from the
+## bottom-left corner, the name's sign size and the caption's size over it.
+const INTRO_INSET := Vector2(56, 72)
+const INTRO_NAME_SIZE := 64
+const INTRO_CAPTION_SIZE := 22
+const INTRO_CAPTION_H := 30.0
+const INTRO_RULE_H := 3.0
 
 var font: Font
 var lap_label: Label
@@ -77,6 +84,12 @@ var player_color := PLAYER_FALLBACK
 var blink := 0.0
 var cup_label: Label
 var minimap: Minimap
+var intro_box: Control         # the course intro card (hidden outside the intro)
+var intro_name: Label
+var intro_caption: Label
+var intro_rule: ColorRect
+var intro_base_y := 0.0        # the card's resting offset_top (its pose moves it down from there)
+var race_controls: Array[Control] = []   # the race HUD proper, hidden during the intro
 
 static func format_time(t: float) -> String:
 	var total_ms := int(round(t * 1000.0))
@@ -186,6 +199,31 @@ func _ready() -> void:
 	results_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	UiStyle.style_sign(results_title, font, 30)
 	results_panel.add_child(results_title)
+	# course intro card, bottom left: a cream caption (mode / class), a gold rule, the course name
+	# as a big sign — text straight over the fly-by picture, no panel, like MK64's course intro
+	intro_box = Control.new()
+	intro_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	intro_box.anchor_left = 0.0
+	intro_box.anchor_right = 0.0
+	intro_box.anchor_top = 1.0
+	intro_box.anchor_bottom = 1.0
+	intro_box.visible = false
+	add_child(intro_box)
+	intro_caption = Label.new()
+	intro_caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	intro_caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	UiStyle.style_label(intro_caption, font, INTRO_CAPTION_SIZE, UiStyle.CREAM)
+	intro_box.add_child(intro_caption)
+	intro_rule = ColorRect.new()
+	intro_rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	intro_rule.color = UiStyle.GOLD
+	intro_box.add_child(intro_rule)
+	intro_name = Label.new()
+	intro_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	intro_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	UiStyle.style_sign(intro_name, font, INTRO_NAME_SIZE)
+	intro_box.add_child(intro_name)
+	race_controls = [lap_label, time_label, cup_label, speed_label, state_label, item_label, hint_label, place_label]
 
 func _process(delta: float) -> void:
 	if not results_panel.visible:
@@ -558,9 +596,51 @@ func show_cup(text: String) -> void:
 func show_countdown(text: String) -> void:
 	countdown_label.text = text
 
+## Course intro: the name card comes up (the course name in caps as a sign, the caption over it)
+## and the race HUD proper (laps, timers, speed, place, item window, minimap) goes away until
+## end_intro. The card's width follows the longer of the two texts.
+func show_intro(course_name: String, caption: String) -> void:
+	intro_caption.text = caption
+	intro_name.text = course_name.to_upper()
+	var name_h := float(INTRO_NAME_SIZE) * 1.25
+	var w := maxf(intro_name.get_minimum_size().x, intro_caption.get_minimum_size().x)
+	intro_caption.position = Vector2(0, 0)
+	intro_caption.size = Vector2(w, INTRO_CAPTION_H)
+	intro_rule.position = Vector2(0, INTRO_CAPTION_H + 2.0)
+	intro_rule.size = Vector2(w, INTRO_RULE_H)
+	intro_name.position = Vector2(0, INTRO_CAPTION_H + INTRO_RULE_H + 6.0)
+	intro_name.size = Vector2(w, name_h)
+	var h := intro_name.position.y + name_h
+	intro_box.offset_left = INTRO_INSET.x
+	intro_box.offset_right = INTRO_INSET.x + w
+	intro_base_y = -INTRO_INSET.y - h
+	intro_box.offset_top = intro_base_y
+	intro_box.offset_bottom = intro_base_y + h
+	intro_box.modulate.a = 0.0
+	intro_box.visible = true
+	for c in race_controls:
+		c.visible = false
+	if minimap != null:
+		minimap.visible = false
+
+## Moves the intro card: `alpha` and `y` px below its resting spot (CourseIntro.card_pose).
+func intro_pose(alpha: float, y: float) -> void:
+	intro_box.modulate.a = alpha
+	var h := intro_box.offset_bottom - intro_box.offset_top
+	intro_box.offset_top = intro_base_y + y
+	intro_box.offset_bottom = intro_base_y + y + h
+
+## The intro is over: the card goes, the race HUD comes back.
+func end_intro() -> void:
+	intro_box.visible = false
+	for c in race_controls:
+		c.visible = true
+	if minimap != null:
+		minimap.visible = true
+
 ## Item window: the icon of the held (or rolling) item, its name and the use hint; hidden when empty.
 func show_item(item: int, charges := 0, golden_left := 0.0) -> void:
-	item_window.visible = item != Items.Type.NONE
+	item_window.visible = item != Items.Type.NONE and not intro_box.visible   # no item window over the intro
 	item_icon.item = item
 	item_label.text = item_text(item, charges, golden_left)
 	hint_label.text = item_hint_text(item)

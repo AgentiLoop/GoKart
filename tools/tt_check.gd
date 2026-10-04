@@ -73,6 +73,7 @@ func _process(_d: float) -> bool:
 		frames = 0
 	elif stage == 2 and frames > 10:
 		_check(cs.name == "Main" and tt.active, "race scene loaded in time-trial mode")
+		cs._end_intro()   # skip the course fly-over: this check is about the race
 		_check(cs.karts.size() == 1, "solo: %d kart(s)" % cs.karts.size())
 		_check(cs.items.boxes.is_empty() and cs.items.projectiles.is_empty(), "no item boxes or hazards on the course")
 		_check(cs.items.holder.held == items.Type.TRIPLE_MUSHROOM and cs.items.holder.charges == 3, "starts with a triple mushroom")
@@ -104,6 +105,7 @@ func _process(_d: float) -> bool:
 		frames = 0
 	elif stage == 5 and frames > 10:
 		_check(cs.name == "Main" and cs.karts.size() == 1, "race again, still solo")
+		cs._end_intro()
 		_check(cs.ghost != null and cs.ghost.recording == tt.ghost_for("Green Hills"), "ghost of the best run on the course")
 		_check(cs.ghost.model.materials[0].albedo_color.a < 1.0, "ghost is see-through")
 		_check(cs.hud.cup_label.text == "TIME TRIAL   BEST 0:50.000   vs GHOST", "HUD: " + cs.hud.cup_label.text)
