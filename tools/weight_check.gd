@@ -20,6 +20,13 @@ func _key(code: int) -> void:
 	e.pressed = true
 	Input.parse_input_event(e)
 
+## Esc now brings up the MK64 pause screen; its third line, COURSE CHANGE, is what goes back to the menu.
+func _course_change() -> void:
+	_key(KEY_ESCAPE)
+	_key(KEY_S)
+	_key(KEY_S)
+	_key(KEY_ENTER)
+
 func _initialize() -> void:
 	load("res://scripts/track_library.gd").selected = 0
 	load("res://scripts/kart_weight.gd").selected = 1
@@ -102,7 +109,7 @@ func _process(_d: float) -> bool:
 			_check(max_victim_push > max_player_push * 2.0, "the light kart is thrown much further: %f vs %f" % [max_victim_push, max_player_push])
 			_check(cs.kart.model.speed > speed_before * 0.7, "the heavy player keeps its speed: %f (was %f)" % [cs.kart.model.speed, speed_before])
 			Input.action_release("accelerate")
-			_key(KEY_ESCAPE)
+			_course_change()
 			stage = 5
 			frames = 0
 	elif stage == 5 and frames > 10:

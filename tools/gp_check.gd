@@ -17,6 +17,13 @@ func _key(code: int) -> void:
 	e.pressed = true
 	Input.parse_input_event(e)
 
+## Esc now brings up the MK64 pause screen; its third line, COURSE CHANGE, is what goes back to the menu.
+func _course_change() -> void:
+	_key(KEY_ESCAPE)
+	_key(KEY_S)
+	_key(KEY_S)
+	_key(KEY_ENTER)
+
 func _initialize() -> void:
 	var lib = load("res://scripts/track_library.gd")
 	lib.selected = 0
@@ -115,7 +122,7 @@ func _process(_d: float) -> bool:
 		_check(cs.hud.cup_label.text == "RACE 2 / 4  RETRY", "HUD cup label: " + cs.hud.cup_label.text)
 		_check(gp.totals[0] == 9, "points untouched: %s" % str(gp.totals))
 		_check(cs.kart.track_index == cs.track.data.count - 10 + 9, "retry keeps the grid of the race that counted (player on pole)")
-		_key(KEY_ESCAPE)
+		_course_change()
 		stage = 7
 		frames = 0
 	elif stage == 7 and frames > 10:

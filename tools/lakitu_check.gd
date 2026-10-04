@@ -22,6 +22,13 @@ func _key(code: int) -> void:
 	e.pressed = true
 	Input.parse_input_event(e)
 
+## Esc now brings up the MK64 pause screen; its third line, COURSE CHANGE, is what goes back to the menu.
+func _course_change() -> void:
+	_key(KEY_ESCAPE)
+	_key(KEY_S)
+	_key(KEY_S)
+	_key(KEY_ENTER)
+
 func _initialize() -> void:
 	load("res://scripts/track_library.gd").selected = 0
 	change_scene_to_file("res://scenes/menu.tscn")
@@ -144,7 +151,7 @@ func _process(_d: float) -> bool:
 		if Engine.get_physics_frames() - phys0 > 30:
 			_check(cs.lakitu.mode == L.Mode.HIDDEN, "sign put away once the kart faces the right way")
 			Input.action_release("accelerate")
-			_key(KEY_ESCAPE)
+			_course_change()
 			stage = 8
 			frames = 0
 	elif stage == 8 and frames > 10:

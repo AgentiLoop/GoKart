@@ -21,6 +21,13 @@ func _key(code: int) -> void:
 	e.pressed = true
 	Input.parse_input_event(e)
 
+## Esc now brings up the MK64 pause screen; its third line, COURSE CHANGE, is what goes back to the menu.
+func _course_change() -> void:
+	_key(KEY_ESCAPE)
+	_key(KEY_S)
+	_key(KEY_S)
+	_key(KEY_ENTER)
+
 func _initialize() -> void:
 	load("res://scripts/track_library.gd").selected = 3
 	change_scene_to_file("res://scenes/menu.tscn")
@@ -132,7 +139,7 @@ func _process(_d: float) -> bool:
 			_check(peak_y > 1.0, "thrown into the air: peak y %.2f" % peak_y)
 			_check(cs.kart.global_position.y < 0.6, "landed again (y %.2f)" % cs.kart.global_position.y)
 			_check(cs.kart.launches == 1, "hit once only (%d)" % cs.kart.launches)
-			_key(KEY_ESCAPE)
+			_course_change()
 			stage = 6
 			frames = 0
 	elif stage == 6 and frames > 10:

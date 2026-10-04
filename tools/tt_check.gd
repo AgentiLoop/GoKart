@@ -19,6 +19,13 @@ func _key(code: int) -> void:
 	e.pressed = true
 	Input.parse_input_event(e)
 
+## Esc now brings up the MK64 pause screen; its third line, COURSE CHANGE, is what goes back to the menu.
+func _course_change() -> void:
+	_key(KEY_ESCAPE)
+	_key(KEY_S)
+	_key(KEY_S)
+	_key(KEY_ENTER)
+
 func _initialize() -> void:
 	var lib = load("res://scripts/track_library.gd")
 	var tt = load("res://scripts/time_trial.gd")
@@ -113,7 +120,7 @@ func _process(_d: float) -> bool:
 		stage = 6
 	elif stage == 6 and (cs.ghost.time > 0.1 or Time.get_ticks_msec() - t0 > 8000):
 		_check(cs.race_start.started and cs.ghost.time > 0.1, "ghost replays from GO: t=%.2f" % cs.ghost.time)
-		_key(KEY_ESCAPE)
+		_course_change()
 		stage = 7
 		frames = 0
 	elif stage == 7 and frames > 10:

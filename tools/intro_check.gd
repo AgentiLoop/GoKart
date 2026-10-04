@@ -24,6 +24,13 @@ func _key(code: int) -> void:
 	e.pressed = true
 	Input.parse_input_event(e)
 
+## Esc now brings up the MK64 pause screen; its third line, COURSE CHANGE, is what goes back to the menu.
+func _course_change() -> void:
+	_key(KEY_ESCAPE)
+	_key(KEY_S)
+	_key(KEY_S)
+	_key(KEY_ENTER)
+
 func _initialize() -> void:
 	load("res://scripts/track_library.gd").selected = 0
 	change_scene_to_file("res://scenes/menu.tscn")
@@ -85,7 +92,7 @@ func _process(_d: float) -> bool:
 			phys0 = Engine.get_physics_frames()
 	elif stage == 4 and Engine.get_physics_frames() - phys0 > 30:
 		_check(cs.race_start.remaining < cs.race_start.COUNT_TIME - 0.3 and cs.hud.countdown_label.text != "", "countdown running: %s (%.2f left)" % [cs.hud.countdown_label.text, cs.race_start.remaining])
-		_key(KEY_ESCAPE)
+		_course_change()
 		stage = 5
 		frames = 0
 	elif stage == 5 and frames > 10:
@@ -99,7 +106,7 @@ func _process(_d: float) -> bool:
 		_check(cs.intro_t < 0.0 and not cs.hud.intro_box.visible and cs.hud.lap_label.visible, "the throttle skipped the intro at once")
 		Input.action_release("accelerate")
 		_check(cs.race_start.remaining < cs.race_start.COUNT_TIME, "countdown running after the skip")
-		_key(KEY_ESCAPE)
+		_course_change()
 		stage = 7
 		frames = 0
 	elif stage == 7 and frames > 10:

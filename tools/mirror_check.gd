@@ -13,6 +13,13 @@ func _key(code: int) -> void:
 	e.pressed = true
 	Input.parse_input_event(e)
 
+## Esc now brings up the MK64 pause screen; its third line, COURSE CHANGE, is what goes back to the menu.
+func _course_change() -> void:
+	_key(KEY_ESCAPE)
+	_key(KEY_S)
+	_key(KEY_S)
+	_key(KEY_ENTER)
+
 func _initialize() -> void:
 	var lib = load("res://scripts/track_library.gd")
 	lib.selected = 1
@@ -58,7 +65,7 @@ func _process(_d: float) -> bool:
 			_check(data.is_on_road(k.global_position), "kart %d starts on the mirrored road" % k.kart_id)
 		_check(is_equal_approx(cs.kart.model.max_speed, 30.0), "Extra runs at 150cc speed: %f" % cs.kart.model.max_speed)
 		_check(cs.track.get_node_or_null("Walls") != null and cs.track.get_node_or_null("StartGate") != null, "walls and gate built")
-		_key(KEY_ESCAPE)
+		_course_change()
 		stage = 3
 		frames = 0
 	elif stage == 3 and frames > 10:
