@@ -12,6 +12,7 @@ const CORNER_SAMPLES := 12     # samples ahead used to measure how sharp the upc
 const CORNER_TURN_RATE := 1.5  # rad/s the AI is willing to turn at when picking a corner speed
 const MIN_CORNER_SPEED := 14.0
 const DODGE_LOOKAHEAD := 4     # samples ahead aimed at while steering round traffic (sharper than lookahead)
+const ICE_LOOKAHEAD := 24      # samples ahead an icy stretch is allowed for when picking a corner speed
 ## Mario Kart 64 rubber-banding: gaps inside BAND_DEAD metres leave the AI alone; from there the
 ## top-speed bonus (behind the player) or penalty (ahead) grows linearly to its full value at BAND_RANGE.
 const BAND_DEAD := 10.0
@@ -38,6 +39,9 @@ var wait := false
 ## for dodge_lane instead until the way is clear (MK64 CPU karts weave through Toad's Turnpike traffic).
 var dodging := false
 var dodge_lane := 0.0
+## Set each tick by the race scene: KartPhysics.ICE_GRIP when the kart is on, or about to reach, an icy
+## stretch (MK64 Sherbet Land) — the driver only counts on that much of its steering for the bend ahead.
+var grip := 1.0
 
 func _init(track_data, lane := 0.0, delay := 1.5) -> void:
 	track = track_data
@@ -73,12 +77,14 @@ func decide(delta: float, pos: Vector3, heading: float, speed: float, controllab
 		return {"throttle": 0.0, "brake": 0.5 if speed > safe + 8.0 else 0.0, "steer": steer, "drift": false}
 	return {"throttle": 1.0, "brake": 0.0, "steer": steer, "drift": false}
 
-## Highest speed at which the upcoming bend can be taken with CORNER_TURN_RATE of steering.
+## Highest speed at which the upcoming bend can be taken with CORNER_TURN_RATE of steering. On ice the
+## kart runs wide while the slide builds before the tires catch up, so the driver only counts on
+## grip squared of its steering there.
 func corner_speed(i: int) -> float:
 	var ang := absf(wrapf(track.heading_at((i + CORNER_SAMPLES) % track.count) - track.heading_at(i), -PI, PI))
 	if ang < 0.01:
 		return INF
-	return maxf(CORNER_TURN_RATE * CORNER_SAMPLES * track.spacing / ang, MIN_CORNER_SPEED)
+	return maxf(CORNER_TURN_RATE * grip * grip * CORNER_SAMPLES * track.spacing / ang, MIN_CORNER_SPEED)
 
 ## Top-speed multiplier for an AI kart that is `gap` metres behind the player (negative = ahead).
 ## strength is the largest fraction added when far behind or removed when far ahead (0 = off).

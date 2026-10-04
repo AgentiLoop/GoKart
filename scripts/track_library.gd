@@ -105,7 +105,7 @@ const TRACKS := [
 	},
 	{
 		"name": "Frosty Peaks",
-		"blurb": "Tight snowy esses and a long sweeper",
+		"blurb": "Tight snowy esses and a long icy sweeper",
 		"control": [
 			Vector2(0, 60), Vector2(0, -50), Vector2(-20, -95), Vector2(-60, -115),
 			Vector2(-100, -90), Vector2(-90, -45), Vector2(-120, -10), Vector2(-170, -15),
@@ -129,6 +129,9 @@ const TRACKS := [
 			[0.78, 3.0], [0.795, -3.0],
 			[0.9, -5.0], [0.915, 5.0],
 		],
+		# Sherbet Land style sheet ice: [start fraction, end fraction] per stretch — the bend before the
+		# second pad and the long sweeper before the last snowmen (see TrackData.ice / KartPhysics.grip)
+		"ice": [[0.3, 0.355], [0.84, 0.895]],
 		# Frappe Snowland dressing: fir trees, igloos and snowy mountains
 		"scenery": "snow",
 		"ground": Color(0.9, 0.93, 0.98),

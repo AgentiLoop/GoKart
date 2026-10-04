@@ -37,6 +37,7 @@ func _init(track_data: TrackData = null) -> void:
 
 func _ready() -> void:
 	_build_road()
+	_build_ice()
 	_build_walls()
 	_build_water()
 	_build_start_gate()
@@ -77,6 +78,41 @@ func _build_road() -> void:
 	mat.roughness = 0.9
 	mi.material_override = mat
 	mi.name = "Road"
+	add_child(mi)
+
+## Sheet ice over the road along every ice stretch (Mario Kart 64 Sherbet Land): a pale blue-white,
+## glossy ribbon the width of the road, laid just above the tarmac.
+func _build_ice() -> void:
+	if data.ice.is_empty():
+		return
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var hw := data.width * 0.5
+	for s in data.ice:
+		for i in range(s.start, s.end + 1):
+			var j := (i + 1) % data.count
+			var ra := data.right_of(i) * hw
+			var rb := data.right_of(j) * hw
+			var a: Vector3 = data.points[i]
+			var b: Vector3 = data.points[j]
+			# faint streaks: every other pair of samples a touch bluer
+			var col := Color(0.84, 0.92, 1.0) if (i / 2) % 2 == 0 else Color(0.74, 0.87, 0.99)
+			_wall_quad(st, a - ra, a + ra, b + rb, b - rb, Vector3.UP, col)
+	var mi := MeshInstance3D.new()
+	mi.name = "Ice"
+	mi.mesh = st.commit()
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	# satin, not a mirror (a glossier sheet only reflects the dark winter sky), with a faint inner glow
+	# so the ice reads pale even under Frosty Peaks' low light
+	mat.roughness = 0.55
+	mat.emission_enabled = true
+	mat.emission = Color(0.55, 0.68, 0.85)
+	mat.emission_energy_multiplier = 0.4
+	mi.material_override = mat
+	mi.position.y = 0.03
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
 
 func _build_walls() -> void:

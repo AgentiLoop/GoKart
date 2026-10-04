@@ -69,6 +69,17 @@ var draft_boost_duration := 1.5
 var draft_speed_factor := 1.15
 var draft_time := 0.0           # seconds spent in another kart's wake so far (0 when out of it)
 var draft_boost_time := 0.0
+## MK64 Sherbet Land ice: grip is 1 on tarmac and ICE_GRIP on ice (the race scene sets it each frame).
+## On ice the nose still turns but only `grip` of the turn goes into the direction of travel — the rest
+## becomes a slide (the angle the travel direction lags the heading) that the tires only slowly bite
+## back from — and coasting / braking bleed speed `grip` as fast.
+const ICE_GRIP := 0.45
+const MAX_SLIDE := 0.8          # rad: how far the kart can travel sideways of its nose
+const ICE_SETTLE := 1.5         # 1/s: on ice the slide decays exponentially (half gone in ~0.5 s)
+const TARMAC_SETTLE := 8.0      # rad/s the slide closes once the tires bite again
+const SLIDE_SPEED := 12.0       # m/s: the full slide needs this much speed, a crawling kart bites
+var grip := 1.0
+var slide := 0.0
 
 func is_boosting() -> bool:
 	return boost_time > 0.0
@@ -205,6 +216,7 @@ func spin_out() -> bool:
 ## Dead stop (fished out of the water by Lakitu): speed, boost and drift are all gone.
 func stop() -> void:
 	speed = 0.0
+	slide = 0.0
 	if boost_time > 0.0:
 		boost_time = 0.0
 		boost_level = 0
@@ -335,11 +347,11 @@ func step(delta: float, throttle: float, brake: float, steer: float, drift_held:
 		speed = minf(speed + a * throttle * delta, top) if speed < top else maxf(speed - friction * delta, top)
 	elif brake > 0.0:
 		if speed > 0.0:
-			speed = maxf(speed - brake_force * brake * delta, 0.0)
+			speed = maxf(speed - brake_force * grip * brake * delta, 0.0)
 		else:
 			speed = maxf(speed - acceleration * brake * delta, -reverse_max_speed)
 	else:
-		speed = move_toward(speed, 0.0, friction * delta)
+		speed = move_toward(speed, 0.0, friction * grip * delta)
 	if speed > top:
 		speed = maxf(speed - friction * delta, top)
 
@@ -363,6 +375,18 @@ func step(delta: float, throttle: float, brake: float, steer: float, drift_held:
 				drift_charge += 1.0
 				_update_level()
 	else:
-		var grip := lerpf(1.0, high_speed_turn_scale, clampf(absf(speed) / max_speed, 0.0, 1.0))
-		yaw = -steer * turn_rate * grip * speed_factor * dir_sign * delta
+		var stability := lerpf(1.0, high_speed_turn_scale, clampf(absf(speed) / max_speed, 0.0, 1.0))
+		yaw = -steer * turn_rate * stability * speed_factor * dir_sign * delta
+	# --- ice: the nose turns but the kart keeps sliding the way it was going, catching up slowly
+	# (a crawling kart does not slide: the tires bite below SLIDE_SPEED)
+	if grip < 1.0:
+		slide = clampf(slide - yaw * (1.0 - grip) * clampf(absf(speed) / SLIDE_SPEED, 0.0, 1.0), -MAX_SLIDE, MAX_SLIDE)
+		slide *= exp(-ICE_SETTLE * delta)
+	else:
+		slide = move_toward(slide, 0.0, TARMAC_SETTLE * delta)
 	return yaw
+
+## The direction of travel relative to the heading: 0 with the tires biting, up to MAX_SLIDE on ice.
+## The scene moves the kart along heading + travel_offset().
+func travel_offset() -> float:
+	return slide

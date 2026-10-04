@@ -64,10 +64,16 @@ var snowman_specs: Array = []
 ## Roadside scenery set (layout "scenery", Mario Kart 64 course dressing: "farm" / "highway" / "snow" /
 ## "desert", see scripts/scenery.gd); "" = a bare course.
 var scenery := ""
+## Icy road (layout "ice", Mario Kart 64 Sherbet Land): [start fraction, end fraction] per stretch of
+## road that is sheet ice across its whole width — the tires bite less there, the kart slides on;
+## empty = no ice on this course. The same stretches on a mirrored course.
+var ice_specs: Array = []
+## Ice stretches as sample ranges: {"start": first sample, "end": last sample (inclusive)}
+var ice: Array = []
 
 ## layout (optional) may override "pads", "box_rows", "hazards" and "water" (same formats as the
 ## DEFAULT_ constants), add a "rail" loop (Array of Vector2 control points), "traffic" vehicles,
-## "moles" or "snowmen", name a "scenery" set and set "mirror": true to flip the course left-to-right (MK64 Extra mode).
+## "moles", "snowmen" or "ice", name a "scenery" set and set "mirror": true to flip the course left-to-right (MK64 Extra mode).
 func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout := {}) -> void:
 	control = ctrl
 	width = road_width
@@ -78,6 +84,7 @@ func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout :=
 	traffic_specs = layout.get("traffic", [])
 	mole_specs = layout.get("moles", [])
 	snowman_specs = layout.get("snowmen", [])
+	ice_specs = layout.get("ice", [])
 	scenery = layout.get("scenery", "")
 	for v in layout.get("rail", []):
 		rail_control.append(v)
@@ -178,7 +185,30 @@ func _build() -> void:
 	water.clear()
 	for spec in water_specs:
 		water.append({"start": int(spec[0] * count) % count, "end": int(spec[1] * count) % count, "side": signi(spec[2])})
+	ice.clear()
+	for spec in ice_specs:
+		ice.append({"start": int(spec[0] * count) % count, "end": int(spec[1] * count) % count})
 	_build_rail()
+
+## The ice stretch (dict) that road sample i lies in, or null.
+func ice_at(i: int):
+	var k := posmod(i, count)
+	for s in ice:
+		if k >= s.start and k <= s.end:
+			return s
+	return null
+
+## True when pos is on the road beside sample idx (nearest sample) and that sample is iced over.
+func on_ice(pos: Vector3, idx: int) -> bool:
+	return ice_at(idx) != null and is_on_road(pos, idx)
+
+## True when any of the n samples from i on (inclusive) is iced over: the AI slows for a bend it
+## will take on ice before it gets there.
+func ice_ahead(i: int, n: int) -> bool:
+	for o in n + 1:
+		if ice_at(i + o) != null:
+			return true
+	return false
 
 ## Railway (Mario Kart 64 Kalimari Desert): the rail loop is resampled like the road and every
 ## stretch where it runs over the road becomes a level crossing. A crossing records the road sample

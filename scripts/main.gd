@@ -2,6 +2,7 @@ extends Node3D
 ## Race scene: sky, ground, track, kart, chase camera, laps, boost pads and HUD.
 
 const Kart := preload("res://scripts/kart.gd")
+const KartPhysics := preload("res://scripts/kart_physics.gd")
 const SpeedFx := preload("res://scripts/speed_fx.gd")
 const KartEffects := preload("res://scripts/kart_effects.gd")
 const Track := preload("res://scripts/track.gd")
@@ -321,6 +322,11 @@ func _physics_process(delta: float) -> void:
 		var kp: Vector3 = k.global_position
 		k.track_index = data.nearest_index(kp, k.track_index)
 		k.model.surface_scale = 1.0 if data.is_on_road(kp, k.track_index) else OFFROAD_SCALE
+		# MK64 Sherbet Land ice: the tires bite less on an icy stretch, the kart slides on; CPU karts slow
+		# for a bend they will take on ice before they reach it
+		k.model.grip = KartPhysics.ICE_GRIP if data.on_ice(kp, k.track_index) else 1.0
+		if k.driver != null:
+			k.driver.grip = KartPhysics.ICE_GRIP if data.ice_ahead(k.track_index, AiDriver.ICE_LOOKAHEAD) else 1.0
 		if race_start.started:
 			k.tracker.update(delta, k.track_index)
 		if data.pad_at(kp) != null:

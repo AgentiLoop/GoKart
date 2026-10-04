@@ -133,7 +133,8 @@ func _physics_process(delta: float) -> void:
 	var steer := Input.get_action_strength("steer_right") - Input.get_action_strength("steer_left")
 	var drift_held := Input.is_action_pressed("drift")
 	if driver != null and not frozen:
-		var d: Dictionary = driver.decide(delta, global_position, heading, model.speed, not model.is_spinning())
+		# the driver steers the direction of travel (on ice the nose points inside of it, as a driver would)
+		var d: Dictionary = driver.decide(delta, global_position, heading + model.travel_offset(), model.speed, not model.is_spinning())
 		throttle = d.throttle
 		brake = d.brake
 		steer = d.steer
@@ -154,7 +155,9 @@ func _physics_process(delta: float) -> void:
 	body_scale = move_toward(body_scale, SHRUNK_SCALE if model.is_shrunk() else 1.0, 3.0 * delta)
 	body_mesh.scale = Vector3.ONE * body_scale * size_scale
 	body_mesh.visible = model.is_spinning() or model.immunity_time <= 0.0 or fmod(model.immunity_time, 0.2) < 0.1
-	var forward := Vector3(-sin(heading), 0, -cos(heading))
+	# MK64 ice: on ice the kart travels sideways of its nose (the slide the model keeps); 0 on tarmac
+	var travel := heading + model.travel_offset()
+	var forward := Vector3(-sin(travel), 0, -cos(travel))
 	bump_cooldown = maxf(bump_cooldown - delta, 0.0)
 	push = push.move_toward(Vector3.ZERO, KartWeight.PUSH_DECAY * delta)
 	velocity.x = forward.x * model.speed + push.x
