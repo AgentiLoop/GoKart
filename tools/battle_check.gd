@@ -123,18 +123,23 @@ func _process(_d: float) -> bool:
 				cs.items.kart_hit.emit(items.Type.SHELL, id)
 		_check(cs.battle.over and cs.battle.winner == 0, "last balloon kart standing: the player wins")
 		t0 = Time.get_ticks_msec()
+		frames = 0
 		stage = 7
-	elif stage == 7 and (cs.results_shown or Time.get_ticks_msec() - t0 > 8000):
+	elif stage == 7 and frames > 3:
+		# before the results board the centre banner says YOU WIN!; the board then owns the centre
+		_check(cs.hud.banner_label.text == "YOU WIN!" and not cs.results_shown, "banner before the results: " + cs.hud.banner_label.text)
+		stage = 8
+	elif stage == 8 and (cs.results_shown or Time.get_ticks_msec() - t0 > 8000):
 		_check(cs.results_shown, "results shown after the delay")
 		var txt: String = cs.hud.results_text
 		_check(txt.begins_with("BATTLE - Block Fort\nYOU WIN!"), "panel: " + txt.split("\n")[1])
 		_check("> 1st  YOU      2 balloons" in txt and "  4th  BLUE     exploded" in txt, txt)
-		_check(cs.hud.banner_label.text == "YOU WIN!", "banner: " + cs.hud.banner_label.text)
+		_check(cs.hud.banner_label.text == "", "the results board owns the centre: no banner")
 		_check(cs.audio.played.has("finish"), "finish jingle")
 		_key(KEY_ESCAPE)
-		stage = 8
+		stage = 9
 		frames = 0
-	elif stage == 8 and frames > 10:
+	elif stage == 9 and frames > 10:
 		_check(cs.name == "Menu" and cs.mode == cs.MODE_BATTLE and cs.arena_selected == 1, "Escape returns to the menu with Battle / Block Fort still selected")
 		_finish(0 if ok else 1)
 	return false
