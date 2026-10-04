@@ -220,15 +220,18 @@ func jump_at(i: int):
 			return j
 	return null
 
-## Height of the ramp surface above the road at pos (nearest sample idx): 0 off every ramp, rising
-## linearly from the foot to JUMP_HEIGHT at the lip.
+## Height of the ramp surface under a kart at pos (nearest sample idx): rising linearly from 0 at the
+## foot to JUMP_HEIGHT at the lip; 0 off every ramp, before the foot and past the lip (the kart has
+## left the ramp and flies).
 func ramp_height(pos: Vector3, idx: int) -> float:
 	var j = jump_at(idx)
 	if j == null:
 		return 0.0
 	var foot: Vector3 = points[j.start]
 	var along: float = (pos - foot).dot(tangents[j.start])
-	return clampf(along / JUMP_LENGTH, 0.0, 1.0) * JUMP_HEIGHT
+	if along <= 0.0 or along > JUMP_LENGTH:
+		return 0.0
+	return along / JUMP_LENGTH * JUMP_HEIGHT
 
 ## The ice stretch (dict) that road sample i lies in, or null.
 func ice_at(i: int):

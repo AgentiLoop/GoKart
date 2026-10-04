@@ -15,6 +15,7 @@ var banner_text := "START"
 ## past the lip, so a kart that steers in the air cannot fly out of the course.
 const JUMP_WALL_HEIGHT := 4.5
 const JUMP_WALL_SAMPLES := 16
+const JUMP_DROP_CLEARANCE := 0.6   # the drop behind a ramp lip stops this far below the lip (see _build_jumps)
 var _banner_labels: Array[Label3D] = []
 var _banner_panel: MeshInstance3D
 
@@ -293,9 +294,10 @@ func _build_pads() -> void:
 		mi.name = "BoostPad"
 		add_child(mi)
 
-## Jump ramps (Mario Kart 64 Wario Stadium / Royal Raceway): a solid wedge across the road from the
-## ramp's foot up to its lip — sandy, with pale bands before the lip — and a sheer drop behind it.
-## A kart that drives off the lip flies (see Kart.airborne).
+## Jump ramps (Mario Kart 64 Wario Stadium / Royal Raceway): a wedge across the road from the ramp's
+## foot up to its lip — sandy, with pale bands before the lip — and a sheer drop behind it. Karts ride
+## the slope by TrackData.ramp_height (Kart.ramp_lift) and fly off the lip (Kart.airborne); only the
+## drop is solid, so nothing drives into the ramp from behind.
 func _build_jumps() -> void:
 	if data.jumps.is_empty():
 		return
@@ -310,11 +312,12 @@ func _build_jumps() -> void:
 	var pale := Color(0.93, 0.88, 0.78)
 	var dark := Color(0.45, 0.28, 0.12)
 	for j in data.jumps:
+		# one right vector for both ends so the top is a single flat plane (a kart climbs it along its slope)
 		var a: Vector3 = data.points[j.start]
 		var b: Vector3 = data.points[j.lip]
-		var ra: Vector3 = data.right_of(j.start) * hw
-		var rb: Vector3 = data.right_of(j.lip) * hw
-		var n: Vector3 = rb.cross(b + up - a).normalized()
+		var r: Vector3 = data.right_of(j.start) * hw
+		var fwd: Vector3 = (b - a).normalized()
+		var n: Vector3 = r.cross(b + up - a).normalized()
 		if n.y < 0.0:
 			n = -n
 		# the top in bands up the slope: two pale stripes warn of the lip
@@ -322,20 +325,23 @@ func _build_jumps() -> void:
 		for k in bands:
 			var p0: Vector3 = a.lerp(b + up, float(k) / bands)
 			var p1: Vector3 = a.lerp(b + up, float(k + 1) / bands)
-			var r0: Vector3 = ra.lerp(rb, float(k) / bands)
-			var r1: Vector3 = ra.lerp(rb, float(k + 1) / bands)
-			_wall_quad(st, p0 - r0, p1 - r1, p1 + r1, p0 + r0, n, pale if k == 3 or k == 5 else sand)
+			_wall_quad(st, p0 - r, p1 - r, p1 + r, p0 + r, n, pale if k == 3 or k == 5 else sand)
 		# the drop behind the lip and the two sides
-		_wall_quad(st, b + rb, b - rb, b - rb + up, b + rb + up, data.tangents[j.lip], dark)
-		for tri in [[a - ra, b - rb + up, b - rb], [a + ra, b + rb, b + rb + up]]:
+		_wall_quad(st, b + r, b - r, b - r + up, b + r + up, fwd, dark)
+		for tri in [[a - r, b - r + up, b - r], [a + r, b + r, b + r + up]]:
 			for v in tri:
 				st.set_color(dark)
-				st.set_normal(-ra.normalized() if tri[0] == a - ra else ra.normalized())
+				st.set_normal(-r.normalized() if tri[0] == a - r else r.normalized())
 				st.add_vertex(v)
+		# the solid drop sits just behind the lip and stops short of the ramp's height, so a kart riding
+		# up the slope (its nose a little above the surface it is held at) never clips it
 		var cs := CollisionShape3D.new()
-		var shape := ConvexPolygonShape3D.new()
-		shape.points = PackedVector3Array([a - ra, a + ra, b - rb, b + rb, b - rb + up, b + rb + up])
+		var shape := BoxShape3D.new()
+		var drop := TrackData.JUMP_HEIGHT - JUMP_DROP_CLEARANCE
+		shape.size = Vector3(hw * 2.0, drop, 0.4)
 		cs.shape = shape
+		cs.position = b + Vector3.UP * drop * 0.5 + fwd * 0.2
+		cs.rotation.y = atan2(-fwd.x, -fwd.z)
 		body.add_child(cs)
 	var mi := MeshInstance3D.new()
 	mi.name = "JumpMesh"

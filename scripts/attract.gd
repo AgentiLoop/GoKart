@@ -336,6 +336,7 @@ func _physics_process(delta: float) -> void:
 			var kp: Vector3 = k.global_position
 			k.track_index = data.nearest_index(kp, k.track_index)
 			k.model.surface_scale = 1.0 if data.is_on_road(kp, k.track_index) else OFFROAD_SCALE
+			k.ramp_lift = data.ramp_height(kp, k.track_index)   # MK64 jump ramp: the demo karts fly too
 	cam_timer += delta
 	if cam_timer >= CAM_HOLD:
 		cam_timer = 0.0

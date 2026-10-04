@@ -349,6 +349,8 @@ func _physics_process(delta: float) -> void:
 		# MK64 Sherbet Land ice: the tires bite less on an icy stretch, the kart slides on; CPU karts slow
 		# for a bend they will take on ice before they reach it
 		k.model.grip = KartPhysics.ICE_GRIP if data.on_ice(kp, k.track_index) else 1.0
+		# MK64 jump ramp: the kart rides the ramp's slope and flies off its lip
+		k.ramp_lift = data.ramp_height(kp, k.track_index)
 		if k.driver != null:
 			k.driver.grip = KartPhysics.ICE_GRIP if data.ice_ahead(k.track_index, AiDriver.ICE_LOOKAHEAD) else 1.0
 		if race_start.started:

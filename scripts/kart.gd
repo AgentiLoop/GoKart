@@ -6,15 +6,13 @@ const KartEffects := preload("res://scripts/kart_effects.gd")
 const KartModel := preload("res://scripts/kart_model.gd")
 const KartWeight := preload("res://scripts/kart_weight.gd")
 const Lakitu := preload("res://scripts/lakitu.gd")
+const TrackData := preload("res://scripts/track_data.gd")
 
 const SHRUNK_SCALE := 0.5
 const GHOST_ALPHA := 0.35   # how see-through a Boo makes the kart
 const STALL_WHEEL_SPEED := 24.0   # m/s the wheels appear to spin at during a false-start burnout
 const DRIFT_HOP := 4.0            # m/s: the MK64 hop that starts a powerslide (light karts hop higher)
-## MK64 jump ramp: leaving a floor that rises at least this much (rise over run, along the way the kart
-## travels) is a take-off — the kart keeps climbing at speed x slope and flies; a kerb or a hop is not.
-const JUMP_MIN_SLOPE := 0.08
-const AIR_PITCH := 0.6            # how much of the flight angle the body pitches (nose up, then down)
+const AIR_PITCH := 0.6            # MK64 jump: how much of the flight angle the body pitches (nose up, then down)
 const PITCH_RATE := 8.0           # 1/s the body pitch eases towards its target
 
 ## A kart-to-kart bump happened (other kart, closing speed in m/s); battle mode pops balloons on hard shoves.
@@ -54,17 +52,20 @@ var rescues := 0              # number of times Lakitu fished this kart out
 ## Upward speed applied on the next physics frame (hit by the train); 0 = none pending.
 var hop := 0.0
 var launches := 0             # number of times this kart was thrown into the air (for checks/tests)
-## MK64 jump: rise over run of the floor under the kart along its travel (0 on the flat, > 0 up a ramp),
-## whether it is flying off a ramp (no traction until it lands) and how often it has (for checks/tests).
-var floor_slope := 0.0
+## MK64 jump ramp: the height of the ramp surface under the kart, set each frame by the scene
+## (TrackData.ramp_height; 0 off every ramp) — the kart rides the slope at that height, and the frame
+## it drops to 0 past the lip the kart takes off along the slope and flies (airborne: no traction until
+## it lands). jumps counts the take-offs (for checks/tests).
+var ramp_lift := 0.0
+var on_ramp := false
 var airborne := false
 var jumps := 0
 var pitch := 0.0              # body pitch in radians (nose up on a ramp and on the way up, down on the way down)
 
 ## Body pitch to aim for: up the ramp's slope while on one, following the flight path in the air
 ## (scaled by AIR_PITCH), level otherwise. vy is the vertical speed, speed the speed over the ground.
-static func pitch_for(on_floor: bool, slope: float, vy: float, speed: float, flying: bool) -> float:
-	if on_floor:
+static func pitch_for(riding: bool, slope: float, vy: float, speed: float, flying: bool) -> float:
+	if riding:
 		return atan(slope)
 	if flying:
 		return atan2(vy, maxf(speed, 1.0)) * AIR_PITCH
@@ -175,7 +176,7 @@ func _physics_process(delta: float) -> void:
 	drift_slide = lerpf(drift_slide, target_slide, clampf(10.0 * delta, 0.0, 1.0))
 	rotation.y = heading
 	body_mesh.rotation.y = drift_slide + model.spin_progress() * TAU * 2.0
-	pitch = lerpf(pitch, pitch_for(is_on_floor(), floor_slope, velocity.y, model.speed, airborne), clampf(PITCH_RATE * delta, 0.0, 1.0))
+	pitch = lerpf(pitch, pitch_for(on_ramp, TrackData.jump_slope(), velocity.y, model.speed, airborne), clampf(PITCH_RATE * delta, 0.0, 1.0))
 	body_mesh.rotation.x = pitch
 	body_scale = move_toward(body_scale, SHRUNK_SCALE if model.is_shrunk() else 1.0, 3.0 * delta)
 	body_mesh.scale = Vector3.ONE * body_scale * size_scale
@@ -187,30 +188,29 @@ func _physics_process(delta: float) -> void:
 	push = push.move_toward(Vector3.ZERO, KartWeight.PUSH_DECAY * delta)
 	velocity.x = forward.x * model.speed + push.x
 	velocity.z = forward.z * model.speed + push.z
-	if hop > 0.0:
-		velocity.y = hop
+	# MK64 jump ramp: ride the slope (the body is held at the ramp's height), take off along it at the lip
+	var was_riding := on_ramp
+	on_ramp = ramp_lift > 0.0
+	if on_ramp:
+		velocity.y = (ramp_lift - position.y) / delta
 		hop = 0.0
-	else:
-		velocity.y = 0.0 if is_on_floor() else velocity.y - gravity * delta
-	var grounded := is_on_floor()
-	move_and_slide()
-	# MK64 jump: off the lip of a ramp the kart keeps climbing the way the ramp pointed it and flies
-	if grounded and not is_on_floor() and floor_slope >= JUMP_MIN_SLOPE:
-		velocity.y = maxf(velocity.y, model.speed * floor_slope)
+	elif was_riding and model.speed > 0.0:
+		velocity.y = model.speed * TrackData.jump_slope()
 		airborne = true
 		model.airborne = true
 		jumps += 1
 		jumped.emit()
-	if is_on_floor():
-		var n := get_floor_normal()
-		floor_slope = -(n.x * forward.x + n.z * forward.z) / maxf(n.y, 0.1)
-		if airborne:
-			airborne = false
-			model.airborne = false
-			effects.land()
-			landed.emit()
+	elif hop > 0.0:
+		velocity.y = hop
+		hop = 0.0
 	else:
-		floor_slope = 0.0
+		velocity.y = 0.0 if is_on_floor() else velocity.y - gravity * delta
+	move_and_slide()
+	if airborne and (is_on_floor() or on_ramp):
+		airborne = false
+		model.airborne = false
+		effects.land()
+		landed.emit()
 	var kart_hit := false
 	for i in get_slide_collision_count():
 		var c := get_slide_collision(i)
@@ -224,7 +224,7 @@ func _physics_process(delta: float) -> void:
 			if absf(n.y) < 0.5:   # wall hit: lose the speed that went into the wall
 				model.speed = minf(model.speed, maxf(velocity.dot(forward), 0.0))
 	body_mesh.update_wheels(delta, STALL_WHEEL_SPEED if model.is_stalled() else model.speed, steer)
-	effects.update_fx(delta, is_on_floor())
+	effects.update_fx(delta, is_on_floor() or on_ramp)
 
 ## Kart-to-kart contact (MK64 weight classes): both karts are thrown apart along the contact
 ## normal, the lighter one much further; the heavier kart keeps its speed, the lighter one is
