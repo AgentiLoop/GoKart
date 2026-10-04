@@ -140,6 +140,7 @@ func _ready() -> void:
 	audio = GameAudio.new()
 	add_child(audio)
 	audio.setup(kart, items)
+	audio.start_music("battle")   # MK64: the battle arenas have their own tune
 	lakitu = Lakitu.new()
 	add_child(lakitu)
 	lakitu.setup(kart, data)
@@ -277,12 +278,12 @@ func _physics_process(delta: float) -> void:
 	if player_out_time >= 0.0:
 		player_out_time += delta
 	var decided: bool = battle.over or (player_out_time >= 0.0)
+	audio.update_music(delta, race_start.started, false, decided, kart.model.is_star())
 	if decided:
 		result_timer += delta
 		if not results_shown and result_timer >= Battle.RESULTS_DELAY:
 			results_shown = true
-			if battle.winner == 0:
-				audio.play_finish()
+			audio.play_finish(1 if battle.winner == 0 else 5)
 			hud.show_results(battle.results_text(RaceMain.RACER_NAMES, data.name, 0))
 	var banner := ""
 	if results_shown:

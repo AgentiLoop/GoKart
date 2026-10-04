@@ -244,6 +244,7 @@ func _ready() -> void:
 	audio = GameAudio.new()
 	add_child(audio)
 	audio.setup(kart, items)
+	audio.start_music(_track_name())   # MK64: every course has its own tune, from GO
 	# MK64 Lakitu: start signal, lap signs, REVERSE sign, checkered flag and water rescues
 	lakitu = Lakitu.new()
 	add_child(lakitu)
@@ -398,12 +399,16 @@ func _physics_process(delta: float) -> void:
 		track.set_banner(banner)
 	audio.update_audio(delta, race_start)
 	audio.update_crossing(delta, train.active() and train.bell_near(kart.track_index))
+	# MK64: the "Final Lap!" jingle and faster music on the last lap (of a race with more than one), the
+	# Star theme while invincible, the music stops for the finish fanfare
+	audio.update_music(delta, race_start.started, tracker.lap >= tracker.total_laps and tracker.total_laps > 1, tracker.is_finished, kart.model.is_star())
 	lakitu.update_lakitu(delta, race_start.remaining, race_start.started, race_start.since_go)
 	_update_time_trial(delta)
+	var place := RaceRanking.rank_of(0, progresses, finish_times)
 	if tracker.is_finished:
 		if not finish_played:
 			finish_played = true
-			audio.play_finish()
+			audio.play_finish(place)
 			if recording != null:
 				_finish_time_trial()
 		if kart.driver == null:
@@ -423,7 +428,6 @@ func _physics_process(delta: float) -> void:
 				hud.show_results(RaceResults.table_text(rows, 0, GrandPrix.standings_text(names, 0)))
 			else:
 				hud.show_results(RaceResults.table_text(rows, 0))
-	var place := RaceRanking.rank_of(0, progresses, finish_times)
 	hud.update_hud(tracker, kart.model.speed, kart.model.is_boosting(), kart.model.drift_level, items.holder.display_item(items.time), Hud.place_text(place, karts.size()), kart.model.is_star(), kart.model.is_shrunk(), items.holder.charges, items.holder.golden_time, kart.model.is_ghost())
 	hud.show_countdown(race_start.label())
 	var marker_pos: Array = []

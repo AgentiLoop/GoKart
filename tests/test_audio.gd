@@ -86,7 +86,7 @@ func test_wav_conversion() -> void:
 
 func test_effect_library() -> void:
 	var lib := SoundSynth.effect_library()
-	for name in ["beep", "go", "boost", "drift_start", "mini_turbo", "pickup", "item_ready", "hit", "explosion", "lightning", "star", "boo", "throw", "finish", "burnout", "block"]:
+	for name in ["beep", "go", "boost", "drift_start", "mini_turbo", "pickup", "item_ready", "hit", "explosion", "lightning", "star", "boo", "throw", "finish", "finish_ok", "finish_out", "final_lap", "burnout", "block"]:
 		runner.check(lib.has(name), name)
 		runner.check(lib[name].size() > 100 and SoundSynth.peak(lib[name]) > 0.01 and SoundSynth.peak(lib[name]) <= 1.0, name)
 

@@ -149,5 +149,8 @@ static func effect_library() -> Dictionary:
 		"block": sweep(1600.0, 700.0, 0.16, 0.5),
 		"bell": arpeggio([1480.0, 1480.0], 0.11, 0.35),
 		"crash": noise_burst(0.7, 0.65, 0.9, 29),
-		"finish": arpeggio([523.0, 659.0, 784.0, 659.0, 784.0, 1047.0], 0.12, 0.5),
+		"finish": arpeggio([523.0, 659.0, 784.0, 659.0, 784.0, 1047.0], 0.12, 0.5),   # MK64: the 1st-place fanfare
+		"finish_ok": arpeggio([659.0, 784.0, 659.0, 784.0, 880.0], 0.12, 0.5),          # 2nd - 4th
+		"finish_out": arpeggio([659.0, 587.0, 523.0, 494.0, 440.0], 0.18, 0.45),        # 5th or worse: a sagging fanfare
+		"final_lap": arpeggio([523.0, 659.0, 784.0, 1047.0, 784.0, 1047.0, 1319.0], 0.075, 0.5),   # MK64 "Final Lap!" jingle
 	}
