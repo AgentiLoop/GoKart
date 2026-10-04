@@ -24,6 +24,10 @@ const TRAIL_BEHIND := 2.2   # metres behind the kart where a held banana / shell
 const SHIELD_RADIUS := 0.9  # hit radius of that dangling item
 const ORBIT_RADIUS := 1.5   # triple shells circle the kart at this distance
 const ORBIT_SHIELD := 1.9   # a shell inside this ring is stopped by one of the orbiting shells
+## Mario Kart 64 forward toss (stick up + Z): a banana / fake box flies ahead of the kart in an arc.
+const TOSS_SPEED := 16.0    # m/s added to the kart's own speed
+const TOSS_UP := 6.0        # m/s upward at the throw
+const TOSS_GRAVITY := 16.0  # m/s² (snappy arc: ~0.75 s in the air, a metre high)
 
 var kind := Items.Type.BANANA
 var position := Vector3.ZERO
@@ -36,6 +40,8 @@ var alive := true
 var hint := -1   # track index hint
 var target_id := -1   # kart a blue shell is locked on to (the race leader when fired)
 var target_pos = null   # Vector3 of the kart a red shell homes on (set by the item manager), or null
+var homing := true   # red shells only: false when fired backwards (MK64: then it just flies straight)
+var rest_y := 0.0    # dropped items: the road height a tossed banana / fake box lands on
 
 static func make_shell(pos: Vector3, heading: float, owner := -1) -> Object:
 	var p = load("res://scripts/item_projectile.gd").new()
@@ -45,12 +51,14 @@ static func make_shell(pos: Vector3, heading: float, owner := -1) -> Object:
 	p.owner_id = owner
 	return p
 
-static func make_red_shell(pos: Vector3, heading: float, owner := -1) -> Object:
+## `homing` false fires it straight (MK64: a red shell thrown backwards does not seek anyone).
+static func make_red_shell(pos: Vector3, heading: float, owner := -1, homing := true) -> Object:
 	var p = load("res://scripts/item_projectile.gd").new()
 	p.kind = Items.Type.RED_SHELL
 	p.position = pos
 	p.velocity = Vector3(-sin(heading), 0, -cos(heading)) * RED_SHELL_SPEED
 	p.owner_id = owner
+	p.homing = homing
 	return p
 
 static func make_blue_shell(pos: Vector3, heading: float, owner := -1, target := -1) -> Object:
@@ -61,6 +69,20 @@ static func make_blue_shell(pos: Vector3, heading: float, owner := -1, target :=
 	p.owner_id = owner
 	p.target_id = target
 	return p
+
+## Mario Kart 64 forward toss: throw this banana / fake box ahead along `heading` from a kart doing
+## `kart_speed`; it flies an arc and comes to rest at its current height (see step).
+func toss(heading: float, kart_speed: float) -> void:
+	rest_y = position.y
+	velocity = Vector3(-sin(heading), 0, -cos(heading)) * (maxf(kart_speed, 0.0) + TOSS_SPEED) + Vector3(0, TOSS_UP, 0)
+
+## True while a tossed banana / fake box is still in the air.
+func in_flight() -> bool:
+	return Items.is_dropped(kind) and velocity != Vector3.ZERO
+
+## Metres a tossed item lands ahead of a kart that keeps its speed (flight time x the extra speed).
+static func toss_lead() -> float:
+	return TOSS_SPEED * 2.0 * TOSS_UP / TOSS_GRAVITY
 
 func is_shell() -> bool:
 	return kind == Items.Type.SHELL or kind == Items.Type.RED_SHELL or kind == Items.Type.BLUE_SHELL
@@ -128,11 +150,21 @@ static func make_fake_box(pos: Vector3, owner := -1) -> Object:
 	p.owner_id = owner
 	return p
 
-## Advance one tick; track (TrackData) is used for wall ricochets.
+## Advance one tick; track (TrackData) is used for wall ricochets (and may be null for a
+## banana / fake box lying still). A tossed banana / fake box flies its arc, lands at rest_y
+## (pushed back inside the walls if the arc carried it out) and then sits still.
 func step(delta: float, track) -> void:
 	if not alive:
 		return
 	age += delta
+	if in_flight():
+		velocity.y -= TOSS_GRAVITY * delta
+		position += velocity * delta
+		if position.y <= rest_y:
+			position.y = rest_y
+			velocity = Vector3.ZERO
+			_land(track)
+		return
 	if not is_shell():
 		return
 	if kind == Items.Type.BLUE_SHELL:
@@ -142,7 +174,7 @@ func step(delta: float, track) -> void:
 		if age >= BLUE_LIFE:
 			alive = false
 		return   # flies over the walls: no ricochets
-	if kind == Items.Type.RED_SHELL:
+	if kind == Items.Type.RED_SHELL and homing:
 		_home(delta, track)
 	position += velocity * delta
 	if age >= SHELL_LIFE:
@@ -172,6 +204,22 @@ func step(delta: float, track) -> void:
 		bounces += 1
 		if bounces > SHELL_MAX_BOUNCES:
 			alive = false
+
+## A tossed item that came down outside the walls (or inside a fort) is set back on the road edge.
+func _land(track) -> void:
+	if track == null:
+		return
+	if track.get("arena") == true:
+		var hit: Dictionary = track.collide_circle(position, radius)
+		if not hit.is_empty():
+			position = Vector3(hit.position.x, position.y, hit.position.z)
+		return
+	var limit: float = track.width * 0.5 - radius
+	var c: Vector3 = track.closest_point(position, hint)
+	hint = track.nearest_index(position, hint)
+	var off := Vector3(position.x - c.x, 0, position.z - c.z)
+	if off.length() > limit:
+		position = Vector3(c.x, position.y, c.z) + off.normalized() * limit
 
 func hits(pos: Vector3, kart_radius: float, kart_id: int) -> bool:
 	if not alive:

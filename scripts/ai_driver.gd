@@ -16,6 +16,10 @@ const DODGE_LOOKAHEAD := 4     # samples ahead aimed at while steering round tra
 ## top-speed bonus (behind the player) or penalty (ahead) grows linearly to its full value at BAND_RANGE.
 const BAND_DEAD := 10.0
 const BAND_RANGE := 90.0
+## Mario Kart 64 item tricks: a single shell is fired straight back at a rival this close behind
+## (when nobody is in range ahead); a banana / fake box is tossed ahead at a rival this close in front.
+const BACK_SHOT_RANGE := 15.0
+const TOSS_RANGE := 12.0
 
 var track
 var lane_offset := 0.0      # metres right of the centerline to aim for
@@ -24,6 +28,7 @@ var steer_gain := 2.5
 var use_delay := 1.5        # seconds an item is held before the AI considers using it
 var idx := -1
 var hold_time := 0.0
+var use_alt := false        # set by wants_use: fire / toss the item the other way (see use_item)
 var stuck_time := 0.0
 var reverse_time := 0.0
 ## Set each tick by the race scene: a level crossing just ahead is blocked by the train, so stop
@@ -84,8 +89,11 @@ static func rubber_band(gap: float, strength: float) -> float:
 	return 1.0 + signf(gap) * clampf(g, 0.0, 1.0) * strength
 
 ## Should the AI use its held item now? gap_ahead / gap_behind: distance to the nearest
-## rival in front / behind (INF if none).
+## rival in front / behind (INF if none). Sets use_alt when the item should go the other way
+## (Mario Kart 64 CPU tricks): a single shell fired back at a tailgater when nobody is in range
+## ahead, a banana / fake box tossed ahead at a rival just in front when nobody follows.
 func wants_use(delta: float, item: int, gap_ahead: float, gap_behind: float) -> bool:
+	use_alt = false
 	if item == Items.Type.NONE:
 		hold_time = 0.0
 		return false
@@ -96,13 +104,22 @@ func wants_use(delta: float, item: int, gap_ahead: float, gap_behind: float) -> 
 	match item:
 		Items.Type.MUSHROOM, Items.Type.TRIPLE_MUSHROOM, Items.Type.GOLDEN_MUSHROOM:
 			use = true
-		Items.Type.SHELL, Items.Type.TRIPLE_SHELL:
+		Items.Type.SHELL:
+			use_alt = not gap_ahead < 50.0 and gap_behind < BACK_SHOT_RANGE
+			use = gap_ahead < 50.0 or use_alt or hold_time > 10.0
+		Items.Type.TRIPLE_SHELL:
 			use = gap_ahead < 50.0 or hold_time > 10.0
-		Items.Type.RED_SHELL, Items.Type.TRIPLE_RED_SHELL:
+		Items.Type.RED_SHELL:
+			use_alt = not gap_ahead < 80.0 and gap_behind < BACK_SHOT_RANGE
+			use = gap_ahead < 80.0 or use_alt or hold_time > 10.0
+		Items.Type.TRIPLE_RED_SHELL:
 			use = gap_ahead < 80.0 or hold_time > 10.0
 		Items.Type.STAR, Items.Type.LIGHTNING, Items.Type.BLUE_SHELL, Items.Type.BOO:
 			use = true
-		Items.Type.BANANA, Items.Type.FAKE_ITEM_BOX, Items.Type.BANANA_BUNCH:
+		Items.Type.BANANA, Items.Type.FAKE_ITEM_BOX:
+			use_alt = not gap_behind < 20.0 and gap_ahead < TOSS_RANGE
+			use = gap_behind < 20.0 or use_alt or hold_time > 8.0
+		Items.Type.BANANA_BUNCH:
 			use = gap_behind < 20.0 or hold_time > 8.0
 	if use:
 		hold_time = 0.0

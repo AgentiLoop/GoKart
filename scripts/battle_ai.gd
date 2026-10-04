@@ -13,6 +13,8 @@ const FEELER := 9.0            # metres ahead the driver looks for an obstacle
 const FEELER_ANGLE := 0.6      # radians the side feelers are swung out
 const SHELL_RANGE := 35.0      # fire a shell when a rival is this close ahead
 const DROP_RANGE := 14.0       # drop a banana / fake box when a rival is this close behind
+const BACK_SHOT_RANGE := 12.0  # fire a single shell straight back at a rival this close behind (nobody ahead)
+const TOSS_RANGE := 12.0       # toss a banana / fake box ahead at a rival this close in front (nobody behind)
 const MUSHROOM_RANGE := 25.0   # boost at a target further away than this
 const STEER_GAIN := 2.5
 const TURN_SPEED := 18.0       # ease off above this while turning hard towards the target
@@ -21,6 +23,7 @@ var arena
 var goal = null                # Vector3 to drive at (set by the scene each tick), or null
 var use_delay := 1.5
 var hold_time := 0.0
+var use_alt := false           # set by wants_use: fire / toss the item the other way (see use_item)
 var stuck_time := 0.0
 var reverse_time := 0.0
 var avoiding := 0.0            # last avoidance steer (for checks/tests)
@@ -89,8 +92,11 @@ func decide(delta: float, pos: Vector3, heading: float, speed: float, controllab
 	return {"throttle": 0.0 if hard_turn else 1.0, "brake": 0.0, "steer": steer, "drift": false}
 
 ## Use the held item? gap_ahead / gap_behind: distance to the nearest rival roughly in front /
-## behind (INF if none), as the item manager measures them.
+## behind (INF if none), as the item manager measures them. Sets use_alt when the item should go the
+## other way (Mario Kart 64): a single shell fired back at a kart close behind when nobody is ahead,
+## a banana / fake box tossed ahead at a kart close in front when nobody follows.
 func wants_use(delta: float, item: int, gap_ahead: float, gap_behind: float) -> bool:
+	use_alt = false
 	if item == Items.Type.NONE:
 		hold_time = 0.0
 		return false
@@ -99,11 +105,20 @@ func wants_use(delta: float, item: int, gap_ahead: float, gap_behind: float) -> 
 		return false
 	var use := false
 	match item:
-		Items.Type.SHELL, Items.Type.TRIPLE_SHELL:
+		Items.Type.SHELL:
+			use_alt = not gap_ahead < SHELL_RANGE and gap_behind < BACK_SHOT_RANGE
+			use = gap_ahead < SHELL_RANGE or use_alt or hold_time > 10.0
+		Items.Type.TRIPLE_SHELL:
 			use = gap_ahead < SHELL_RANGE or hold_time > 10.0
-		Items.Type.RED_SHELL, Items.Type.TRIPLE_RED_SHELL:
+		Items.Type.RED_SHELL:
+			use_alt = not gap_ahead < SHELL_RANGE * 1.5 and gap_behind < BACK_SHOT_RANGE
+			use = gap_ahead < SHELL_RANGE * 1.5 or use_alt or hold_time > 8.0
+		Items.Type.TRIPLE_RED_SHELL:
 			use = gap_ahead < SHELL_RANGE * 1.5 or hold_time > 8.0
-		Items.Type.BANANA, Items.Type.FAKE_ITEM_BOX, Items.Type.BANANA_BUNCH:
+		Items.Type.BANANA, Items.Type.FAKE_ITEM_BOX:
+			use_alt = not gap_behind < DROP_RANGE and gap_ahead < TOSS_RANGE
+			use = gap_behind < DROP_RANGE or use_alt or hold_time > 6.0
+		Items.Type.BANANA_BUNCH:
 			use = gap_behind < DROP_RANGE or hold_time > 6.0
 		Items.Type.MUSHROOM, Items.Type.TRIPLE_MUSHROOM, Items.Type.GOLDEN_MUSHROOM:
 			use = (gap_ahead > MUSHROOM_RANGE and gap_ahead < INF) or hold_time > 6.0

@@ -54,6 +54,12 @@ static func charges_for(t: int) -> int:
 static func is_dropped(t: int) -> bool:
 	return t == Type.BANANA or t == Type.FAKE_ITEM_BOX
 
+## Items that can be used the other way round (Mario Kart 64: the stick held the other way with Z):
+## a single green or red shell is fired straight behind the kart, a banana or fake item box is
+## tossed ahead of it. Triple shells and the banana bunch only ever go their usual way.
+static func can_reverse(t: int) -> bool:
+	return t == Type.SHELL or t == Type.RED_SHELL or is_dropped(t)
+
 ## Held items that shield the kart (Mario Kart 64): a banana, fake item box or shell dangling
 ## behind the kart, a banana bunch trailing it, or triple shells orbiting it take the hit from
 ## an incoming green or red shell — the shell and one of the held items are destroyed.

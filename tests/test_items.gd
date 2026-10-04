@@ -1308,3 +1308,195 @@ func test_ai_fires_triple_red_shells_like_a_red_shell() -> void:
 	var b = load("res://scripts/battle_ai.gd").new(load("res://scripts/arena_data.gd").make(1), 0.5)
 	runner.check(not b.wants_use(1.0, Items.Type.TRIPLE_RED_SHELL, 200.0, INF), "battle: nobody near")
 	runner.check(b.wants_use(DT, Items.Type.TRIPLE_RED_SHELL, 40.0, INF), "battle: rival ahead")
+
+## Mario Kart 64: hold the stick the other way with Z — a single shell goes backwards, a banana or
+## fake item box is tossed ahead; triple shells and the bunch cannot.
+func test_mk64_can_reverse() -> void:
+	for t in [Items.Type.SHELL, Items.Type.RED_SHELL, Items.Type.BANANA, Items.Type.FAKE_ITEM_BOX]:
+		runner.check(Items.can_reverse(t), Items.name_of(t))
+	for t in [Items.Type.TRIPLE_SHELL, Items.Type.TRIPLE_RED_SHELL, Items.Type.BANANA_BUNCH, Items.Type.MUSHROOM, Items.Type.STAR, Items.Type.BLUE_SHELL, Items.Type.NONE]:
+		runner.check(not Items.can_reverse(t), Items.name_of(t))
+
+func test_mk64_backward_red_shell_flies_straight() -> void:
+	var t := TrackData.new()
+	var i := 10
+	var h: float = t.heading_at(i) + PI
+	var p = ItemProjectile.make_red_shell(t.points[i], h, 0, false)
+	runner.check(not p.homing)
+	var homing = ItemProjectile.make_red_shell(t.points[i], h, 0)
+	runner.check(homing.homing, "homing by default")
+	# a target off to the side: the straight shell ignores it, the homing one turns
+	var back := Vector3(-sin(h), 0, -cos(h))
+	var right := Vector3(-back.z, 0, back.x)
+	var target: Vector3 = t.points[i] + back * 15.0 + right * 6.0
+	p.target_pos = target
+	homing.target_pos = target
+	var v0: Vector3 = p.velocity
+	for n in 10:
+		p.step(DT, t)
+		homing.step(DT, t)
+	runner.check(p.velocity.normalized().dot(v0.normalized()) > 0.9999, "straight back: %s" % p.velocity)
+	runner.check(homing.velocity.normalized().dot(v0.normalized()) < 0.999, "the homing shell turned: %s" % homing.velocity)
+	runner.check((p.position - t.points[i]).normalized().dot(t.tangents[i]) < -0.95, "flew against the road direction")
+
+func test_mk64_tossed_banana_flies_an_arc_and_lands_ahead() -> void:
+	var t := TrackData.new()
+	var i := 6
+	var start: Vector3 = t.points[i] + Vector3(0, 0.3, 0)
+	var p = ItemProjectile.make_banana(start, 0)
+	runner.check(not p.in_flight(), "a dropped banana is not flying")
+	p.toss(t.heading_at(i), 20.0)
+	runner.check(p.in_flight() and is_equal_approx(p.rest_y, 0.3))
+	var fwd: Vector3 = t.tangents[i]
+	runner.check(absf(Vector2(p.velocity.x, p.velocity.z).length() - (20.0 + ItemProjectile.TOSS_SPEED)) < 0.01, "kart speed + toss speed")
+	runner.check(p.velocity.y == ItemProjectile.TOSS_UP)
+	var peak := 0.0
+	var ticks := 0
+	while p.in_flight() and ticks < 600:
+		p.step(DT, t)
+		peak = maxf(peak, p.position.y)
+		ticks += 1
+	runner.check(not p.in_flight(), "landed")
+	runner.check(is_equal_approx(p.position.y, 0.3), "rests on the road again (%f)" % p.position.y)
+	runner.check(peak > 1.0 and peak < 1.6, "arc peak %f" % peak)
+	var air := 2.0 * ItemProjectile.TOSS_UP / ItemProjectile.TOSS_GRAVITY
+	runner.check(absf(ticks * DT - air) < 0.05, "in the air %f s" % (ticks * DT))
+	var ahead: float = (p.position - start).dot(fwd)
+	runner.check(ahead > 20.0 * air and absf(ahead - (20.0 + ItemProjectile.TOSS_SPEED) * air) < 1.5, "landed %f m ahead" % ahead)
+	runner.check(absf(ItemProjectile.toss_lead() - ItemProjectile.TOSS_SPEED * air) < 0.001)
+	# then it sits still like any banana, and a kart driving into it is hit
+	var rest: Vector3 = p.position
+	p.step(1.0, t)
+	runner.check(p.position == rest, "sits still after landing")
+	runner.check(p.hits(rest + Vector3(0.5, 0, 0), 1.0, 1))
+	# a toss with no track (bare model) still lands
+	var q = ItemProjectile.make_fake_box(Vector3(5, 0, 5), 0)
+	q.toss(0.0, 0.0)
+	for n in 120:
+		q.step(DT, null)
+	runner.check(not q.in_flight() and q.position.y == 0.0 and q.position.z < 5.0 - ItemProjectile.toss_lead() + 0.5, "fake box tossed down -z: %s" % q.position)
+
+func test_mk64_tossed_item_lands_inside_the_walls() -> void:
+	var t := TrackData.new()
+	var i := 12
+	var right: Vector3 = t.right_of(i)
+	var p = ItemProjectile.make_banana(t.points[i] + Vector3(0, 0.3, 0), 0)
+	# thrown straight at the right-hand wall
+	p.toss(atan2(-right.x, -right.z), 30.0)
+	for n in 120:
+		p.step(DT, t)
+	runner.check(not p.in_flight())
+	var c: Vector3 = t.closest_point(p.position)
+	var off := Vector2(p.position.x - c.x, p.position.z - c.z).length()
+	runner.check(off <= t.width * 0.5 - p.radius + 0.01, "pushed back inside the wall: off=%f" % off)
+	runner.check(off > t.width * 0.5 - p.radius - 1.0, "lies at the road edge: off=%f" % off)
+
+func test_manager_uses_items_the_other_way() -> void:
+	var r = _make_manager(2)
+	var m = r[0]
+	var ks: Array = r[1]
+	_place(r, 0, 10)
+	_place(r, 1, 30)
+	var k = ks[0]
+	var fwd := Vector3(-sin(k.heading), 0, -cos(k.heading))
+	# green shell: fired straight behind the kart
+	m.holders[0].held = Items.Type.SHELL
+	runner.check(m.use_item(0, true) == Items.Type.SHELL)
+	var s = m.projectiles[-1]
+	runner.check(s.kind == Items.Type.SHELL and s.velocity.normalized().dot(fwd) < -0.99, "green shell goes backwards: %s" % s.velocity)
+	runner.check((s.position - k.global_position).dot(fwd) < 0.0, "starts behind the kart")
+	# red shell: backwards and not homing
+	m.holders[0].held = Items.Type.RED_SHELL
+	runner.check(m.use_item(0, true) == Items.Type.RED_SHELL)
+	var rs = m.projectiles[-1]
+	runner.check(rs.kind == Items.Type.RED_SHELL and not rs.homing and rs.velocity.normalized().dot(fwd) < -0.99, "red shell straight back")
+	# the normal way is unchanged
+	m.holders[0].held = Items.Type.RED_SHELL
+	m.use_item(0)
+	runner.check(m.projectiles[-1].homing and m.projectiles[-1].velocity.normalized().dot(fwd) > 0.99, "forward red shell homes")
+	# banana / fake box: tossed ahead in the air
+	k.model.speed = 25.0
+	m.holders[0].held = Items.Type.BANANA
+	runner.check(m.use_item(0, true) == Items.Type.BANANA)
+	var b = m.projectiles[-1]
+	runner.check(b.kind == Items.Type.BANANA and b.in_flight() and b.velocity.dot(fwd) > 25.0 and b.velocity.y > 0.0, "banana flies ahead: %s" % b.velocity)
+	runner.check((b.position - k.global_position).dot(fwd) > 0.0, "starts in front of the kart")
+	runner.check(m.nodes.has(b), "has a visual")
+	m.holders[0].held = Items.Type.FAKE_ITEM_BOX
+	runner.check(m.use_item(0, true) == Items.Type.FAKE_ITEM_BOX)
+	runner.check(m.projectiles[-1].in_flight() and is_equal_approx(m.projectiles[-1].rest_y, k.global_position.y), "fake box tossed, lands at road height")
+	# the normal drop is unchanged
+	m.holders[0].held = Items.Type.BANANA
+	m.use_item(0)
+	runner.check(not m.projectiles[-1].in_flight() and (m.projectiles[-1].position - k.global_position).dot(fwd) < 0.0, "plain drop still lands behind")
+	# triple shells and the bunch ignore it
+	m.holders[0].held = Items.Type.TRIPLE_SHELL
+	m.holders[0].charges = 3
+	runner.check(m.use_item(0, true) == Items.Type.TRIPLE_SHELL)
+	runner.check(m.projectiles[-1].velocity.normalized().dot(fwd) > 0.99, "triple shells only fire forward")
+	m.holders[0].held = Items.Type.BANANA_BUNCH
+	m.holders[0].charges = 5
+	runner.check(m.use_item(0, true) == Items.Type.BANANA_BUNCH)
+	runner.check(not m.projectiles[-1].in_flight(), "the bunch only drops")
+	# a mushroom is just a mushroom
+	m.holders[0].held = Items.Type.MUSHROOM
+	runner.check(m.use_item(0, true) == Items.Type.MUSHROOM and k.model.is_boosting())
+	_free_manager(r)
+
+func test_manager_tossed_banana_hits_the_kart_ahead() -> void:
+	var r = _make_manager(2)
+	var m = r[0]
+	var ks: Array = r[1]
+	_place(r, 0, 10)
+	_place(r, 1, 10)
+	var k = ks[0]
+	var fwd := Vector3(-sin(k.heading), 0, -cos(k.heading))
+	# the rival sits where the toss will come down
+	ks[1].global_position = k.global_position + fwd * (1.5 + ItemProjectile.toss_lead())
+	m.holders[0].held = Items.Type.BANANA
+	var hits: Array = []
+	m.kart_hit.connect(func(kind, id): hits.append([kind, id]))
+	m.use_item(0, true)
+	for n in 90:
+		m._physics_process(DT)
+	runner.check(hits == [[Items.Type.BANANA, 1]], "the tossed banana got the kart ahead: %s" % [hits])
+	runner.check(ks[1].model.is_spinning() and not k.model.is_spinning())
+	_free_manager(r)
+
+func test_ai_uses_items_the_other_way() -> void:
+	var d = load("res://scripts/ai_driver.gd").new(TrackData.new(), 0.0, 0.5)
+	runner.check(d.wants_use(1.0, Items.Type.SHELL, INF, 10.0) and d.use_alt, "tailgater, nobody ahead: shell fired back")
+	runner.check(d.wants_use(1.0, Items.Type.SHELL, 30.0, 10.0) and not d.use_alt, "rival ahead wins: fired forward")
+	runner.check(not d.wants_use(1.0, Items.Type.SHELL, INF, 40.0), "nobody close enough either way")
+	runner.check(d.wants_use(1.0, Items.Type.RED_SHELL, INF, 10.0) and d.use_alt, "red shell back at a tailgater")
+	runner.check(d.wants_use(1.0, Items.Type.TRIPLE_SHELL, 30.0, 5.0) and not d.use_alt, "triple shells never go back")
+	runner.check(not d.wants_use(1.0, Items.Type.TRIPLE_SHELL, INF, 5.0), "triple shells wait for a rival ahead")
+	runner.check(d.wants_use(1.0, Items.Type.FAKE_ITEM_BOX, 8.0, INF) and d.use_alt, "rival just ahead, nobody behind: box tossed ahead")
+	runner.check(d.wants_use(1.0, Items.Type.FAKE_ITEM_BOX, 8.0, 10.0) and not d.use_alt, "tailgater wins: dropped behind")
+	runner.check(d.wants_use(1.0, Items.Type.BANANA_BUNCH, 8.0, 10.0) and not d.use_alt, "the bunch only drops")
+	runner.check(not d.wants_use(1.0, Items.Type.BANANA_BUNCH, 8.0, INF), "the bunch waits for a tailgater")
+	runner.check(d.wants_use(1.0, Items.Type.MUSHROOM, INF, INF) and not d.use_alt)
+	var b = load("res://scripts/battle_ai.gd").new(load("res://scripts/arena_data.gd").make(1), 0.5)
+	runner.check(b.wants_use(1.0, Items.Type.SHELL, INF, 8.0) and b.use_alt, "battle: shell back at a kart behind")
+	runner.check(b.wants_use(1.0, Items.Type.SHELL, 20.0, 8.0) and not b.use_alt, "battle: kart ahead wins")
+	runner.check(b.wants_use(1.0, Items.Type.BANANA, 8.0, INF) and b.use_alt, "battle: banana tossed at a kart ahead")
+	runner.check(b.wants_use(1.0, Items.Type.BANANA, 8.0, 8.0) and not b.use_alt, "battle: kart behind wins")
+	runner.check(not b.wants_use(1.0, Items.Type.TRIPLE_SHELL, INF, 8.0), "battle: triple shells never go back")
+
+func test_mk64_other_way_key_and_hints() -> void:
+	var codes := []
+	for ev in InputMap.action_get_events("use_item_alt"):
+		if ev is InputEventKey:
+			codes.append(ev.physical_keycode)
+	runner.check(KEY_Q in codes and KEY_BACKSPACE in codes, "Q / Backspace bound: %s" % [codes])
+	var h := Hud.item_hint_text(Items.Type.SHELL)
+	runner.check(h.contains("Q") and h.contains("behind"), h)
+	h = Hud.item_hint_text(Items.Type.RED_SHELL)
+	runner.check(h.contains("Q") and h.contains("behind"), h)
+	h = Hud.item_hint_text(Items.Type.BANANA)
+	runner.check(h.contains("Q") and h.contains("ahead"), h)
+	h = Hud.item_hint_text(Items.Type.FAKE_ITEM_BOX)
+	runner.check(h.contains("Q") and h.contains("ahead"), h)
+	for t in [Items.Type.TRIPLE_SHELL, Items.Type.BANANA_BUNCH, Items.Type.STAR, Items.Type.MUSHROOM]:
+		h = Hud.item_hint_text(t)
+		runner.check(h.contains("E") and not h.contains("Q"), h)

@@ -92,9 +92,10 @@ func test_driver_item_policy() -> void:
 	runner.check(not d.wants_use(1.5, Items.Type.SHELL, INF, INF))
 	runner.check(d.wants_use(DT, Items.Type.SHELL, 30.0, INF))
 	runner.check(not d.wants_use(1.5, Items.Type.SHELL, 80.0, INF), "rival too far")
-	# banana only with a rival close behind
-	runner.check(not d.wants_use(1.5, Items.Type.BANANA, 10.0, INF))
-	runner.check(d.wants_use(DT, Items.Type.BANANA, INF, 12.0))
+	# banana with a rival close behind (dropped), or close ahead (MK64: tossed forward)
+	runner.check(not d.wants_use(1.5, Items.Type.BANANA, 40.0, INF))
+	runner.check(d.wants_use(DT, Items.Type.BANANA, 10.0, INF) and d.use_alt, "rival just ahead: toss it forward")
+	runner.check(d.wants_use(1.5, Items.Type.BANANA, INF, 12.0) and not d.use_alt, "rival behind: drop it")
 	# stuck holding for ages: use it anyway
 	var d2 := AiDriver.new(null, 0.0, 1.0)
 	var used := false

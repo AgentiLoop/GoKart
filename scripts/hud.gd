@@ -77,9 +77,17 @@ static func item_text(item: int, charges := 0, golden_left := 0.0) -> String:
 		extra = " %.1fs" % golden_left
 	return "[ %s%s ]" % [Items.name_of(item), extra]
 
-## Tells the player how to release a held item (empty when nothing is held).
+## Tells the player how to release a held item (empty when nothing is held). A single shell or a
+## banana / fake box can also go the other way (Mario Kart 64): Q / Backspace fires the shell
+## behind the kart or tosses the banana / box ahead.
 static func item_hint_text(item: int) -> String:
-	return "" if item == Items.Type.NONE else "Press E / Enter / Ctrl to use"
+	if item == Items.Type.NONE:
+		return ""
+	if item == Items.Type.SHELL or item == Items.Type.RED_SHELL:
+		return "E / Enter fires ahead, Q / Backspace behind you"
+	if Items.is_dropped(item):
+		return "E / Enter drops it behind, Q / Backspace throws it ahead"
+	return "Press E / Enter / Ctrl to use"
 
 ## Bottom-left status word: star beats a Boo ghost beats a boost beats shrunk beats the mini-turbo level.
 static func state_text(boosting: bool, drift_level: int, star := false, shrunk := false, ghost := false) -> String:

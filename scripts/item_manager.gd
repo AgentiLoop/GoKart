@@ -84,24 +84,44 @@ static func rival_gaps(i: int, positions: Array, headings: Array) -> Vector2:
 			behind = minf(behind, -f)
 	return Vector2(ahead, behind)
 
-func use_item(id := 0) -> int:
+## Fire / drop the item kart `id` holds. `other_way` (Mario Kart 64: the stick held the other way
+## with Z) sends a single green or red shell straight behind the kart (a red shell then flies
+## straight, no homing) and tosses a banana or fake item box ahead in an arc; anything else ignores it.
+func use_item(id := 0, other_way := false) -> int:
 	var k = karts[id]
 	if k.model.is_spinning():
 		return Items.Type.NONE
 	var t: int = holders[id].use()
 	var pos: Vector3 = k.global_position
 	var fwd := Vector3(-sin(k.heading), 0, -cos(k.heading))
+	var flip: bool = other_way and Items.can_reverse(t)
 	match t:
 		Items.Type.MUSHROOM, Items.Type.TRIPLE_MUSHROOM, Items.Type.GOLDEN_MUSHROOM:
 			k.model.apply_boost(MUSHROOM_BOOST_TIME, 2)
 		Items.Type.BANANA, Items.Type.BANANA_BUNCH:
-			_add_projectile(ItemProjectile.make_banana(pos - fwd * 2.4 + Vector3(0, 0.3, 0), id))
+			if flip:
+				var b = ItemProjectile.make_banana(pos + fwd * 1.5 + Vector3(0, 0.3, 0), id)
+				b.toss(k.heading, k.model.speed)
+				_add_projectile(b)
+			else:
+				_add_projectile(ItemProjectile.make_banana(pos - fwd * 2.4 + Vector3(0, 0.3, 0), id))
 		Items.Type.FAKE_ITEM_BOX:
-			_add_projectile(ItemProjectile.make_fake_box(pos - fwd * 2.6, id))
+			if flip:
+				var b = ItemProjectile.make_fake_box(pos + fwd * 1.5, id)
+				b.toss(k.heading, k.model.speed)
+				_add_projectile(b)
+			else:
+				_add_projectile(ItemProjectile.make_fake_box(pos - fwd * 2.6, id))
 		Items.Type.SHELL, Items.Type.TRIPLE_SHELL:
-			_add_projectile(ItemProjectile.make_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), k.heading, id))
+			if flip:
+				_add_projectile(ItemProjectile.make_shell(pos - fwd * 2.6 + Vector3(0, 0.6, 0), k.heading + PI, id))
+			else:
+				_add_projectile(ItemProjectile.make_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), k.heading, id))
 		Items.Type.RED_SHELL, Items.Type.TRIPLE_RED_SHELL:
-			_add_projectile(ItemProjectile.make_red_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), k.heading, id))
+			if flip:
+				_add_projectile(ItemProjectile.make_red_shell(pos - fwd * 2.6 + Vector3(0, 0.6, 0), k.heading + PI, id, false))
+			else:
+				_add_projectile(ItemProjectile.make_red_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), k.heading, id))
 		Items.Type.BLUE_SHELL:
 			var lead := ItemProjectile.pick_leader(_progresses(), id)
 			_add_projectile(ItemProjectile.make_blue_shell(pos + fwd * 2.4 + Vector3(0, ItemProjectile.BLUE_HEIGHT, 0), k.heading, id, lead))
@@ -475,12 +495,14 @@ func _physics_process(delta: float) -> void:
 				holders[id].pickup(_rank(id), karts.size())
 	if Input.is_action_just_pressed("use_item") and not karts[0].frozen:
 		use_item(0)
+	elif Input.is_action_just_pressed("use_item_alt") and not karts[0].frozen:
+		use_item(0, true)
 	for id in range(1, karts.size()):
 		var drv = karts[id].driver
 		if drv != null:
 			var gaps := rival_gaps(id, positions, headings)
 			if drv.wants_use(delta, holders[id].held, gaps.x, gaps.y):
-				use_item(id)
+				use_item(id, drv.use_alt)
 	var valid: Array = []
 	for k in karts:
 		valid.append(not k.model.is_star() and not k.model.is_ghost())
@@ -491,7 +513,7 @@ func _physics_process(delta: float) -> void:
 				if j != id and positions[id].distance_to(positions[j]) <= STAR_HIT_RADIUS and karts[j].model.spin_out():
 					kart_hit.emit(Items.Type.STAR, j)
 	for p in projectiles.duplicate():
-		if p.kind == Items.Type.RED_SHELL:
+		if p.kind == Items.Type.RED_SHELL and p.homing:
 			var dir: Vector3 = p.velocity.normalized()
 			var ti: int = ItemProjectile.pick_target(p.position, dir, positions, p.owner_id, valid)
 			p.target_pos = positions[ti] if ti >= 0 else null
@@ -515,4 +537,4 @@ func _physics_process(delta: float) -> void:
 		else:
 			var n: Node3D = nodes[p]
 			n.position = p.position
-			n.rotation.y += (12.0 if p.is_shell() else (1.6 if p.kind == Items.Type.FAKE_ITEM_BOX else 0.0)) * delta
+			n.rotation.y += (12.0 if p.is_shell() else (8.0 if p.in_flight() else (1.6 if p.kind == Items.Type.FAKE_ITEM_BOX else 0.0))) * delta
