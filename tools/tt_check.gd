@@ -60,6 +60,7 @@ func _process(_d: float) -> bool:
 		return false
 	if stage == 0:
 		_check(cs.name == "Menu", "menu scene loaded")
+		_key(KEY_ENTER)   # Enter leaves the title screen
 		_key(KEY_G)
 		_key(KEY_G)
 		stage = 1

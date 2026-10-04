@@ -33,6 +33,7 @@ func _process(_d: float) -> bool:
 	if stage == 0:
 		_check(cs.name == "Menu", "menu scene loaded")
 		_check(not cs.blurb_label.text.contains("MIRRORED"), "150cc blurb is plain: " + cs.blurb_label.text)
+		_key(KEY_ENTER)   # Enter leaves the title screen
 		_key(KEY_C)
 		stage = 1
 		frames = 0

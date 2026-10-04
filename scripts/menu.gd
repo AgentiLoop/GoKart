@@ -138,6 +138,15 @@ const LEAVE_SLIDE := 48.0        # ... rising this far
 const MOTION_DONE := 100.0       # anim_t of a finished motion (snapped poses)
 var anim_t := MOTION_DONE        # seconds into the current motion
 var prompt_fade := 1.0           # title prompt's share of the blink alpha (0 until the logo lands)
+# Title demo tour like MK64's attract mode, which shows one course after another: once the logo has
+# landed the demo stays on a course TOUR_HOLD seconds, then dips to navy under the logo (TOUR_FADE),
+# comes back on the next course and the highlight follows it — leaving the title, the select screen
+# opens on the course being watched. Battle mode (back from a battle) has no demo tour.
+const TOUR_HOLD := 15.0          # seconds the demo stays on one course
+const TOUR_FADE := 0.4           # the dip to navy before the switch, and the rise after it
+const TOUR_VEIL := Color(0.04, 0.05, 0.16)   # the dip's colour (the panels' navy, no black)
+var tour_t := 0.0                # seconds into the current course's stay (negative: rising after a switch)
+var veil: ColorRect              # over the demo, under the logo: alpha = tour_veil(tour_t)
 ## The logo: "GOKART" set on an arch like MK64's logo, each letter a stack of layers — a soft
 ## shadow, LOGO_DEPTH navy extrusion layers, a dark red rim and a yellow -> orange -> red gradient
 ## fill painted by shaders/logo_gradient.gdshader.
@@ -349,6 +358,11 @@ func _ready() -> void:
 	# the live race behind everything (MK64 title screen), then the shade, then the 2D layout
 	attract = Attract.new()
 	add_child(attract)
+	veil = ColorRect.new()
+	veil.set_anchors_preset(Control.PRESET_FULL_RECT)
+	veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	veil.color = Color(TOUR_VEIL, 0.0)
+	add_child(veil)
 	audio = MenuAudio.new()
 	add_child(audio)
 	backdrop = Backdrop.new()
@@ -485,6 +499,8 @@ func set_title(on: bool) -> void:
 	else:
 		anim_t = MOTION_DONE
 		_apply_motion()
+	tour_t = 0.0
+	_apply_tour()
 	if audio != null:
 		audio.set_title(on)
 
@@ -536,6 +552,28 @@ static func leave_pose(t: float) -> Dictionary:
 		"slide": LEAVE_SLIDE * (1.0 - u),
 		"alpha": clampf(t / LEAVE_FADE, 0.0, 1.0),
 	}
+
+## The title demo tour's veil over the demo `t` seconds into a course's stay: clear while the course
+## shows, rising to 1 over TOUR_FADE after TOUR_HOLD (the switch happens at tour_switch_time()),
+## and falling from 1 while t runs up from -TOUR_FADE after the switch. Pure.
+static func tour_veil(t: float) -> float:
+	if t < 0.0:
+		return clampf(-t / TOUR_FADE, 0.0, 1.0)
+	return clampf((t - TOUR_HOLD) / TOUR_FADE, 0.0, 1.0)
+
+## When the tour moves the demo to the next course (the veil is fully up).
+static func tour_switch_time() -> float:
+	return TOUR_HOLD + TOUR_FADE
+
+## Whether the demo tours the courses: on the title screen, once the logo has landed, outside
+## battle mode.
+func tour_runs() -> bool:
+	return title_shown and mode != MODE_BATTLE and anim_t >= INTRO_TIME
+
+## Put the veil where the tour has it.
+func _apply_tour() -> void:
+	if veil != null:
+		veil.color = Color(TOUR_VEIL, tour_veil(tour_t) if title_shown else 0.0)
 
 ## Put the logo, the prompt, the backdrop and the panels where the current motion has them.
 func _apply_motion() -> void:
@@ -654,6 +692,14 @@ func _process(delta: float) -> void:
 	if anim_t < (INTRO_TIME + PROMPT_IN if title_shown else LEAVE_TIME):
 		anim_t += delta
 		_apply_motion()
+	# the title demo tour: the next course once the veil is up, the highlight following it
+	if tour_runs():
+		tour_t += delta
+		if tour_t >= tour_switch_time():
+			tour_t = -TOUR_FADE
+			selected = TrackLibrary.step(selected, 1)
+			_refresh()
+		_apply_tour()
 	blink += delta
 	var a := 0.6 + 0.4 * sin(blink * 5.0)
 	if prompt != null:

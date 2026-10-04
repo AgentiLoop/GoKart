@@ -36,12 +36,13 @@ func _process(_d: float) -> bool:
 		_check(cs.title_shown and not cs.select_box.visible and cs.title_prompt.visible, "title screen first: logo over the demo, panels hidden")
 		_check(cs.attract.course == 0 and cs.attract.karts.size() == cs.attract.KART_COUNT and cs.attract.viewport.own_world_3d, "attract demo: %d karts on track 0 in their own world" % cs.attract.karts.size())
 		_check(cs.audio.title.playing and cs.audio.title.volume_db == cs.audio.MUSIC_DB and not cs.audio.menu.playing, "title theme plays on the title screen (select theme silent)")
+		_key(KEY_ENTER)   # Enter leaves the title screen (nothing else does)
 		_key(KEY_D)
 		stage = 1
 		frames = 0
 	elif stage == 1 and frames > 3:
 		_check(cs.name_label.text == lib.info(1).name, "D selects track 1: " + cs.name_label.text)
-		_check(not cs.title_shown and cs.select_box.visible and not cs.title_prompt.visible, "D also brings up the select screen")
+		_check(not cs.title_shown and cs.select_box.visible and not cs.title_prompt.visible, "Enter brought up the select screen")
 		_check(cs.attract.course == 1 and cs.attract.track.data.count == lib.make_data(1).count, "demo switches to track 1")
 		_check(cs.sub_label.text == "SELECT COURSE" and cs.list_box.get_child_count() == lib.count() + 1, "course list: %d rows + lit bar" % lib.count())
 		_check(cs.font.get_font_name() != "" and cs.laps_label.get_theme_constant("outline_size") == 0, "menu text has no black outline (font %s)" % cs.font.get_font_name())

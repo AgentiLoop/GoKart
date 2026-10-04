@@ -112,3 +112,36 @@ func test_menu_outside_the_tree_snaps() -> void:
 	runner.check(m.title_box.position == Menu.MENU_LOGO_POS and m.select_box.position == Vector2.ZERO and is_equal_approx(m.select_box.modulate.a, 1.0) and is_equal_approx(m.backdrop.dim, 1.0), "select pose at once")
 	for n in [m.title_box, m.select_box, m.title_prompt, m.backdrop, m]:
 		n.free()
+
+func test_tour_veil() -> void:
+	runner.check(is_zero_approx(Menu.tour_veil(0.0)) and is_zero_approx(Menu.tour_veil(Menu.TOUR_HOLD * 0.5)) and is_zero_approx(Menu.tour_veil(Menu.TOUR_HOLD)), "clear while the course shows")
+	runner.check(is_equal_approx(Menu.tour_veil(Menu.TOUR_HOLD + Menu.TOUR_FADE * 0.5), 0.5), "half way up half way through the dip")
+	runner.check(is_equal_approx(Menu.tour_veil(Menu.tour_switch_time()), 1.0) and is_equal_approx(Menu.tour_switch_time(), Menu.TOUR_HOLD + Menu.TOUR_FADE), "fully up at the switch")
+	runner.check(is_equal_approx(Menu.tour_veil(-Menu.TOUR_FADE), 1.0) and is_equal_approx(Menu.tour_veil(-Menu.TOUR_FADE * 0.25), 0.25), "falling again after the switch")
+
+func test_title_demo_tour() -> void:
+	Menu.title_seen = false
+	var m = _menu()
+	var first: int = m.selected
+	runner.check(m.title_shown and m.tour_runs() and is_zero_approx(m.tour_t) and is_zero_approx(m.veil.color.a), "the tour runs on the title screen once the logo has landed, veil clear")
+	_run(m, Menu.TOUR_HOLD + Menu.TOUR_FADE * 0.5)
+	runner.check(m.selected == first and m.veil.color.a > 0.3 and m.veil.color.a < 0.7, "dipping to navy before the switch, still on the first course")
+	runner.check(m.veil.color.r == Menu.TOUR_VEIL.r and m.veil.color.b == Menu.TOUR_VEIL.b, "the dip is the panels' navy")
+	_run(m, Menu.TOUR_FADE * 0.5 + 2.0 / 60.0)
+	var second: int = m.selected
+	runner.check(second == Menu.TrackLibrary.step(first, 1) and m.attract.course == second and m.name_label.text == Menu.TrackLibrary.info(second).name, "the demo moves to the next course and the highlight follows")
+	runner.check(m.tour_t < 0.0 and m.veil.color.a > 0.85, "veil still up right after the switch")
+	_run(m, Menu.TOUR_FADE)
+	runner.check(is_zero_approx(m.veil.color.a), "back in view")
+	_run(m, Menu.TOUR_HOLD * 0.5)
+	runner.check(m.selected == second, "stays on the course for its turn")
+	# any key: the select screen opens on the course being watched, no more touring
+	m.dismiss_title()
+	runner.check(not m.title_shown and m.selected == second and not m.tour_runs() and is_zero_approx(m.veil.color.a), "select screen on the watched course, veil cleared")
+	_run(m, Menu.tour_switch_time() + 1.0)
+	runner.check(m.selected == second and is_zero_approx(m.veil.color.a), "the select screen never tours")
+	# battle mode on the title: no tour (the demo shows no arena)
+	m.set_title(true)
+	m.mode = Menu.MODE_BATTLE
+	runner.check(not m.tour_runs(), "no tour in battle mode")
+	m.free()

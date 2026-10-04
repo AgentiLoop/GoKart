@@ -52,6 +52,7 @@ func _process(_d: float) -> bool:
 	if stage == 0:
 		_check(cs.name == "Menu", "menu scene loaded")
 		_check(cs.weight_label.text.contains("Medium"), "Medium by default: " + cs.weight_label.text)
+		_key(KEY_ENTER)   # Enter leaves the title screen
 		_key(KEY_V)
 		stage = 1
 		frames = 0

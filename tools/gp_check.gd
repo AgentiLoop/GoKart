@@ -37,6 +37,7 @@ func _process(_d: float) -> bool:
 	if stage == 0:
 		_check(cs.name == "Menu", "menu scene loaded")
 		_check(cs.mode == cs.MODE_SINGLE, "single race by default")
+		_key(KEY_ENTER)   # Enter leaves the title screen
 		_key(KEY_G)
 		stage = 1
 		frames = 0
