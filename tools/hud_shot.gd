@@ -3,6 +3,8 @@ extends SceneTree
 ##   perl -e 'alarm 60; exec @ARGV' godot --path . -s tools/hud_shot.gd
 ## Saves /tmp/gokart_hud_countdown.png (the gold "3" sign over the grid, a green shell in the item window), /tmp/gokart_hud_results.png,
 ## _results_gp.png and _results_tt.png (the results boards on their navy panel) and samples a few pixels.
+## Each board is shot 2 s after it comes up (the rows slide in over ~1.5 s); _results_mid.png is the
+## race board 0.2 s in, with the first rows arriving and the rest still off to the left.
 
 const RaceResults := preload("res://scripts/race_results.gd")
 const UiStyle := preload("res://scripts/ui_style.gd")
@@ -57,9 +59,21 @@ func _process(_d: float) -> bool:
 		var rows := RaceResults.rows(names, [900.0, 880.0, 860.0, 840.0, 820.0, 800.0, 780.0, 760.0], [92.4, 93.1, 95.0, 97.7, -1.0, -1.0, -1.0, -1.0])
 		main.hud.show_results(RaceResults.table_text(rows, 0))
 		main.hud.show_countdown("")
-	elif f == 50:
+	elif f == 52:
+		var img := _shot("hud_results_mid")
+		var hud = main.hud
+		var in_rows: int = hud.reveal_rows.filter(func(r): return r.modulate.a == 1.0).size()
+		var waiting: int = hud.reveal_rows.filter(func(r): return r.modulate.a == 0.0).size()
+		print("mid reveal (t %.2f): %d rows in, %d still waiting, %d ticks" % [hud.reveal_t, in_rows, waiting, hud.ticks])
+		var size := img.get_size()
+		var panel: Panel = hud.results_panel
+		var top := Rect2i(int(size.x / 2 + panel.offset_left) + 30, int(size.y / 2 + panel.offset_top) + 46, 300, 28)
+		var bottom := Rect2i(top.position.x, int(size.y / 2 + panel.offset_bottom) - 60, 300, 28)
+		print("  cream text in the first row: %s  in the last row: %s" % [_has_colour(img, top, UiStyle.CREAM, 0.12), _has_colour(img, bottom, UiStyle.CREAM, 0.12)])
+	elif f == 160:
 		_sample_board("hud_results")
-	elif f == 60:
+		print("  reveal over: %s  ticks: %d" % [main.hud.reveal_t < 0.0, main.hud.ticks])
+	elif f == 170:
 		# Grand Prix: results + cup standings + trophy (8 racers) must still fit the window
 		var names := ["YOU", "BLUE", "GREEN", "PURPLE", "YELLOW", "ORANGE", "PINK", "TEAL"]
 		var rows := RaceResults.rows(names, [900.0, 880.0, 860.0, 840.0, 820.0, 800.0, 780.0, 760.0], [92.4, 93.1, 95.0, 97.7, -1.0, -1.0, -1.0, -1.0])
@@ -69,14 +83,14 @@ func _process(_d: float) -> bool:
 		gp.add_race(rows, 0)
 		main.hud.show_results(RaceResults.table_text(rows, 0, gp.standings_text(names, 0)))
 		gp.stop()
-	elif f == 70:
+	elif f == 290:
 		var r := _sample_board("hud_results_gp")
 		var size := root.get_viewport().get_texture().get_image().get_size()
 		print("GP board inside the window: ", r.position.y - 23 >= 0 and r.end.y <= size.y)
-	elif f == 80:
+	elif f == 300:
 		var tt = load("res://scripts/time_trial.gd")
 		main.hud.show_results(tt.results_text("Green Hills", 62.5, [21.0, 20.1, 21.4], {"new_best": true, "new_best_lap": true, "rank": 1}))
-	elif f == 90:
+	elif f == 420:
 		_sample_board("hud_results_tt")
 		quit(0)
 		return true

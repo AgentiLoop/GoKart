@@ -5,12 +5,16 @@ extends CanvasLayer
 ## The results are a Mario Kart 64 style board: a gold title banner over a navy panel, one row
 ## per racer (colour swatch, gold / silver / bronze ordinal, name, time, points) with the player's
 ## row on a lit gold bar, section captions, time-trial key/value lines and a blinking prompt.
+## Like MK64's results the rows do not just appear: each slides in from the left a beat after the
+## one above it (results first, then the cup standings, then the trophy sign and the prompt), a
+## tick for every ranking row.
 
 const Items := preload("res://scripts/items.gd")
 const RaceRanking := preload("res://scripts/race_ranking.gd")
 const Minimap := preload("res://scripts/minimap.gd")
 const UiStyle := preload("res://scripts/ui_style.gd")
 const ItemIcon := preload("res://scripts/item_icon.gd")
+const SoundSynth := preload("res://scripts/sound_synth.gd")
 
 ## Item window (top centre): box side and the icon's side inside it.
 const ITEM_WINDOW := 96.0
@@ -38,6 +42,13 @@ const SILVER := Color(0.85, 0.88, 0.94)
 const BRONZE := Color(0.87, 0.58, 0.32)
 const PLAYER_FALLBACK := Color(0.9, 0.1, 0.1)   # the player's kart red (Kart.body_color default)
 
+## Board reveal: a row starts its slide REVEAL_STAGGER after the one before, slides REVEAL_SLIDE px in
+## from the left over REVEAL_TIME while fading in.
+const REVEAL_STAGGER := 0.07
+const REVEAL_TIME := 0.22
+const REVEAL_SLIDE := 48.0
+const TICK_DB := -8.0
+
 var font: Font
 var lap_label: Label
 var time_label: Label
@@ -56,6 +67,12 @@ var results_box: Control        # the board's rows, inside results_panel
 var results_title: Label
 var results_title_panel: Panel
 var results_prompts: Array[Label] = []
+var reveal_rows: Array[Control] = []   # one Control per board row (its cells inside), top to bottom
+var reveal_t := -1.0            # seconds since the board came up; -1 while no reveal runs
+var revealed := 0               # rows whose slide has begun
+var ticks := 0                  # row ticks played so far (checks read it)
+var tick: AudioStreamPlayer     # the row tick (built on first use)
+var row: Control                # the row the board cells are being added to (during _layout)
 var player_color := PLAYER_FALLBACK
 var blink := 0.0
 var cup_label: Label
@@ -177,6 +194,48 @@ func _process(delta: float) -> void:
 	var a := 0.6 + 0.4 * sin(blink * 5.0)
 	for p in results_prompts:
 		p.modulate.a = a
+	if reveal_t >= 0.0:
+		reveal_t += delta
+		_apply_reveal()
+		while revealed < reveal_rows.size() and reveal_t >= revealed * REVEAL_STAGGER:
+			if reveal_rows[revealed].get_meta("tick"):
+				_tick()
+			revealed += 1
+		if reveal_t >= reveal_length(reveal_rows.size()):
+			reveal_t = -1.0
+
+static func ease_out_cubic(t: float) -> float:
+	var u := 1.0 - t
+	return 1.0 - u * u * u
+
+## Row `index` of the board t seconds after it came up: its x offset (px left of its spot, 0 once
+## it has arrived) and alpha. Pure.
+static func reveal_pose(t: float, index: int) -> Dictionary:
+	var u := ease_out_cubic(clampf((t - index * REVEAL_STAGGER) / REVEAL_TIME, 0.0, 1.0))
+	return {"x": -REVEAL_SLIDE * (1.0 - u), "alpha": u}
+
+## Seconds until a board of `rows` rows has fully arrived. Pure.
+static func reveal_length(rows: int) -> float:
+	return maxf(rows - 1, 0) * REVEAL_STAGGER + REVEAL_TIME if rows > 0 else 0.0
+
+func _apply_reveal() -> void:
+	for i in reveal_rows.size():
+		var pose := reveal_pose(maxf(reveal_t, 0.0), i)
+		var r := reveal_rows[i]
+		r.position.x = r.get_meta("base_x") + pose.x
+		r.modulate.a = pose.alpha
+
+## Plays the row tick (MenuAudio's cursor tick); playback needs the tree, the count does not.
+func _tick() -> void:
+	ticks += 1
+	if not is_inside_tree():
+		return
+	if tick == null:
+		tick = AudioStreamPlayer.new()
+		tick.stream = SoundSynth.to_wav(SoundSynth.effect_library()["cursor"])
+		tick.volume_db = TICK_DB
+		add_child(tick)
+	tick.play()
 
 func _make_label(h_align: HorizontalAlignment, v_align: VerticalAlignment, inset: Vector2, font_size: int, col: Color) -> Label:
 	var l := Label.new()
@@ -325,7 +384,7 @@ func _board_label(text: String, pos: Vector2, w: float, h: float, font_size: int
 	l.horizontal_alignment = align
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	UiStyle.style_label(l, font, font_size, col)
-	results_box.add_child(l)
+	row.add_child(l)
 	return l
 
 func _board_rule(x0: float, y: float, col_w: float) -> void:
@@ -333,7 +392,7 @@ func _board_rule(x0: float, y: float, col_w: float) -> void:
 	r.position = Vector2(x0 + 8, y)
 	r.size = Vector2(col_w - 16, 1)
 	r.color = Color(1, 1, 1, 0.16)
-	results_box.add_child(r)
+	row.add_child(r)
 
 ## Height of one board item (the title is drawn in its own pill above the rows).
 static func item_height(item: Dictionary) -> float:
@@ -373,12 +432,23 @@ static func split_columns(items: Array) -> Array:
 			break
 	return [items, [], []]
 
-## Lays `items` out in a column `col_w` wide starting at (x0, y0); returns the height used.
+## Lays `items` out in a column `col_w` wide starting at (x0, y0), each item in a row Control of its
+## own (the reveal slides whole rows); returns the height used.
 func _layout(items: Array, x0: float, y0: float, col_w: float) -> float:
 	var y := y0
 	var value_x := col_w - 230.0
 	for item in items:
 		var h := item_height(item)
+		if item.kind != "title" and item.kind != "gap":
+			row = Control.new()
+			row.name = "Row%d" % reveal_rows.size()
+			row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row.position = Vector2(x0, y)
+			row.size = Vector2(col_w, h)
+			row.set_meta("base_x", x0)
+			row.set_meta("tick", item.kind == "rank")
+			results_box.add_child(row)
+			reveal_rows.append(row)
 		match item.kind:
 			"title":
 				results_title.text = item.text
@@ -387,7 +457,7 @@ func _layout(items: Array, x0: float, y0: float, col_w: float) -> float:
 				if item.player:
 					var bar := Panel.new()
 					bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-					bar.position = Vector2(x0 + 6, y + 2)
+					bar.position = Vector2(6, 2)
 					bar.size = Vector2(col_w - 12, h - 4)
 					var sb := StyleBoxFlat.new()
 					sb.bg_color = Color(1.0, 0.82, 0.22, 0.22)
@@ -395,12 +465,12 @@ func _layout(items: Array, x0: float, y0: float, col_w: float) -> float:
 					sb.set_border_width_all(2)
 					sb.set_corner_radius_all(10)
 					bar.add_theme_stylebox_override("panel", sb)
-					results_box.add_child(bar)
+					row.add_child(bar)
 				var sw := swatch_color(item.name)
 				if sw.a > 0.0:
 					var dot := Panel.new()
 					dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-					dot.position = Vector2(x0 + SWATCH_X, y + h * 0.5 - 8)
+					dot.position = Vector2(SWATCH_X, h * 0.5 - 8)
 					dot.size = Vector2(16, 16)
 					var ds := StyleBoxFlat.new()
 					ds.bg_color = sw
@@ -408,30 +478,30 @@ func _layout(items: Array, x0: float, y0: float, col_w: float) -> float:
 					ds.set_border_width_all(1)
 					ds.set_corner_radius_all(8)
 					dot.add_theme_stylebox_override("panel", ds)
-					results_box.add_child(dot)
-				_board_label(item.ordinal, Vector2(x0 + ORDINAL_X, y), NAME_X - ORDINAL_X - 8, h, 22, col)
+					row.add_child(dot)
+				_board_label(item.ordinal, Vector2(ORDINAL_X, 0), NAME_X - ORDINAL_X - 8, h, 22, col)
 				if item.name != "":
-					_board_label(item.name, Vector2(x0 + NAME_X, y), value_x - NAME_X - 8, h, 22, UiStyle.GOLD if item.player else UiStyle.CREAM)
-					_board_label(item.value, Vector2(x0 + value_x, y), col_w - value_x - 8, h, 22, UiStyle.CREAM)
+					_board_label(item.name, Vector2(NAME_X, 0), value_x - NAME_X - 8, h, 22, UiStyle.GOLD if item.player else UiStyle.CREAM)
+					_board_label(item.value, Vector2(value_x, 0), col_w - value_x - 8, h, 22, UiStyle.CREAM)
 				else:
-					_board_label(item.value, Vector2(x0 + NAME_X, y), col_w - NAME_X - 8, h, 22, UiStyle.CREAM)
+					_board_label(item.value, Vector2(NAME_X, 0), col_w - NAME_X - 8, h, 22, UiStyle.CREAM)
 				if item.points != "":
-					_board_label(item.points, Vector2(x0 + value_x, y), col_w - value_x - 12, h, 22, UiStyle.GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+					_board_label(item.points, Vector2(value_x, 0), col_w - value_x - 12, h, 22, UiStyle.GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
 			"section":
-				_board_label(item.text, Vector2(x0 + 12, y), col_w - 24, h - 6, 17, UiStyle.GOLD_DIM)
-				_board_rule(x0, y + h - 4, col_w)
+				_board_label(item.text, Vector2(12, 0), col_w - 24, h - 6, 17, UiStyle.GOLD_DIM)
+				_board_rule(0, h - 4, col_w)
 			"kv":
-				_board_label(item.key, Vector2(x0 + 12, y), KV_VALUE_X - 12, h, 19, UiStyle.GOLD_DIM)
-				_board_label(item.value, Vector2(x0 + KV_VALUE_X, y), col_w - KV_VALUE_X - 12, h, 22, UiStyle.CREAM)
+				_board_label(item.key, Vector2(12, 0), KV_VALUE_X - 12, h, 19, UiStyle.GOLD_DIM)
+				_board_label(item.value, Vector2(KV_VALUE_X, 0), col_w - KV_VALUE_X - 12, h, 22, UiStyle.CREAM)
 				if item.extra != "":
-					_board_label(item.extra, Vector2(x0 + value_x, y), col_w - value_x - 12, h, 19, UiStyle.GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
+					_board_label(item.extra, Vector2(value_x, 0), col_w - value_x - 12, h, 19, UiStyle.GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
 			"sign":
-				var s := _board_label(item.text, Vector2(x0, y), col_w, h, 34, UiStyle.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+				var s := _board_label(item.text, Vector2(0, 0), col_w, h, 34, UiStyle.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 				UiStyle.style_sign(s, font, 34)
 			"prompt":
-				results_prompts.append(_board_label(item.text, Vector2(x0, y), col_w, h, 20, UiStyle.GOLD, HORIZONTAL_ALIGNMENT_CENTER))
+				results_prompts.append(_board_label(item.text, Vector2(0, 0), col_w, h, 20, UiStyle.GOLD, HORIZONTAL_ALIGNMENT_CENTER))
 			"text":
-				_board_label(item.text, Vector2(x0, y), col_w, h, 20, UiStyle.CREAM, HORIZONTAL_ALIGNMENT_CENTER)
+				_board_label(item.text, Vector2(0, 0), col_w, h, 20, UiStyle.CREAM, HORIZONTAL_ALIGNMENT_CENTER)
 		y += h
 	return y - y0
 
@@ -444,6 +514,9 @@ func show_results(text: String) -> void:
 		results_box.remove_child(c)
 		c.queue_free()
 	results_prompts.clear()
+	reveal_rows.clear()
+	reveal_t = -1.0
+	revealed = 0
 	if not results_panel.visible:
 		return
 	var parts := split_columns(parse_results(text))
@@ -473,6 +546,9 @@ func show_results(text: String) -> void:
 	results_title_panel.size = Vector2(title_w, BOARD_TITLE_H)
 	results_title.position = results_title_panel.position
 	results_title.size = results_title_panel.size
+	# the rows start off-screen left and slide in one after another from the next frame
+	reveal_t = 0.0
+	_apply_reveal()
 
 ## Grand Prix progress line under the timers ("RACE 2 / 3"); empty hides it.
 func show_cup(text: String) -> void:

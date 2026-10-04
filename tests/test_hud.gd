@@ -70,7 +70,8 @@ func test_results_board_wraps_the_rows() -> void:
 	runner.check(hud.results_title.text == "RESULTS" and hud.results_title_panel.position.y < 0.0, "title in a pill over the top edge")
 	var labels: Array = []
 	var panels: Array = []
-	for c in hud.results_box.get_children():
+	runner.check(hud.results_box.get_children().all(func(r): return r is Control and r.name.begins_with("Row")), "one row Control per board item")
+	for c in _cells(hud):
 		if c is Label:
 			labels.append(c)
 		elif c is Panel:
@@ -120,13 +121,63 @@ func test_results_board_wraps_the_rows() -> void:
 	runner.check(not hud.results_panel.visible and hud.results_box.get_child_count() == 0 and hud.results_text == "", "hidden again, rows cleared")
 	hud.free()
 
+## The board's cells (labels, bars, swatches, rules) across all its rows.
+static func _cells(hud) -> Array:
+	var out: Array = []
+	for r in hud.results_box.get_children():
+		out.append_array(r.get_children())
+	return out
+
+## MK64 style reveal: the rows slide in from the left one after another (results, then standings,
+## then the trophy sign and the prompt), a tick per ranking row, and settle in place.
+func test_results_rows_slide_in_one_after_another() -> void:
+	var p0 := Hud.reveal_pose(0.0, 0)
+	runner.check(is_equal_approx(p0.x, -Hud.REVEAL_SLIDE) and p0.alpha == 0.0, "a row starts off to the left, invisible")
+	var p_end := Hud.reveal_pose(Hud.REVEAL_TIME, 0)
+	runner.check(is_equal_approx(p_end.x, 0.0) and is_equal_approx(p_end.alpha, 1.0), "and has arrived after REVEAL_TIME")
+	var mid := Hud.reveal_pose(Hud.REVEAL_TIME * 0.5, 0)
+	runner.check(mid.x > -Hud.REVEAL_SLIDE and mid.x < 0.0 and mid.alpha > 0.5, "ease-out: past halfway at half time (%s)" % mid)
+	runner.check(Hud.reveal_pose(Hud.REVEAL_STAGGER * 3, 3).alpha == 0.0 and Hud.reveal_pose(Hud.REVEAL_STAGGER * 3, 2).alpha > 0.0, "row 3 waits its turn while row 2 is on its way")
+	runner.check(is_equal_approx(Hud.reveal_length(5), 4 * Hud.REVEAL_STAGGER + Hud.REVEAL_TIME) and Hud.reveal_length(0) == 0.0, "reveal length")
+	var hud = Hud.new()
+	hud._ready()
+	var names := ["YOU", "BLUE", "GREEN", "PURPLE", "YELLOW", "ORANGE", "PINK", "TEAL"]
+	var gp_rows := RaceResults.rows(names, [8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0], [90.0, 91.0, 92.0, 93.0, -1.0, -1.0, -1.0, -1.0])
+	var standings := "CUP STANDINGS  (RACE 4 / 4)\n"
+	for i in names.size():
+		standings += "%s %-4s %-8s %2d pts\n" % [">" if i == 0 else " ", "%dth" % (i + 1), names[i], 27 - 3 * i]
+	hud.show_results(RaceResults.table_text(gp_rows, 0, standings + "\nGOLD TROPHY!  Press ENTER for the menu"))
+	var rows: Array = hud.reveal_rows
+	runner.check(rows.size() == 8 + 9 + 2 and hud.reveal_t == 0.0 and hud.ticks == 0, "8 result rows, the standings caption + 8 rows, the sign and the prompt: %d" % rows.size())
+	runner.check(rows.all(func(r): return r.modulate.a == 0.0 and is_equal_approx(r.position.x, r.get_meta("base_x") - Hud.REVEAL_SLIDE)), "every row starts off to the left, invisible")
+	runner.check(rows[8].get_meta("base_x") > rows[7].get_meta("base_x") and rows[17].get_meta("base_x") == 0.0, "results rows, then the standings column, then the full-width tail")
+	runner.check(rows.slice(0, 8).all(func(r): return r.get_meta("tick")) and not rows[8].get_meta("tick") and not rows[17].get_meta("tick"), "ranking rows tick, captions / signs / prompts do not")
+	hud._process(1.0 / 60.0)
+	runner.check(rows[0].modulate.a > 0.0 and rows[0].position.x > rows[0].get_meta("base_x") - Hud.REVEAL_SLIDE and rows[1].modulate.a == 0.0, "a frame in: the first row is on its way, the second still waits")
+	runner.check(hud.ticks == 1, "the first row ticked")
+	for i in int(Hud.REVEAL_STAGGER * 8 * 60):
+		hud._process(1.0 / 60.0)
+	runner.check(rows[7].modulate.a > 0.0 and rows[9].modulate.a == 0.0, "the last result row is in before the first standings row starts")
+	runner.check(hud.ticks == 8, "one tick per result row so far: %d" % hud.ticks)
+	for i in 120:
+		hud._process(1.0 / 60.0)
+	runner.check(hud.reveal_t < 0.0 and rows.all(func(r): return r.modulate.a == 1.0 and is_equal_approx(r.position.x, r.get_meta("base_x"))), "settled: every row in place, the reveal over")
+	runner.check(hud.ticks == 16, "16 ranking rows ticked, nothing else: %d" % hud.ticks)
+	var blink_before: float = hud.results_prompts[0].modulate.a
+	hud._process(1.0 / 60.0)
+	runner.check(hud.results_prompts[0].modulate.a != blink_before and rows[18].modulate.a == 1.0, "the prompt still blinks on its own after the reveal")
+	hud.show_results("")
+	runner.check(hud.reveal_rows.is_empty() and hud.reveal_t < 0.0, "hidden: no rows, no reveal")
+	hud.free()
+
 ## Every cell's text fits the width it was given (no clipped names, times or prompts).
 func _check_no_clipping(hud, what: String) -> void:
 	var inner_w: float = hud.results_box.size.x
-	for c in hud.results_box.get_children():
+	for c in _cells(hud):
 		if c is Label:
+			var x: float = c.get_parent().get_meta("base_x") + c.position.x
 			runner.check(c.get_minimum_size().x <= c.size.x + 0.5, "%s board: '%s' needs %.0f px, has %.0f" % [what, c.text, c.get_minimum_size().x, c.size.x])
-			runner.check(c.position.x >= 0.0 and c.position.x + c.size.x <= inner_w + 0.5, "%s board: '%s' inside the panel" % [what, c.text])
+			runner.check(x >= 0.0 and x + c.size.x <= inner_w + 0.5, "%s board: '%s' inside the panel" % [what, c.text])
 	runner.check(hud.results_title.get_minimum_size().x <= hud.results_title.size.x, "%s board: title fits its pill" % what)
 
 func test_style_helpers() -> void:
