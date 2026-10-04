@@ -150,6 +150,8 @@ static func effect_library() -> Dictionary:
 		"block": sweep(1600.0, 700.0, 0.16, 0.5),
 		"bell": arpeggio([1480.0, 1480.0], 0.11, 0.35),
 		"crash": noise_burst(0.7, 0.65, 0.9, 29),
+		"jump": sweep(320.0, 760.0, 0.3, 0.4),         # MK64 jump: a rising whoosh off the ramp's lip
+		"thud": noise_burst(0.18, 0.7, 0.6, 37),        # ...and the thump of the landing
 		"finish": arpeggio([523.0, 659.0, 784.0, 659.0, 784.0, 1047.0], 0.12, 0.5),   # MK64: the 1st-place fanfare
 		"finish_ok": arpeggio([659.0, 784.0, 659.0, 784.0, 880.0], 0.12, 0.5),          # 2nd - 4th
 		"finish_out": arpeggio([659.0, 587.0, 523.0, 494.0, 440.0], 0.18, 0.45),        # 5th or worse: a sagging fanfare

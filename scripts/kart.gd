@@ -11,9 +11,17 @@ const SHRUNK_SCALE := 0.5
 const GHOST_ALPHA := 0.35   # how see-through a Boo makes the kart
 const STALL_WHEEL_SPEED := 24.0   # m/s the wheels appear to spin at during a false-start burnout
 const DRIFT_HOP := 4.0            # m/s: the MK64 hop that starts a powerslide (light karts hop higher)
+## MK64 jump ramp: leaving a floor that rises at least this much (rise over run, along the way the kart
+## travels) is a take-off — the kart keeps climbing at speed x slope and flies; a kerb or a hop is not.
+const JUMP_MIN_SLOPE := 0.08
+const AIR_PITCH := 0.6            # how much of the flight angle the body pitches (nose up, then down)
+const PITCH_RATE := 8.0           # 1/s the body pitch eases towards its target
 
 ## A kart-to-kart bump happened (other kart, closing speed in m/s); battle mode pops balloons on hard shoves.
 signal bumped(other, closing: float)
+## The kart flew off a jump ramp's lip / came back down on the ground after a jump.
+signal jumped
+signal landed
 
 var model := KartPhysics.new()
 var gravity := 30.0
@@ -46,6 +54,21 @@ var rescues := 0              # number of times Lakitu fished this kart out
 ## Upward speed applied on the next physics frame (hit by the train); 0 = none pending.
 var hop := 0.0
 var launches := 0             # number of times this kart was thrown into the air (for checks/tests)
+## MK64 jump: rise over run of the floor under the kart along its travel (0 on the flat, > 0 up a ramp),
+## whether it is flying off a ramp (no traction until it lands) and how often it has (for checks/tests).
+var floor_slope := 0.0
+var airborne := false
+var jumps := 0
+var pitch := 0.0              # body pitch in radians (nose up on a ramp and on the way up, down on the way down)
+
+## Body pitch to aim for: up the ramp's slope while on one, following the flight path in the air
+## (scaled by AIR_PITCH), level otherwise. vy is the vertical speed, speed the speed over the ground.
+static func pitch_for(on_floor: bool, slope: float, vy: float, speed: float, flying: bool) -> float:
+	if on_floor:
+		return atan(slope)
+	if flying:
+		return atan2(vy, maxf(speed, 1.0)) * AIR_PITCH
+	return 0.0
 
 func is_rescued() -> bool:
 	return rescue_time >= 0.0
@@ -152,6 +175,8 @@ func _physics_process(delta: float) -> void:
 	drift_slide = lerpf(drift_slide, target_slide, clampf(10.0 * delta, 0.0, 1.0))
 	rotation.y = heading
 	body_mesh.rotation.y = drift_slide + model.spin_progress() * TAU * 2.0
+	pitch = lerpf(pitch, pitch_for(is_on_floor(), floor_slope, velocity.y, model.speed, airborne), clampf(PITCH_RATE * delta, 0.0, 1.0))
+	body_mesh.rotation.x = pitch
 	body_scale = move_toward(body_scale, SHRUNK_SCALE if model.is_shrunk() else 1.0, 3.0 * delta)
 	body_mesh.scale = Vector3.ONE * body_scale * size_scale
 	body_mesh.visible = model.is_spinning() or model.immunity_time <= 0.0 or fmod(model.immunity_time, 0.2) < 0.1
@@ -167,7 +192,25 @@ func _physics_process(delta: float) -> void:
 		hop = 0.0
 	else:
 		velocity.y = 0.0 if is_on_floor() else velocity.y - gravity * delta
+	var grounded := is_on_floor()
 	move_and_slide()
+	# MK64 jump: off the lip of a ramp the kart keeps climbing the way the ramp pointed it and flies
+	if grounded and not is_on_floor() and floor_slope >= JUMP_MIN_SLOPE:
+		velocity.y = maxf(velocity.y, model.speed * floor_slope)
+		airborne = true
+		model.airborne = true
+		jumps += 1
+		jumped.emit()
+	if is_on_floor():
+		var n := get_floor_normal()
+		floor_slope = -(n.x * forward.x + n.z * forward.z) / maxf(n.y, 0.1)
+		if airborne:
+			airborne = false
+			model.airborne = false
+			effects.land()
+			landed.emit()
+	else:
+		floor_slope = 0.0
 	var kart_hit := false
 	for i in get_slide_collision_count():
 		var c := get_slide_collision(i)

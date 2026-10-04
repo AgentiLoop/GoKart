@@ -70,10 +70,19 @@ var scenery := ""
 var ice_specs: Array = []
 ## Ice stretches as sample ranges: {"start": first sample, "end": last sample (inclusive)}
 var ice: Array = []
+## Jump ramps (layout "jumps", Mario Kart 64 Wario Stadium / Royal Raceway): fraction of lap of each
+## ramp's lip; the ramp climbs JUMP_LENGTH of road to JUMP_HEIGHT across the whole road and a kart that
+## drives off the lip flies. Empty = no jumps on this course. The same spots on a mirrored course.
+var jump_specs: Array = []
+## Jumps as sample ranges: {"start": first ramp sample, "lip": the lip sample (inclusive)}
+var jumps: Array = []
+## The ramp's run-up along the road and the height of its lip above the road, in metres.
+const JUMP_LENGTH := 12.0
+const JUMP_HEIGHT := 2.4
 
 ## layout (optional) may override "pads", "box_rows", "hazards" and "water" (same formats as the
 ## DEFAULT_ constants), add a "rail" loop (Array of Vector2 control points), "traffic" vehicles,
-## "moles", "snowmen" or "ice", name a "scenery" set and set "mirror": true to flip the course left-to-right (MK64 Extra mode).
+## "moles", "snowmen", "ice" or "jumps", name a "scenery" set and set "mirror": true to flip the course left-to-right (MK64 Extra mode).
 func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout := {}) -> void:
 	control = ctrl
 	width = road_width
@@ -85,6 +94,7 @@ func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout :=
 	mole_specs = layout.get("moles", [])
 	snowman_specs = layout.get("snowmen", [])
 	ice_specs = layout.get("ice", [])
+	jump_specs = layout.get("jumps", [])
 	scenery = layout.get("scenery", "")
 	for v in layout.get("rail", []):
 		rail_control.append(v)
@@ -188,7 +198,37 @@ func _build() -> void:
 	ice.clear()
 	for spec in ice_specs:
 		ice.append({"start": int(spec[0] * count) % count, "end": int(spec[1] * count) % count})
+	jumps.clear()
+	for f in jump_specs:
+		var lip: int = int(f * count) % count
+		jumps.append({"start": posmod(lip - ramp_samples(), count), "lip": lip})
 	_build_rail()
+
+## Road samples a jump ramp spans from its foot to its lip.
+func ramp_samples() -> int:
+	return int(round(JUMP_LENGTH / spacing))
+
+## Rise over run of a jump ramp: a kart leaving the lip at speed v climbs at v x jump_slope().
+static func jump_slope() -> float:
+	return JUMP_HEIGHT / JUMP_LENGTH
+
+## The jump (dict) whose ramp road sample i lies on (foot to lip inclusive), or null.
+func jump_at(i: int):
+	var k := posmod(i, count)
+	for j in jumps:
+		if posmod(k - j.start, count) <= ramp_samples():
+			return j
+	return null
+
+## Height of the ramp surface above the road at pos (nearest sample idx): 0 off every ramp, rising
+## linearly from the foot to JUMP_HEIGHT at the lip.
+func ramp_height(pos: Vector3, idx: int) -> float:
+	var j = jump_at(idx)
+	if j == null:
+		return 0.0
+	var foot: Vector3 = points[j.start]
+	var along: float = (pos - foot).dot(tangents[j.start])
+	return clampf(along / JUMP_LENGTH, 0.0, 1.0) * JUMP_HEIGHT
 
 ## The ice stretch (dict) that road sample i lies in, or null.
 func ice_at(i: int):

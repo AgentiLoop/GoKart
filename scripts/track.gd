@@ -11,6 +11,10 @@ var data: TrackData
 var wall_height := 1.4
 var wall_offset := 2.7   # wall centre beyond the road edge: inner face ~2.3 m (7-8 ft) off the pavement, MK64-style run-off strip
 var banner_text := "START"
+## Walls along a jump (MK64 Wario Stadium's high banks): this tall from the ramp's foot to JUMP_WALL_SAMPLES
+## past the lip, so a kart that steers in the air cannot fly out of the course.
+const JUMP_WALL_HEIGHT := 4.5
+const JUMP_WALL_SAMPLES := 16
 var _banner_labels: Array[Label3D] = []
 var _banner_panel: MeshInstance3D
 
@@ -42,6 +46,7 @@ func _ready() -> void:
 	_build_water()
 	_build_start_gate()
 	_build_pads()
+	_build_jumps()
 	_build_scenery()
 
 ## Mario Kart 64 style course dressing beyond the walls (trees, cows, buildings, firs, cacti...),
@@ -123,7 +128,6 @@ func _build_walls() -> void:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var offset := data.width * 0.5 + wall_offset
 	var half := 0.4   # half wall thickness
-	var h := Vector3(0, wall_height, 0)
 	for side in [-1.0, 1.0]:
 		# One cross-section per track sample, shared by both neighbouring segments, so the wall
 		# is a single gap-free ribbon (no overlapping boxes) even on tight curves.
@@ -141,17 +145,19 @@ func _build_walls() -> void:
 			var red := (i / 2) % 2 == 0
 			var col := Color(0.85, 0.02, 0.02) if red else Color(1.0, 1.0, 1.0)
 			var rn: Vector3 = data.right_of(i)
-			_wall_quad(st, outer[i], outer[j], outer[j] + h, outer[i] + h, rn, col)
-			_wall_quad(st, inner[j], inner[i], inner[i] + h, inner[j] + h, -rn, col)
+			var h := Vector3(0, wall_height_at(i), 0)
+			var hj := Vector3(0, wall_height_at(j), 0)
+			_wall_quad(st, outer[i], outer[j], outer[j] + hj, outer[i] + h, rn, col)
+			_wall_quad(st, inner[j], inner[i], inner[i] + h, inner[j] + hj, -rn, col)
 			# wound so the top is front-facing from above: a back-facing top gets its normal flipped
 			# downward by the two-sided material and is lit by ambient only (dark tops)
-			_wall_quad(st, inner[i] + h, inner[j] + h, outer[j] + h, outer[i] + h, Vector3.UP, col)
+			_wall_quad(st, inner[i] + h, inner[j] + hj, outer[j] + hj, outer[i] + h, Vector3.UP, col)
 			# Convex prism per segment sharing its corner vertices with the neighbours: seamless collision.
 			var cs := CollisionShape3D.new()
 			var shape := ConvexPolygonShape3D.new()
 			shape.points = PackedVector3Array([
 				inner[i], outer[i], inner[j], outer[j],
-				inner[i] + h, outer[i] + h, inner[j] + h, outer[j] + h])
+				inner[i] + h, outer[i] + h, inner[j] + hj, outer[j] + hj])
 			cs.shape = shape
 			body.add_child(cs)
 	var mmi := MeshInstance3D.new()
@@ -166,6 +172,13 @@ func _build_walls() -> void:
 	mmi.material_override = mat
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mmi)
+
+## Wall height at road sample i: the standard wall, or JUMP_WALL_HEIGHT along a jump (ramp and landing).
+func wall_height_at(i: int) -> float:
+	for j in data.jumps:
+		if posmod(i - j.start, data.count) <= data.ramp_samples() + JUMP_WALL_SAMPLES:
+			return JUMP_WALL_HEIGHT
+	return wall_height
 
 func _wall_quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, col: Color) -> void:
 	for v in [a, b, c, a, c, d]:
@@ -279,3 +292,57 @@ func _build_pads() -> void:
 		mi.rotation.y = atan2(-pad.forward.x, -pad.forward.z)
 		mi.name = "BoostPad"
 		add_child(mi)
+
+## Jump ramps (Mario Kart 64 Wario Stadium / Royal Raceway): a solid wedge across the road from the
+## ramp's foot up to its lip — sandy, with pale bands before the lip — and a sheer drop behind it.
+## A kart that drives off the lip flies (see Kart.airborne).
+func _build_jumps() -> void:
+	if data.jumps.is_empty():
+		return
+	var body := StaticBody3D.new()
+	body.name = "Jumps"
+	add_child(body)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var hw := data.width * 0.5 + wall_offset - 0.4   # out to the walls' inner faces: no way round the ramp
+	var up := Vector3(0, TrackData.JUMP_HEIGHT, 0)
+	var sand := Color(0.82, 0.52, 0.22)
+	var pale := Color(0.93, 0.88, 0.78)
+	var dark := Color(0.45, 0.28, 0.12)
+	for j in data.jumps:
+		var a: Vector3 = data.points[j.start]
+		var b: Vector3 = data.points[j.lip]
+		var ra: Vector3 = data.right_of(j.start) * hw
+		var rb: Vector3 = data.right_of(j.lip) * hw
+		var n: Vector3 = rb.cross(b + up - a).normalized()
+		if n.y < 0.0:
+			n = -n
+		# the top in bands up the slope: two pale stripes warn of the lip
+		var bands := 6
+		for k in bands:
+			var p0: Vector3 = a.lerp(b + up, float(k) / bands)
+			var p1: Vector3 = a.lerp(b + up, float(k + 1) / bands)
+			var r0: Vector3 = ra.lerp(rb, float(k) / bands)
+			var r1: Vector3 = ra.lerp(rb, float(k + 1) / bands)
+			_wall_quad(st, p0 - r0, p1 - r1, p1 + r1, p0 + r0, n, pale if k == 3 or k == 5 else sand)
+		# the drop behind the lip and the two sides
+		_wall_quad(st, b + rb, b - rb, b - rb + up, b + rb + up, data.tangents[j.lip], dark)
+		for tri in [[a - ra, b - rb + up, b - rb], [a + ra, b + rb, b + rb + up]]:
+			for v in tri:
+				st.set_color(dark)
+				st.set_normal(-ra.normalized() if tri[0] == a - ra else ra.normalized())
+				st.add_vertex(v)
+		var cs := CollisionShape3D.new()
+		var shape := ConvexPolygonShape3D.new()
+		shape.points = PackedVector3Array([a - ra, a + ra, b - rb, b + rb, b - rb + up, b + rb + up])
+		cs.shape = shape
+		body.add_child(cs)
+	var mi := MeshInstance3D.new()
+	mi.name = "JumpMesh"
+	mi.mesh = st.commit()
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.roughness = 0.9
+	mi.material_override = mat
+	add_child(mi)

@@ -19,6 +19,7 @@ const FLAME_COLORS := [
 const FLASH_DECAY := 4.0      # 1/s: mini-turbo flash fades in ~0.25 s
 const SMOKE_COLOR := Color(0.75, 0.75, 0.75, 0.6)   # false-start tire smoke
 const WIND_COLOR := Color(0.82, 0.82, 0.85, 0.5)    # MK64 draft: grey wind streaming past the kart
+const DUST_COLOR := Color(0.78, 0.68, 0.5, 0.7)     # MK64 jump: the puff of dust kicked up on landing
 
 var model            # KartPhysics
 var sparks: Array[GPUParticles3D] = []
@@ -28,6 +29,7 @@ var wheel_nodes: Array[Node3D] = []
 var pops: Array[GPUParticles3D] = []   # one-shot star burst when a drift level is reached
 var smoke: Array[GPUParticles3D] = []  # grey tire smoke at the rear wheels during a false-start burnout
 var wind: Array[GPUParticles3D] = []   # grey wind streaks along both sides during a slipstream burst
+var dust: Array[GPUParticles3D] = []   # one-shot dust puff at every wheel when the kart lands a jump
 var flash_light: OmniLight3D
 var flash_amount := 0.0                 # 1 right at mini-turbo release, decays to 0
 var flash_color := Color.WHITE
@@ -54,6 +56,10 @@ func setup(physics_model, wheel_offsets: Array) -> void:
 		trails.append(t)
 	# sparks at the rear wheels, flames at the exhaust pipes
 	for off in wheel_offsets:
+		var d := _make_dust()
+		d.position = off + Vector3(0, 0.05, 0)
+		add_child(d)
+		dust.append(d)
 		if off.z > 0.0:
 			var s := _make_sparks()
 			s.position = off + Vector3(0, 0.1, 0.2)
@@ -245,6 +251,26 @@ func _make_pop() -> GPUParticles3D:
 	q.material = _particle_material(Color(1, 1, 1, 1))
 	p.draw_pass_1 = q
 	return p
+
+## Landing dust (MK64 jump): a short, low puff spreading out from each wheel.
+func _make_dust() -> GPUParticles3D:
+	var p := _make_pop()
+	p.amount = 12
+	p.lifetime = 0.5
+	var pm := p.process_material as ParticleProcessMaterial
+	pm.spread = 70.0
+	pm.initial_velocity_min = 1.5
+	pm.initial_velocity_max = 3.5
+	pm.gravity = Vector3(0, -3, 0)
+	pm.scale_min = 2.0
+	pm.scale_max = 3.5
+	pm.color = DUST_COLOR
+	return p
+
+## The kart came down after a jump: a puff of dust at every wheel.
+func land() -> void:
+	for d in dust:
+		d.restart()
 
 func _set_spark_color(level: int) -> void:
 	for s in sparks:

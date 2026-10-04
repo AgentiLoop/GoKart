@@ -80,6 +80,10 @@ const TARMAC_SETTLE := 8.0      # rad/s the slide closes once the tires bite aga
 const SLIDE_SPEED := 12.0       # m/s: the full slide needs this much speed, a crawling kart bites
 var grip := 1.0
 var slide := 0.0
+## MK64 jump: in the air off a ramp (the scene sets airborne while the kart flies) there is no traction —
+## the speed is kept as it is, the throttle and the brakes do nothing and the stick only nudges the nose.
+const AIR_STEER := 0.25
+var airborne := false
 
 func is_boosting() -> bool:
 	return boost_time > 0.0
@@ -334,6 +338,12 @@ func step(delta: float, throttle: float, brake: float, steer: float, drift_held:
 			stall_ended.emit()
 		return 0.0
 
+	# --- in the air (off a jump ramp): no traction, the speed is kept, the stick only nudges the nose
+	if airborne:
+		throttle = 0.0
+		brake = 0.0
+		steer *= AIR_STEER
+
 	# --- drift state machine
 	if drift_held and not drifting and speed >= min_drift_speed and absf(steer) > 0.3:
 		_start_drift(steer)
@@ -350,7 +360,7 @@ func step(delta: float, throttle: float, brake: float, steer: float, drift_held:
 			speed = maxf(speed - brake_force * grip * brake * delta, 0.0)
 		else:
 			speed = maxf(speed - acceleration * brake * delta, -reverse_max_speed)
-	else:
+	elif not airborne:
 		speed = move_toward(speed, 0.0, friction * grip * delta)
 	if speed > top:
 		speed = maxf(speed - friction * delta, top)

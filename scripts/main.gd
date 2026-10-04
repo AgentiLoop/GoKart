@@ -258,6 +258,9 @@ func _ready() -> void:
 	race_start.go.connect(_on_go)
 	kart.model.boost_started.connect(_on_player_boost)
 	items.lightning_struck.connect(_on_lightning)
+	# MK64 jump ramp: a whoosh off the lip, a thump on landing
+	kart.jumped.connect(func(): audio.play("jump"))
+	kart.landed.connect(func(): audio.play("thud", -4.0))
 
 func _on_player_boost(level: int) -> void:
 	if kart.model.boost_from_drift:

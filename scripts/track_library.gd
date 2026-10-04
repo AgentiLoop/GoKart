@@ -153,6 +153,10 @@ const TRACKS := [
 		"box_rows": [0.05, 0.3, 0.52, 0.76],
 		"hazards": [[0.17, -2.5], [0.46, 2.0], [0.7, -2.0]],
 		"water": [[0.21, 0.28, 1], [0.5, 0.56, -1]],
+		# Wario Stadium style jump: a ramp across the whole road on the run after the third pad; its lip
+		# sits at this fraction of the lap and the kart flies some 20-40 m to land further down the
+		# straight (see TrackData.jumps / Kart.airborne)
+		"jumps": [0.605],
 		# Kalimari Desert style railway: a loop that crosses the road twice (the opening straight
 		# and the run back to the line); two steam trains circle it (see scripts/train.gd)
 		"rail": [
