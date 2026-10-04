@@ -4,7 +4,8 @@ extends Control
 ## ENTER. Enter brings up the select screen, laid out like MK64's: a "SELECT COURSE" banner, a
 ## course list on the left (a course picture beside each name, the picked row lit), a live picture
 ## of the course — a camera flying along the road in the demo's world — with the map outline in its
-## corner and the course blurb in a framed panel on the right and a row of option cells underneath,
+## corner and the course blurb in a framed panel on the right and a row of option cells underneath
+## — with a live portrait of the player's kart (MK64's Player Select shows the driver) at the end —
 ## the demo still running dimmed behind it.
 ## Text uses drop shadows instead of thick black outlines; only the logo's letters — set on an arch,
 ## shaded yellow to red, standing out of a navy extrusion like MK64's 3D block letters — have a rim.
@@ -110,18 +111,30 @@ const FOCUS_RIM := Color(1.0, 0.85, 0.3)
 const DIM_BAR := Color(1.0, 0.82, 0.22, 0.4)    # rim of a lit bar in a row the cursor is not on
 var focus := FOCUS_LIST
 var focus_frame: Panel
-const CELL_W := 280.0
+## The option cells (LAPS / CPU / ENGINE / KART): x and width, each sized to its pills — the four
+## engine classes need the widest cell — ending before the kart portrait.
+const CELL_X := [80.0, 280.0, 520.0, 820.0]
+const CELL_WIDTHS := [200.0, 240.0, 300.0, 240.0]
 const CELL_PAD := 16.0
 const PILL_Y := 530.0
 const PILL_H := 32.0
-const PILL_FONT := 19
+const PILL_FONT := 17
 const BLURB_Y := 566.0
 const BLURB_FONT := 12
 const MODE_X := 200.0          # mode tabs start here, 4 x MODE_TAB_W, the mode blurb to the right
-const MODE_TAB_W := 150.0
-const MODE_BLURB_X := 816.0
+const MODE_TAB_W := 140.0
+const MODE_BLURB_X := 776.0
 const MODE_Y := 598.0
 const MODE_H := 32.0
+const MODE_BLURB_H := 40.0     # the mode blurb wraps to two lines beside the portrait
+## The kart portrait (MK64's Player Select shows the picked driver): the player's kart at the picked
+## weight class's size turning on a turntable in a small 3D window at the right end of the option
+## panel, beside the KART cell; its frame turns gold when the cursor is on the KART row.
+const PORTRAIT_RECT := Rect2(1066, 508, 122, 126)
+const PORTRAIT_FRAME := Color(1, 1, 1, 0.5)
+const KartPortrait := preload("res://scripts/kart_portrait.gd")
+var portrait = null            # KartPortrait
+var portrait_frame: Panel
 const MODE_NAMES := ["SINGLE RACE", "GRAND PRIX", "TIME TRIAL", "BATTLE"]
 const LOCKED := Color(0.72, 0.76, 0.86, 0.8)     # a fixed value (time trial laps / engine, battle balloons)
 const UNLIT := Color(0.98, 0.97, 0.92, 0.55)     # a choice that is not picked
@@ -487,15 +500,16 @@ func _ready() -> void:
 	var values: Array[Label] = []
 	var notes: Array[Label] = []
 	for i in 4:
-		var x := 80.0 + 280.0 * i
+		var cell := cell_rect(i)
+		var x := cell.position.x
 		var cap := _label(Vector2(x + CELL_PAD, 508), 14, 140, GOLD_DIM, HORIZONTAL_ALIGNMENT_LEFT)
 		cap.text = captions[i]
 		cell_captions.append(cap)
 		if i == 0:
 			laps_caption = cap
-		var k := _label(Vector2(x + CELL_PAD, 510), 12, CELL_W - 2 * CELL_PAD, GREY, HORIZONTAL_ALIGNMENT_RIGHT)
+		var k := _label(Vector2(x + CELL_PAD, 510), 12, cell.size.x - 2 * CELL_PAD, GREY, HORIZONTAL_ALIGNMENT_RIGHT)
 		notes.append(k)
-		var v := _label(Vector2(x + CELL_PAD, PILL_Y), PILL_FONT, CELL_W - 2 * CELL_PAD, CREAM)
+		var v := _label(Vector2(x + CELL_PAD, PILL_Y), PILL_FONT, cell.size.x - 2 * CELL_PAD, CREAM)
 		v.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		values.append(v)
 		if i > 0:
@@ -512,20 +526,32 @@ func _ready() -> void:
 	engine_note = notes[2]
 	# the kart cell lights a weight name and explains it underneath
 	weight_label = values[3]
-	weight_label.position = Vector2(80.0 + 280.0 * 3, BLURB_Y)
-	weight_label.size = Vector2(CELL_W, 18)
+	weight_label.position = Vector2(cell_rect(3).position.x, BLURB_Y)
+	weight_label.size = Vector2(cell_rect(3).size.x, 18)
 	UiStyle.style_label(weight_label, font, BLURB_FONT, GREY)
 	var rule := ColorRect.new()
 	rule.position = Vector2(96, 590)
-	rule.size = Vector2(1088, 1)
+	rule.size = Vector2(PORTRAIT_RECT.position.x - 18 - 96, 1)
 	rule.color = Color(1, 1, 1, 0.14)
 	select_box.add_child(rule)
 	mode_caption = _label(Vector2(96, 606), 14, 100, GOLD_DIM, HORIZONTAL_ALIGNMENT_LEFT)
 	mode_caption.text = "MODE"
-	mode_label = _label(Vector2(MODE_BLURB_X, MODE_Y), 14, 1184 - MODE_BLURB_X, GREY, HORIZONTAL_ALIGNMENT_LEFT)
-	mode_label.size.y = MODE_H
+	mode_label = _label(Vector2(MODE_BLURB_X, MODE_Y - 4), 14, PORTRAIT_RECT.position.x - 18 - MODE_BLURB_X, GREY, HORIZONTAL_ALIGNMENT_LEFT)
+	mode_label.size.y = MODE_BLURB_H
 	mode_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	mode_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# the kart portrait (MK64's Player Select shows the driver you picked): the player's kart at the
+	# picked class's size on a turntable, in its own little 3D window at the end of the option panel
+	portrait = KartPortrait.new()
+	portrait.position = PORTRAIT_RECT.position
+	portrait.size = PORTRAIT_RECT.size
+	select_box.add_child(portrait)
+	portrait_frame = Panel.new()
+	portrait_frame.name = "PortraitFrame"
+	portrait_frame.position = PORTRAIT_RECT.position - Vector2(2, 2)
+	portrait_frame.size = PORTRAIT_RECT.size + Vector2(4, 4)
+	portrait_frame.add_theme_stylebox_override("panel", portrait_frame_style(false))
+	select_box.add_child(portrait_frame)
 	# the cursor frame (MK64's menus light the thing the stick is on), placed by _apply_focus
 	focus_frame = Panel.new()
 	focus_frame.name = "FocusFrame"
@@ -865,11 +891,16 @@ static func names_of(classes: Array) -> Array:
 		out.append(c.name)
 	return out
 
+## An option cell's rect inside the option panel (stage coordinates). Pure.
+static func cell_rect(slot: int) -> Rect2:
+	return Rect2(CELL_X[slot], 500.0, CELL_WIDTHS[slot], 142.0)
+
 ## Where a row of choice pills sits: slots 0-3 inside the option cells, 4 = the mode tab strip.
 static func row_rect(slot: int) -> Rect2:
 	if slot == 4:
 		return Rect2(MODE_X, MODE_Y, MODE_TAB_W * MODE_NAMES.size(), MODE_H)
-	return Rect2(80.0 + CELL_W * slot + CELL_PAD, PILL_Y, CELL_W - 2 * CELL_PAD, PILL_H)
+	var cell := cell_rect(slot)
+	return Rect2(cell.position.x + CELL_PAD, PILL_Y, cell.size.x - 2 * CELL_PAD, PILL_H)
 
 ## Rebuild the five option rows for the current state. A locked cell (time trial laps / CPU /
 ## engine, battle balloons) shows its fixed value alone in grey instead of a row of choices.
@@ -883,6 +914,8 @@ func _refresh_options() -> void:
 	_option_row(2, [] if locked_tt else names_of(TrackLibrary.ENGINE_CLASSES), engine_class, engine_label)
 	_option_row(3, names_of(KartWeight.CLASSES), weight_class, null)
 	_option_row(4, MODE_NAMES, mode, null)
+	if portrait != null:
+		portrait.show_class(weight_class)
 	# a cursor left on a row the new mode locks moves down to the next live row
 	if locked_rows(mode).has(focus):
 		focus = next_focus(focus, 1, locked_rows(mode))
@@ -897,6 +930,16 @@ static func bar_style(focused: bool, radius: int) -> StyleBoxFlat:
 		sb.border_color = DIM_BAR
 	return sb
 
+## The portrait window's rim: gold with the cursor on the KART row, a faint white line otherwise
+## (the course picture's frame). Pure.
+static func portrait_frame_style(focused: bool) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color.TRANSPARENT
+	sb.border_color = GOLD if focused else PORTRAIT_FRAME
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(8)
+	return sb
+
 ## Put the cursor frame round the focused row and light that row's caption.
 func _apply_focus() -> void:
 	if focus_frame != null:
@@ -904,6 +947,8 @@ func _apply_focus() -> void:
 		focus_frame.position = r.position
 		focus_frame.size = r.size
 		select_box.move_child(focus_frame, -1)
+	if portrait_frame != null:
+		portrait_frame.add_theme_stylebox_override("panel", portrait_frame_style(focus == FOCUS_KART))
 	for i in cell_captions.size():
 		cell_captions[i].add_theme_color_override("font_color", GOLD if focus == FOCUS_LAPS + i else GOLD_DIM)
 	if mode_caption != null:

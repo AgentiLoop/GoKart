@@ -48,7 +48,7 @@ func test_choice_lists() -> void:
 		runner.check(Menu.mode_text(m, 4).begins_with(Menu.MODE_NAMES[m]), "mode text starts with the tab name: " + Menu.mode_text(m, 4))
 	for slot in 4:
 		var r := Menu.row_rect(slot)
-		runner.check(r.position.x >= 80.0 + Menu.CELL_W * slot and r.end.x <= 80.0 + Menu.CELL_W * (slot + 1), "row %d inside its cell" % slot)
+		runner.check(r.position.x >= Menu.cell_rect(slot).position.x and r.end.x <= Menu.cell_rect(slot).end.x, "row %d inside its cell" % slot)
 	var tabs := Menu.row_rect(4)
 	runner.check(tabs.end.x <= Menu.MODE_BLURB_X, "mode tabs end before the mode blurb")
 
