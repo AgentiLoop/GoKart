@@ -12,7 +12,7 @@ extends RefCounted
 const TrackData := preload("res://scripts/track_data.gd")
 
 ## Outer face of the wall beyond the road edge (Track.wall_offset + half its thickness).
-const WALL := 1.2
+const WALL := 2.2
 ## Clearance between the wall's outer face and the nearest edge of a prop.
 const WALL_GAP := 0.6
 ## Clearance between the edges of two props.

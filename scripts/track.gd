@@ -9,7 +9,7 @@ const SceneryProps := preload("res://scripts/scenery_props.gd")
 
 var data: TrackData
 var wall_height := 1.4
-var wall_offset := 0.8   # wall centre distance beyond the road edge
+var wall_offset := 1.8   # wall centre beyond the road edge: inner face ~1.4 m (4-5 ft) off the pavement, MK64-style run-off strip
 var banner_text := "START"
 var _banner_labels: Array[Label3D] = []
 var _banner_panel: MeshInstance3D

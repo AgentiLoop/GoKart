@@ -21,7 +21,7 @@ const DEFAULT_HAZARDS := [[0.27, 2.0], [0.52, -2.5]]
 ## and Lakitu fishes it out.
 const DEFAULT_WATER := [[0.13, 0.21, -1], [0.62, 0.69, -1]]
 ## Lateral distance beyond the road edge where the water starts (where the wall would stand).
-const WATER_EDGE := 1.2
+const WATER_EDGE := 2.2
 ## How far the water stretches out from the road edge.
 const WATER_WIDTH := 18.0
 ## Railway level crossing: road samples on each side of the crossing centre whose walls are left
