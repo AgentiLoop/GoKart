@@ -12,6 +12,10 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 
 ![The select screen: the course list with a picture beside each course, a live picture of the course flown along the road with the map outline in its corner, the option rows — every choice listed, the picked one lit — and the player's kart turning in its portrait window, over the dimmed demo](assets/screenshots/title-menu.png)
 
+![The course intro: the camera flies along the road before the countdown while the course name card sits in the corner as a gold sign](assets/screenshots/course-intro.png)
+
+![The pause screen: Esc freezes the race under a navy / gold panel — CONTINUE, RETRY, COURSE CHANGE, QUIT](assets/screenshots/pause.png)
+
 ![Chasing the pack on Green Hills, 4th of 4 on lap 1](assets/screenshots/green-hills-chase.png)
 
 ![Waiting at the level crossing on Dusty Canyon as the train rolls through](assets/screenshots/dusty-canyon-train.png)
@@ -34,7 +38,7 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 
 ![Lakitu holding up the REVERSE sign: white text printed on the red board, no black outline](assets/screenshots/lakitu-sign.png)
 
-Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the road, drifts and fires items at random), `tools/train_shot.gd`, `tools/traffic_shot.gd`, `tools/mole_shot.gd`, `tools/snowman_shot.gd`, `tools/menu_shot.gd`, `tools/hud_shot.gd`, `tools/item_shot.gd` and `tools/sign_shot.gd`.
+Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the road, drifts and fires items at random), `tools/train_shot.gd`, `tools/traffic_shot.gd`, `tools/mole_shot.gd`, `tools/snowman_shot.gd`, `tools/menu_shot.gd`, `tools/intro_shot.gd`, `tools/pause_shot.gd`, `tools/hud_shot.gd`, `tools/item_shot.gd` and `tools/sign_shot.gd`.
 
 ## Features
 
