@@ -61,10 +61,13 @@ var mole_specs: Array = []
 ## Snowmen (layout "snowmen", Mario Kart 64 Frappe Snowland): [fraction of lap, lateral offset] per
 ## snowman (see scripts/snowmen.gd); empty = no snowmen on this course.
 var snowman_specs: Array = []
+## Roadside scenery set (layout "scenery", Mario Kart 64 course dressing: "farm" / "highway" / "snow" /
+## "desert", see scripts/scenery.gd); "" = a bare course.
+var scenery := ""
 
 ## layout (optional) may override "pads", "box_rows", "hazards" and "water" (same formats as the
 ## DEFAULT_ constants), add a "rail" loop (Array of Vector2 control points), "traffic" vehicles,
-## "moles" or "snowmen" and set "mirror": true to flip the course left-to-right (MK64 Extra mode).
+## "moles" or "snowmen", name a "scenery" set and set "mirror": true to flip the course left-to-right (MK64 Extra mode).
 func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout := {}) -> void:
 	control = ctrl
 	width = road_width
@@ -75,6 +78,7 @@ func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout :=
 	traffic_specs = layout.get("traffic", [])
 	mole_specs = layout.get("moles", [])
 	snowman_specs = layout.get("snowmen", [])
+	scenery = layout.get("scenery", "")
 	for v in layout.get("rail", []):
 		rail_control.append(v)
 	mirrored = layout.get("mirror", false)

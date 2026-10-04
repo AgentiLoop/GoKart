@@ -4,6 +4,8 @@ extends Node3D
 
 const TrackData := preload("res://scripts/track_data.gd")
 const UiStyle := preload("res://scripts/ui_style.gd")
+const Scenery := preload("res://scripts/scenery.gd")
+const SceneryProps := preload("res://scripts/scenery_props.gd")
 
 var data: TrackData
 var wall_height := 1.4
@@ -39,7 +41,17 @@ func _ready() -> void:
 	_build_water()
 	_build_start_gate()
 	_build_pads()
+	_build_scenery()
 
+## Mario Kart 64 style course dressing beyond the walls (trees, cows, buildings, firs, cacti...),
+## when the course names a scenery set.
+func _build_scenery() -> void:
+	var layout := Scenery.props(data)
+	if layout.is_empty():
+		return
+	var props := SceneryProps.new(layout)
+	props.name = "Scenery"
+	add_child(props)
 func _build_road() -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)

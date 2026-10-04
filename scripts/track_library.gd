@@ -68,6 +68,8 @@ const TRACKS := [
 			[0.61, 3.0], [0.625, -3.0], [0.64, 3.0],
 			[0.74, -3.0], [0.755, 3.0], [0.77, -3.0],
 		],
+		# Moo Moo Farm dressing: trees and cows beside the road, barns in the fields (scripts/scenery.gd)
+		"scenery": "farm",
 		"ground": Color(0.25, 0.6, 0.25),
 		"sky_top": Color(0.38, 0.65, 0.92),
 		"sky_horizon": Color(0.72, 0.84, 0.95),
@@ -95,6 +97,8 @@ const TRACKS := [
 			[0.31, 4.4, "tanker"], [0.4, -4.4, "bus"], [0.47, 4.4, "car"], [0.55, -4.4, "truck"],
 			[0.63, 4.4, "truck"], [0.71, -4.4, "car"], [0.78, 4.4, "bus"], [0.86, -4.4, "tanker"],
 		],
+		# Toad's Turnpike dressing: buildings along the road, street lamps and billboards
+		"scenery": "highway",
 		"ground": Color(0.78, 0.6, 0.34),
 		"sky_top": Color(0.35, 0.3, 0.6),
 		"sky_horizon": Color(1.0, 0.62, 0.35),
@@ -125,6 +129,8 @@ const TRACKS := [
 			[0.78, 3.0], [0.795, -3.0],
 			[0.9, -5.0], [0.915, 5.0],
 		],
+		# Frappe Snowland dressing: fir trees, igloos and snowy mountains
+		"scenery": "snow",
 		"ground": Color(0.9, 0.93, 0.98),
 		"sky_top": Color(0.12, 0.15, 0.32),
 		"sky_horizon": Color(0.6, 0.72, 0.9),
@@ -151,6 +157,8 @@ const TRACKS := [
 			Vector2(80, 150), Vector2(30, 200), Vector2(-10, 205), Vector2(-40, 165), Vector2(-70, 125),
 			Vector2(-65, 70), Vector2(-50, 10),
 		],
+		# Kalimari Desert dressing: cacti and rocks beside the road, mesas on the horizon
+		"scenery": "desert",
 		"ground": Color(0.86, 0.7, 0.44),
 		"sky_top": Color(0.4, 0.58, 0.9),
 		"sky_horizon": Color(0.98, 0.86, 0.62),
