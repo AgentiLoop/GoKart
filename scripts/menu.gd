@@ -1,7 +1,7 @@
 extends Control
 ## Title screen like Mario Kart 64's: on launch the logo sits over a live attract demo — four CPU
 ## karts lapping the highlighted course in a 3D viewport behind the menu — with a blinking PRESS
-## ENTER. Any key brings up the select screen, laid out like MK64's: a "SELECT COURSE" banner, a
+## ENTER. Enter brings up the select screen, laid out like MK64's: a "SELECT COURSE" banner, a
 ## course list on the left (a course picture beside each name, the picked row lit), a live picture
 ## of the course — a camera flying along the road in the demo's world — with the map outline in its
 ## corner and the course blurb in a framed panel on the right and a row of option cells underneath,
@@ -10,7 +10,7 @@ extends Control
 ## shaded yellow to red, standing out of a navy extrusion like MK64's 3D block letters — have a rim.
 ## Sound (MenuAudio): the title theme under the title screen, the select theme under the select
 ## screen, a tick for the cursor / an option, a chime for Enter.
-## Left/Right (A/D) pick the track and Enter/Space races it; selection is stored in
+## Left/Right (A/D) pick the track and Enter races it; selection is stored in
 ## TrackLibrary.selected and Esc during a race comes back here (to the select screen).
 ## G / Tab cycles the mode: Single Race -> Grand Prix (every track in turn, MK64-style cup points)
 ## -> Time Trial (solo, 100cc, triple mushroom, race the ghost of your best run) -> Battle (four
@@ -325,7 +325,7 @@ static func cup_order(first: int, track_count: int) -> Array:
 	return out
 
 static func is_confirm_key(keycode: int) -> bool:
-	return keycode == KEY_ENTER or keycode == KEY_KP_ENTER or keycode == KEY_SPACE
+	return keycode == KEY_ENTER or keycode == KEY_KP_ENTER
 
 static func counter_text(i: int, total: int) -> String:
 	return "< %d / %d >" % [i + 1, total]
@@ -495,7 +495,7 @@ func start_motion() -> void:
 	_apply_motion()
 
 
-## Leave the title screen for the select screen (any key).
+## Leave the title screen for the select screen (Enter).
 func dismiss_title() -> void:
 	if title_shown:
 		set_title(false)
@@ -937,10 +937,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
 	if title_shown:
-		# MK64: Start leaves the title screen; an option key does the same and is applied as well
-		dismiss_title()
+		# MK64: Start leaves the title screen; nothing else does
 		if is_confirm_key(event.physical_keycode):
-			return
+			dismiss_title()
+		return
 	var d := direction_for_key(event.physical_keycode)
 	var ld := lap_direction_for_key(event.physical_keycode)
 	var dd := difficulty_direction_for_key(event.physical_keycode)
