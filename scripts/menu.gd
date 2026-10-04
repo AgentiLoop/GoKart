@@ -183,6 +183,7 @@ const LOGO_DEPTH_STEP := Vector2(1.25, 1.5)  # offset per extrusion layer
 const LOGO_EXTRUDE := Color(0.08, 0.1, 0.3)  # deep navy block sides (MK64 uses black; no black here)
 const LOGO_SHADOW := Color(0.02, 0.03, 0.1, 0.45)
 const LOGO_SHADOW_OFF := Vector2(5, 7)
+const LOGO_SHADOW_BLUR := 3.0                # the soft shadow has no rim: a ring of faint copies this far apart blurs its edge
 const LOGO_TOP := Color(1.0, 0.95, 0.55)     # gradient: light yellow at the top ...
 const LOGO_MID := Color(1.0, 0.55, 0.12)     # ... orange in the middle, LOGO_RED at the baseline
 
@@ -707,7 +708,13 @@ func _build_title() -> void:
 		letter.rotation = pose.angle
 		title_box.add_child(letter)
 		var depth := LOGO_DEPTH_STEP * LOGO_DEPTH
-		letter.add_child(_logo_glyph(ch, depth + LOGO_SHADOW_OFF, LOGO_SHADOW, LOGO_SHADOW))
+		# the soft shadow: no rim, blurred by a ring of faint copies that stack to LOGO_SHADOW's alpha
+		var taps := [Vector2.ZERO]
+		for k in 8:
+			taps.append(Vector2.from_angle(TAU * k / 8.0) * LOGO_SHADOW_BLUR)
+		var tap := Color(LOGO_SHADOW, 1.0 - pow(1.0 - LOGO_SHADOW.a, 1.0 / taps.size()))
+		for t in taps:
+			letter.add_child(_logo_glyph(ch, depth + LOGO_SHADOW_OFF + t, tap, Color.TRANSPARENT, false))
 		for d in range(LOGO_DEPTH, 0, -1):
 			letter.add_child(_logo_glyph(ch, LOGO_DEPTH_STEP * d, LOGO_EXTRUDE, LOGO_EXTRUDE))
 		letter.add_child(_logo_glyph(ch, Vector2.ZERO, UiStyle.SIGN_RIM, UiStyle.SIGN_RIM))
