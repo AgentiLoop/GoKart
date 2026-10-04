@@ -143,7 +143,9 @@ func _build_walls() -> void:
 			var rn: Vector3 = data.right_of(i)
 			_wall_quad(st, outer[i], outer[j], outer[j] + h, outer[i] + h, rn, col)
 			_wall_quad(st, inner[j], inner[i], inner[i] + h, inner[j] + h, -rn, col)
-			_wall_quad(st, inner[i] + h, outer[i] + h, outer[j] + h, inner[j] + h, Vector3.UP, col)
+			# wound so the top is front-facing from above: a back-facing top gets its normal flipped
+			# downward by the two-sided material and is lit by ambient only (dark tops)
+			_wall_quad(st, inner[i] + h, inner[j] + h, outer[j] + h, outer[i] + h, Vector3.UP, col)
 			# Convex prism per segment sharing its corner vertices with the neighbours: seamless collision.
 			var cs := CollisionShape3D.new()
 			var shape := ConvexPolygonShape3D.new()
