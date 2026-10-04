@@ -1708,6 +1708,23 @@ Cycle 19 (menus): **Mario Kart 64–style course intro** — the fly-over with t
 - Staged main.gd WITHOUT the other session's two in-flight `ramp_lift` lines (blob from the worktree); kart.gd / track.gd / track_data.gd / track_library.gd / attract.gd / jump_check.gd / probes left untouched and unstaged.
 Assumptions: 6 s / 3 cuts, bottom-left card, caption wording, Enter or throttle skips, direct scene loads skip. No parity folders.
 Remaining ideas: a demo tour that visits the arenas; an entrance for the results panel itself.
+## Cycle 19 — 2026-10-03 23:14
+Cycle 19 (menus): **Mario Kart 64–style course intro** — committed as cf63f21 (scripts/course_intro.gd, hud.gd, main.gd, menu.gd, tests/test_course_intro.gd, tools/intro_check.gd, tools/intro_shot.gd, tools/tt_check.gd, README, progress log, project memory).
+
+**What I did**
+- Re-oriented: cycles 12-18 covered title / select screens and the results reveal; the one MK64 beat still missing between the select screen and the race was the course fly-over with the name card before the countdown.
+- `scripts/course_intro.gd` (new, pure): 6 s in 3 cuts along the road (camera 10 m up, 7 m right of the centre line, looking 12 samples ahead, each cut on another stretch, the last ending over the grid), name-card pose (fade in + rise, hold, fade out), `finished(t, skip)`, caption ("GRAND PRIX  ·  RACE 1 / 4  ·  150cc" / "TIME TRIAL  ·  100cc" / "150cc  ·  3 LAPS"), and a `static var pending` set by `menu.start_race` and the results-board Enter, consumed by `Main._ready` — so tools that load main.tscn directly see no intro.
+- `scripts/hud.gd`: bottom-left intro card — course name as a gold sign with the dark red rim (no black), gold rule, cream caption with no outline; the race HUD (laps, timers, place, item window, minimap) stays away until `end_intro()`.
+- `scripts/main.gd`: `intro_t`, `_fly_camera`, `_end_intro` (cut to the chase cam), countdown gated; Enter or the throttle skips. `scripts/menu.gd`: sets the flag before the race loads.
+- Verification in a clean worktree (HEAD + my files): **14018 passed, 0 failed**; `intro_check` INTRO CHECK: OK (25 PASS); menu / gp / tt / weight / mirror / lakitu / train / battle checks all OK; windowed `intro_shot` INTRO SHOT: OK (card gold 9325, cream 669, beside the card 0 gold) → /tmp/gokart_intro*.png.
+- `tools/tt_check.gd` now calls `cs._end_intro()` once the race scene is up (it checks the race, not the intro) — this had broken with the intro (recording 0 samples → ghost nil).
+
+**Conscious decisions / assumptions**: 6 s / 3 cuts timing, bottom-left card, caption wording, Enter + throttle skip, direct scene loads skip; the shot's "black" criterion allows the sign's drop shadow over dark scenery (< half the gold count). No parity folders were given.
+
+**Not touching the other session**: staged `main.gd` from the worktree blob so its two in-flight `ramp_lift` lines stay unstaged; kart.gd / track.gd / track_data.gd / track_library.gd / attract.gd / jump_check.gd / probe tools left as they were.
+
+**Remaining**: possible next menu steps — a demo tour that visits the battle arenas, an entrance animation for the results panel itself. **Blockers**: none.
+
 
 ## Cycle 20 (menus) — 2026-10-04
 Mario Kart 64 style **course map** (scripts/minimap.gd, tests/test_minimap.gd, tools/map_shot.gd, README; the other /auto's files untouched). The last black-box / black-rim element on the screens: the minimap drew a black 35 % square behind the course and a black 8 px rim under the white route — in the race HUD and over the course picture's corner on the select screen. MK64's map is one light colour, see-through, laid straight over the scene.
@@ -1715,6 +1732,19 @@ Mario Kart 64 style **course map** (scripts/minimap.gd, tests/test_minimap.gd, t
 - Tests: `test_mk64_map_look_no_black_box_or_rim` (palette has no black, see-through cream route, gold tick / ring, soft offset shadow, the source has no BG_COLOR / OUTLINE_COLOR / draw_rect) + `test_start_tick_crosses_the_route_at_the_line` (17 checks). Full suite in a clean worktree (HEAD + my files): **14035 passed, 0 failed**. menu / train / battle / intro checks OK.
 - `tools/map_shot.gd` (windowed) pixel-samples the preview on the select screen and the HUD map: cream 860 / 2008, gold 30 / 97, **black 0 / 0** → MAP SHOT: OK; the same tool on HEAD's minimap: black 81 / 1203 → FAILED.
 Assumptions: a navy drop shadow (the project's stand-in for outlines) rather than MK64's flat single colour, so the route still reads over snow / sand; dots stay dots (no character heads). No parity folders were given.
+## Cycle 20 — 2026-10-03 23:23
+Cycle 20 (menus): **Mario Kart 64–style course map** — committed as cb452c9 (scripts/minimap.gd, tests/test_minimap.gd, tools/map_shot.gd, README, progress log, project memory). Only my files were staged; the other session's in-flight attract.gd / kart.gd / main.gd / track*.gd / jump_check.gd / probes / test_jumps.gd were left untouched and unstaged.
+
+**What I did**
+- Re-oriented: cycles 12-19 covered the title, select screen, results reveal and the course intro, and text outlines were already gone. A grep for black colours found the one black-box / black-rim element still on the screens: `minimap.gd` drew a 35 % black square behind the course and an 8 px black rim under the white route — in the race HUD *and* over the course picture's corner on the select screen. A web check confirmed MK64's map is one light colour, see-through, laid straight over the scene.
+- `scripts/minimap.gd`: no background rect; the route is cream (`UiStyle.CREAM` 0.9, 5 px) over a navy drop shadow (`PANEL_FILL` 0.5, offset (2, 2) — the project's text-shadow convention instead of a rim); a gold tick across the start line (pure `start_tick(points, length)`, perpendicular to the first segment, centred on sample 0); the player's dot wears a gold ring; dots carry the same shadow. Rail colour unchanged.
+- Tests: 2 new tests / 17 checks (palette has no black, see-through route, gold tick / ring, offset shadow, source has no BG_COLOR / OUTLINE_COLOR / draw_rect; tick geometry + on a real course). Full suite in a clean worktree (HEAD + my files): **14035 passed, 0 failed**. menu / train / battle / intro checks all `CHECK: OK`.
+- `tools/map_shot.gd` (windowed) pixel-samples the select-screen preview and the HUD map: cream 860 / 2008, gold 30 / 97, **black 0 / 0 → MAP SHOT: OK**; the same tool on HEAD's minimap: black 81 / 1203 → FAILED (proof the change removed the black). Shots at /tmp/gokart_map_menu.png, /tmp/gokart_map_race.png.
+
+**Assumptions / conscious decisions**: a navy drop shadow rather than MK64's perfectly flat single colour so the route still reads over snow / sand; kart dots stay dots (no character heads — GoKart has one driver); `assets/screenshots` not regenerated (binary churn). No parity folders were given, so nothing was mirrored.
+
+**Remaining**: possible next menu steps — a title demo tour that visits the battle arenas, an entrance for the results panel itself; regenerate the committed screenshots once the other session's track work settles. **Blockers**: none.
+
 
 ## Cycle 28 — 2026-10-04
 Cycle 28: **Mario Kart 64 Wario Stadium / Royal Raceway style jump ramp** on Dusty Canyon (scripts/track_data.gd, track_library.gd, track.gd, kart.gd, kart_physics.gd, kart_effects.gd, sound_synth.gd, main.gd, attract.gd; tests/test_jumps.gd; tools/jump_check.gd; README).

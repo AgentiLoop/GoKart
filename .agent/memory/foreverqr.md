@@ -1,0 +1,15 @@
+- Product: ForeverQR at https://wasm5.com (Worker `foreverqr`, D1 `foreverqr` id 280998b0-7ed5-47e6-8ba8-5be18501452c, account de8aa8c61fee13dabcdd934006b20d89).
+- Wrangler OAuth has workers/d1/pages write + zone READ only (no DNS API); custom domains via wrangler `custom_domain = true` work.
+- Unused zones as of 2026-10-04: wasmup.com, wasmcart.us, sbox64.com (wasm5.com now used).
+- Landing pages: edit `pages` in tools/build-pages.mjs, run `node tools/build-pages.mjs` (regenerates public/*.html + sitemap). IndexNow key 5bc6ad52e1d120447ba34a6b1cc96057 (public/<key>.txt). New assets take ~30s after deploy to serve.
+- landing.js kinds: url wifi vcard whatsapp email sms tel instagram profile(data-base) maps text event. Local test: python3 -m http.server in public/ (port 8765 is taken by something else) + Chrome --headless=new --dump-dom, read #pvText.
+- Print/QR verification: Playwright at $(npm root -g)/@playwright/mcp/node_modules/playwright (page.pdf with emulateMedia print); decode QR in PNG via swift CIDetector script (sips converts PDF→PNG).
+- Deploy: `npx wrangler deploy` from repo root. Local test server port 8771 works (`npx wrangler dev --port 8771`, local D1: `wrangler d1 execute foreverqr --local`).
+- Competitor pages: `compare: {them, src, rows}` in build-pages.mjs + COMPARED date const; facts must come from fetched vendor pricing pages (QRCG prices load via JS — not quotable).
+- app.css `.row{display:flex}` overrides the `hidden` attribute — a global `[hidden]{display:none!important}` rule exists for that; keep it.
+- Dashboard print sign: per-code [data-signbox]; test via wrangler dev + Playwright (stub window.print, dispatch afterprint).
+- Scan history: table scan_days(code, day=floor(ms/86400000), n); schema changes must be applied with `wrangler d1 execute foreverqr --remote --command ...` (deploy doesn't migrate). Live self-tests: activate via SQL, then delete test wallet/code/scan_days rows.
+- Bulk page /bulk-qr-code-generator: BULK + bulkPage() in build-pages.mjs, logic public/bulk.js (own ZIP writer); MAX_PENDING=20 in src/index.js. Playwright: set huge textarea values via evaluate (page.fill of 600 lines timed out).
+- Lost-link recovery: POST /api/recover {txn,email} → token (matches payments.txn_id + lower(payer_email)).
+- file diff_apply once inserted a block at the wrong place in src/index.js — check `git diff` after multi-line edits.
+- Local DNS may negative-cache new hostnames: flush with root_shell `dscacheutil -flushcache; killall -HUP mDNSResponder`.

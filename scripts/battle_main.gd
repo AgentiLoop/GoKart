@@ -23,6 +23,7 @@ const Lakitu := preload("res://scripts/lakitu.gd")
 const BlueBlast := preload("res://scripts/blue_blast.gd")
 const Items := preload("res://scripts/items.gd")
 const RaceMain := preload("res://scripts/main.gd")
+const PauseMenu := preload("res://scripts/pause_menu.gd")
 
 const BOMB_BLAST_RADIUS := 4.0
 ## The three AI opponents: body colour, weight class (the player is kart 0).
@@ -39,6 +40,7 @@ var arena
 var data
 var battle
 var hud
+var pause            # PauseMenu: Esc freezes the battle under MK64's pause screen
 var items
 var karts: Array = []
 var gear: Array = []        # Balloons node per kart
@@ -135,6 +137,8 @@ func _ready() -> void:
 	add_child(speed_fx)
 	hud = Hud.new()
 	add_child(hud)
+	pause = PauseMenu.new()
+	add_child(pause)
 	hud.setup_minimap(data.outline())
 	hud.show_cup("BATTLE - %s" % data.name)
 	audio = GameAudio.new()
@@ -216,7 +220,13 @@ func _explode(bomb: int, victim: int) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_ESCAPE:
-		get_tree().change_scene_to_file("res://scenes/menu.tscn")
+		if results_shown:
+			# the results board is a screen of its own: Esc there goes back to the select screen
+			get_tree().change_scene_to_file("res://scenes/menu.tscn")
+		else:
+			# MK64: Start freezes the battle under the pause screen (continue / retry / course change / quit)
+			pause.open()
+			get_viewport().set_input_as_handled()
 		return
 	if results_shown and event is InputEventKey and event.pressed and not event.echo \
 			and (event.physical_keycode == KEY_ENTER or event.physical_keycode == KEY_KP_ENTER):

@@ -34,6 +34,7 @@ const Molehills := preload("res://scripts/molehills.gd")
 const Snowmen := preload("res://scripts/snowmen.gd")
 const Snowfield := preload("res://scripts/snowfield.gd")
 const CourseIntro := preload("res://scripts/course_intro.gd")
+const PauseMenu := preload("res://scripts/pause_menu.gd")
 
 ## Seconds after the player crosses the line before the results panel appears.
 const RESULTS_DELAY := 2.0
@@ -75,6 +76,7 @@ var speed_fx
 var track
 var tracker
 var hud
+var pause            # PauseMenu: Esc freezes the race under MK64's pause screen
 var items
 var kart_index := 0
 var karts: Array = []   # karts[0] is the player
@@ -242,6 +244,8 @@ func _ready() -> void:
 	add_child(speed_fx)
 	hud = Hud.new()
 	add_child(hud)
+	pause = PauseMenu.new()
+	add_child(pause)
 	hud.setup_minimap(data.points, data.rail)
 	if time_trial:
 		hud.show_cup(TimeTrial.hud_text(_track_name()))
@@ -295,8 +299,14 @@ func _on_go() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_ESCAPE:
-		GrandPrix.stop()
-		get_tree().change_scene_to_file("res://scenes/menu.tscn")
+		if results_shown:
+			# the results board is a screen of its own: Esc there goes back to the select screen
+			GrandPrix.stop()
+			get_tree().change_scene_to_file("res://scenes/menu.tscn")
+		else:
+			# MK64: Start freezes the race under the pause screen (continue / retry / course change / quit)
+			pause.open()
+			get_viewport().set_input_as_handled()
 		return
 	if results_shown and event is InputEventKey and event.pressed and not event.echo \
 			and (event.physical_keycode == KEY_ENTER or event.physical_keycode == KEY_KP_ENTER):

@@ -160,4 +160,6 @@ static func effect_library() -> Dictionary:
 		"option": sweep(900.0, 1300.0, 0.06, 0.35),       # menu: an option / the mode changes
 		"confirm": arpeggio([1047.0, 1319.0, 1568.0, 2093.0], 0.08, 0.45),   # menu: Enter (leave the title, start the race)
 		"land": sweep(220.0, 55.0, 0.3, 0.6),             # menu: the logo bounces to a stop on the title screen
+		"pause": arpeggio([784.0, 523.0], 0.07, 0.4),     # race: Esc freezes the race and the pause screen comes up
+		"resume": arpeggio([523.0, 784.0], 0.07, 0.4),    # ...and it goes away again
 	}
