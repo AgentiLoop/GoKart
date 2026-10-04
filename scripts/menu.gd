@@ -915,6 +915,9 @@ func _refresh_battle() -> void:
 		names.append(ArenaData.info(i).name)
 	_refresh_list(names, arena_selected, _arena_pictures())
 	preview.setup(ArenaData.make(arena_selected).outline(), PREVIEW_AREA)
+	# the demo and the picture window show the arena itself (MK64's battle map select)
+	if attract != null:
+		attract.show_arena(arena_selected)
 	_refresh_options()
 
 ## Change the highlighted track (wraps around); the arena in battle mode.

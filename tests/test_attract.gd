@@ -120,3 +120,98 @@ func test_menu_title_screen_then_select_screen() -> void:
 	runner.check(not m.title_shown, "dismiss is idempotent")
 	for n in [m.title_box, m.select_box, m.title_prompt, m.backdrop, m]:
 		n.free()
+
+## The arena demo (battle mode's select screen): the picked arena with its item boxes and four
+## balloon karts on the pads, patrolling the box ring under the battle driver, the picture camera
+## circling the arena; a course afterwards tears it down.
+func test_arena_demo_helpers() -> void:
+	var ring := Attract.ring_waypoints([Vector3(0, 0, 10), Vector3(10, 0, 0), Vector3(-10, 0, 0), Vector3(0, 0, -10)])
+	runner.check(ring == [Vector3(0, 0, -10), Vector3(10, 0, 0), Vector3(0, 0, 10), Vector3(-10, 0, 0)], "ring sorted by angle round the centre: %s" % [ring])
+	runner.check(Attract.patrol_dir(0) == 1 and Attract.patrol_dir(1) == -1 and Attract.patrol_dir(2) == 1, "even karts one way, odd karts the other")
+	runner.check(Attract.first_waypoint(0, Vector3(9, 0, 1), ring) == 2 and Attract.first_waypoint(1, Vector3(9, 0, 1), ring) == 0, "first waypoint: the one after the nearest, in the kart's direction")
+	runner.check(Attract.first_waypoint(1, Vector3(0, 0, -9), ring) == 3 and Attract.first_waypoint(0, Vector3(-9, 0, 0), ring) == 0, "... wrapping both ways")
+	runner.check(Attract.first_waypoint(0, Vector3.ZERO, []) == 0, "empty ring")
+	runner.check(Attract.next_waypoint(0, 2, Vector3(10, 0, 30), ring) == 2, "far from the waypoint: the goal stays")
+	runner.check(Attract.next_waypoint(0, 2, ring[2] + Vector3(Attract.WAYPOINT_REACH - 0.5, 0, 0), ring) == 3, "within reach: the next one")
+	runner.check(Attract.next_waypoint(1, 0, ring[0] + Vector3(1, 0, 0), ring) == 3 and Attract.next_waypoint(0, 3, ring[3] + Vector3(0, 0, 1), ring) == 0, "wraps both ways")
+	var p0 := Attract.orbit_pose(0.0, 40.0)
+	runner.check(p0.pos.is_equal_approx(Vector3(40.0 * Attract.ORBIT_RADIUS, 40.0 * Attract.ORBIT_UP, 0)) and p0.look == Vector3.ZERO, "orbit starts on +x, ORBIT_RADIUS halves out and ORBIT_UP halves up, looking at the centre: %s" % p0.pos)
+	var pq := Attract.orbit_pose(Attract.ORBIT_TIME * 0.25, 40.0)
+	runner.check(is_zero_approx(pq.pos.x) and is_equal_approx(pq.pos.z, 40.0 * Attract.ORBIT_RADIUS) and is_equal_approx(pq.pos.y, p0.pos.y), "a quarter turn later it is on +z at the same height")
+	runner.check(Attract.orbit_pose(Attract.ORBIT_TIME, 40.0).pos.is_equal_approx(p0.pos), "a full turn comes back round")
+
+func test_arena_demo_world() -> void:
+	var ArenaData = load("res://scripts/arena_data.gd")
+	var a = Attract.new()
+	_root().add_child(a)
+	a.show_course(0)
+	var course_world = a.world
+	a.show_arena(1)
+	runner.check(a.arena_index == 1 and a.course == -1 and a.world != course_world and course_world.get_parent() == null, "Block Fort replaces the course world")
+	runner.check(a.arena != null and a.arena.get_parent() == a.world and a.track == null and a.data.name == "Block Fort", "the Arena node in the world, no track")
+	runner.check(a.arena.data == a.data, "the arena is built from the demo's data (walls / forts go up in _ready)")
+	var boxes := 0
+	for c in a.world.get_children():
+		if c.get_script() == load("res://scripts/item_box.gd"):
+			boxes += 1
+	runner.check(boxes == a.data.item_box_positions.size() and boxes > 0, "an item box at every box position (%d)" % boxes)
+	runner.check(a.karts.size() == Attract.KART_COUNT, "%d karts" % Attract.KART_COUNT)
+	var seen := {}
+	for k in a.karts.size():
+		var kart = a.karts[k]
+		var s: Dictionary = a.data.spawns[k]
+		runner.check(kart.position == s.position and is_equal_approx(kart.heading, s.heading), "kart %d on its start pad" % k)
+		runner.check(kart.driver != null and kart.driver.get("arena") == a.data and not kart.frozen, "kart %d has the battle driver" % k)
+		var balloons = null
+		for c in kart.get_children():
+			if c.get_script() == load("res://scripts/balloons.gd"):
+				balloons = c
+		runner.check(balloons != null and balloons.count == load("res://scripts/battle.gd").BALLOONS, "kart %d carries its balloons" % k)
+		seen[kart.body_color] = true
+	runner.check(seen.size() == Attract.KART_COUNT, "every kart has its own colour")
+	runner.check(a.waypoints.size() == a.data.item_box_positions.size() and a.goals.size() == Attract.KART_COUNT, "the box ring is the patrol route, a goal per kart")
+	for k in a.karts.size():
+		runner.check(a.goals[k] == Attract.first_waypoint(k, a.karts[k].position, a.waypoints), "kart %d starts for its first waypoint" % k)
+	runner.check(a.cam != null and a.cam.current and a.cam.get_parent() == a.world and a.cam.position.is_equal_approx(Attract.chase_pose(a.karts[0].position, a.karts[0].heading)), "chase camera behind the first kart")
+	var start := Attract.orbit_pose(0.0, a.data.half)
+	runner.check(is_zero_approx(a.orbit_t) and a.picture_cam.position.is_equal_approx(start.pos), "picture camera starts its orbit: %s" % a.picture_cam.position)
+	runner.check((a.picture_cam.transform.basis.z * -1.0).dot((start.look - start.pos).normalized()) > 0.999, "looking at the arena's centre")
+	a._orbit(1.0)
+	var pose := Attract.orbit_pose(1.0, a.data.half)
+	runner.check(is_equal_approx(a.orbit_t, 1.0) and a.picture_cam.position.is_equal_approx(pose.pos), "a second on: further round the arena")
+	# the physics tick hands each kart its waypoint and moves a kart that has reached one on
+	a._physics_process(1.0 / 60.0)
+	for k in a.karts.size():
+		runner.check(a.karts[k].driver.goal == a.waypoints[a.goals[k]], "kart %d drives at its waypoint" % k)
+	a.karts[0].position = a.waypoints[a.goals[0]]
+	var before: int = a.goals[0]
+	a._physics_process(1.0 / 60.0)
+	runner.check(a.goals[0] == posmod(before + 1, a.waypoints.size()), "at the waypoint: on to the next")
+	var same = a.world
+	a.show_arena(1)
+	runner.check(a.world == same, "same arena: no rebuild")
+	a.show_arena(0)
+	runner.check(a.arena_index == 0 and a.world != same and a.data.name == "Big Donut" and a.data.pit_radius > 0.0, "another arena rebuilds")
+	# a kart in the lava is fished out
+	a.karts[1].position = Vector3(1, 0, 1)
+	a._physics_process(1.0 / 60.0)
+	runner.check(a.karts[1].is_rescued() and a.karts[1].rescues == 1, "a kart in the pit is rescued")
+	a.show_course(0)
+	runner.check(a.arena == null and a.arena_index == -1 and a.course == 0 and a.track != null and a.data.count > 1, "back to a course: the arena is gone")
+	a.free()
+
+func test_menu_battle_mode_shows_the_arena() -> void:
+	var m = Menu.new()
+	_root().add_child(m)
+	if m.select_box == null:
+		m._ready()
+	m.set_title(false)
+	runner.check(m.attract.arena == null and m.attract.course == m.selected, "a course in the demo on the course select screen")
+	while m.mode != Menu.MODE_BATTLE:
+		m.toggle_mode()
+	runner.check(m.attract.arena != null and m.attract.arena_index == m.arena_selected and m.attract.data.name == m.name_label.text, "battle mode: the demo and the picture show the picked arena (%s)" % m.name_label.text)
+	m.move(1)
+	runner.check(m.attract.arena_index == m.arena_selected and m.attract.data.name == m.name_label.text, "the arena follows the cursor (%s)" % m.name_label.text)
+	m.toggle_mode()
+	runner.check(m.attract.arena == null and m.attract.course == m.selected, "back to a course mode: the course again")
+	m.free()
