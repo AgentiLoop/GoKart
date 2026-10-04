@@ -10,7 +10,7 @@ extends Control
 ## Text uses drop shadows instead of thick black outlines; only the logo's letters — set on an arch,
 ## shaded yellow to red, standing out of a navy extrusion like MK64's 3D block letters — have a rim.
 ## Sound (MenuAudio): the title theme under the title screen, the select theme under the select
-## screen, a tick for the cursor / an option, a chime for Enter.
+## screen, a thud as the logo lands, a tick for the cursor / an option, a chime for Enter.
 ## Up / Down move the cursor frame from row to row (course list, laps, CPU, engine, kart, mode)
 ## and Left / Right (A / D) change the row it is on; Enter races. The selection is stored in
 ## TrackLibrary.selected and Esc during a race comes back here (to the select screen).
@@ -153,6 +153,9 @@ var attract = null             # Attract (SubViewportContainer) under everything
 var audio = null               # MenuAudio: title / select tunes and the menu sounds
 var select_box: Control        # every select-screen panel and label (hidden on the title screen)
 var title_prompt: Label        # PRESS ENTER on the title screen
+var title_footer: Label        # the small line under the checkered band (MK64: "(c) 1996 Nintendo")
+const TITLE_FOOTER := "\u00a9 2026 GOKART"
+const TITLE_FOOTER_POS := Vector2(340, 680)   # under the band at 650-668, above the window's edge
 var title_shown := false
 static var title_seen := false
 const TITLE_LOGO_POS := Vector2(240, 150)   # logo position on the title screen (upper half)
@@ -574,6 +577,14 @@ func _ready() -> void:
 	title_prompt.text = "PRESS ENTER"
 	UiStyle.style_sign(title_prompt, font, 40)
 	stage.add_child(title_prompt)
+	# the small line under the checkered band (MK64's title carries its copyright line there)
+	title_footer = Label.new()
+	title_footer.position = TITLE_FOOTER_POS
+	title_footer.size = Vector2(600, 20)
+	title_footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_footer.text = TITLE_FOOTER
+	UiStyle.style_label(title_footer, font, 13, GREY)
+	stage.add_child(title_footer)
 	_refresh()
 	set_title(not title_seen)
 
@@ -590,6 +601,8 @@ func set_title(on: bool) -> void:
 		select_box.visible = not on
 	if title_prompt != null:
 		title_prompt.visible = on
+	if title_footer != null:
+		title_footer.visible = on
 	if is_inside_tree() and (on or was):
 		start_motion()
 	else:
@@ -792,8 +805,11 @@ func _label(pos: Vector2, font_size: int, w: float, col: Color, align := HORIZON
 func _process(delta: float) -> void:
 	# the running motion (logo fly-in / glide), left alone once it has settled
 	if anim_t < (INTRO_TIME + PROMPT_IN if title_shown else LEAVE_TIME):
+		var before := anim_t
 		anim_t += delta
 		_apply_motion()
+		if title_shown and before < INTRO_TIME and anim_t >= INTRO_TIME:
+			_sound("land")   # the logo bounces to a stop (MK64's title call as the logo arrives)
 	# the title demo tour: the next course once the veil is up, the highlight following it
 	if tour_runs():
 		tour_t += delta
@@ -808,6 +824,8 @@ func _process(delta: float) -> void:
 		prompt.modulate.a = a
 	if title_prompt != null:
 		title_prompt.modulate.a = a * prompt_fade
+	if title_footer != null:
+		title_footer.modulate.a = prompt_fade
 	if focus_frame != null:
 		focus_frame.modulate.a = 0.9 + 0.1 * sin(blink * 5.0)   # a gentle pulse, never faint
 

@@ -157,4 +157,5 @@ static func effect_library() -> Dictionary:
 		"cursor": sweep(1400.0, 1900.0, 0.05, 0.35),      # menu: the cursor moves to another course
 		"option": sweep(900.0, 1300.0, 0.06, 0.35),       # menu: an option / the mode changes
 		"confirm": arpeggio([1047.0, 1319.0, 1568.0, 2093.0], 0.08, 0.45),   # menu: Enter (leave the title, start the race)
+		"land": sweep(220.0, 55.0, 0.3, 0.6),             # menu: the logo bounces to a stop on the title screen
 	}

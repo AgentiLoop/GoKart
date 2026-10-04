@@ -4,7 +4,8 @@ extends Node
 ## a chime for a confirmation. Here the title theme (Music "title") loops under the attract demo and
 ## the select theme ("menu") takes over with a short cross-fade when the select screen comes up;
 ## moving the course cursor ticks ("cursor"), changing an option or the mode ticks lower ("option")
-## and Enter chimes ("confirm"). Starting a race hands the tune and the chime over to the scene root
+## and Enter chimes ("confirm"); the logo bouncing to a stop on the title screen thuds ("land", MK64's
+## title call as the logo arrives). Starting a race hands the tune and the chime over to the scene root
 ## (leave) so the chime finishes and the music fades out while the race loads. Everything is
 ## synthesized (SoundSynth / Music), no audio files.
 
@@ -17,7 +18,7 @@ const MUSIC_DB := -14.0
 const SILENT_DB := -60.0
 const FADE_RATE := 4.0        # cross-fade speed between the two tunes (1 / s)
 const LEAVE_FADE := 0.6       # seconds the tune takes to fade out behind the race loading
-const EFFECTS := ["cursor", "option", "confirm"]
+const EFFECTS := ["cursor", "option", "confirm", "land"]
 const POOL_SIZE := 3
 const OUT_GROUP := "menu_audio_out"   # players handed to the scene root by leave()
 

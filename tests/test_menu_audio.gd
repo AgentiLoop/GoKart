@@ -58,6 +58,8 @@ func test_menu_effects() -> void:
 	# the ticks are short, the chime longer
 	runner.check(lib["cursor"].size() < lib["confirm"].size() and lib["option"].size() < lib["confirm"].size(), "ticks shorter than the chime")
 	runner.check(lib["cursor"].size() <= SoundSynth.sample_count(0.1) and lib["option"].size() <= SoundSynth.sample_count(0.1), "ticks are under 0.1 s")
+	# the landing thud is a low falling sweep, longer than a tick
+	runner.check(lib["land"].size() > lib["cursor"].size() and lib["land"].size() <= SoundSynth.sample_count(0.4), "the thud lasts longer than a tick, under 0.4 s")
 
 func test_audio_node_levels_and_crossfade() -> void:
 	runner.check(MenuAudio.music_db(true, true) == MenuAudio.MUSIC_DB and MenuAudio.music_db(false, false) == MenuAudio.MUSIC_DB, "the tune of the current screen is loud")
