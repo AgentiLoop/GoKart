@@ -4,7 +4,8 @@ extends Control
 ## ENTER. Any key brings up the select screen, laid out like MK64's: a "SELECT COURSE" banner, a
 ## course list on the left with a highlighted row, the map and the course blurb in a framed panel
 ## on the right and a row of option cells underneath, the demo still running dimmed behind it.
-## Text uses drop shadows instead of thick black outlines (only the logo has a gold rim).
+## Text uses drop shadows instead of thick black outlines; only the logo's letters — set on an arch,
+## shaded yellow to red, standing out of a navy extrusion like MK64's 3D block letters — have a rim.
 ## Left/Right (A/D) pick the track and Enter/Space races it; selection is stored in
 ## TrackLibrary.selected and Esc during a race comes back here (to the select screen).
 ## G / Tab cycles the mode: Single Race -> Grand Prix (every track in turn, MK64-style cup points)
@@ -39,7 +40,6 @@ const GOLD_DIM := UiStyle.GOLD_DIM
 const CREAM := UiStyle.CREAM
 const GREY := UiStyle.GREY
 const LOGO_RED := UiStyle.LOGO_RED
-const LOGO_RIM := UiStyle.LOGO_RIM
 const PANEL_FILL := UiStyle.PANEL_FILL
 const PANEL_RIM := UiStyle.PANEL_RIM
 const SHADOW := UiStyle.SHADOW
@@ -103,8 +103,26 @@ var title_prompt: Label        # PRESS ENTER on the title screen
 var title_shown := false
 static var title_seen := false
 const TITLE_LOGO_POS := Vector2(240, 150)   # logo position on the title screen (upper half)
-const MENU_LOGO_POS := Vector2(240, 8)      # logo position on the select screen
+const MENU_LOGO_POS := Vector2(240, 4)      # logo position on the select screen (clears the banner at 162)
 const TITLE_LOGO_SCALE := 1.3
+## The logo: "GOKART" set on an arch like MK64's logo, each letter a stack of layers — a soft
+## shadow, LOGO_DEPTH navy extrusion layers, a dark red rim and a yellow -> orange -> red gradient
+## fill painted by shaders/logo_gradient.gdshader.
+const LogoShader := preload("res://shaders/logo_gradient.gdshader")
+const LOGO_TEXT := "GOKART"
+const LOGO_FONT := 112
+const LOGO_BOX := Vector2(800, 156)
+const LOGO_GAP := 2.0                        # extra space between letters
+const LOGO_CROWN_Y := 0.0                    # the middle letters' top edge inside the box
+const LOGO_ARC_RADIUS := 900.0               # edge letters sit ~26 px lower, tilted ~14 degrees
+const LOGO_CAP_HEIGHT := 0.72                # cap height / font size, for the gradient span
+const LOGO_DEPTH := 8                        # extrusion layers
+const LOGO_DEPTH_STEP := Vector2(1.25, 1.5)  # offset per extrusion layer
+const LOGO_EXTRUDE := Color(0.08, 0.1, 0.3)  # deep navy block sides (MK64 uses black; no black here)
+const LOGO_SHADOW := Color(0.02, 0.03, 0.1, 0.45)
+const LOGO_SHADOW_OFF := Vector2(5, 7)
+const LOGO_TOP := Color(1.0, 0.95, 0.55)     # gradient: light yellow at the top ...
+const LOGO_MID := Color(1.0, 0.55, 0.12)     # ... orange in the middle, LOGO_RED at the baseline
 
 ## Drawn over the attract demo and under the panels: a translucent sky-tinted shade (light on the
 ## title screen so the race shows through, heavier behind the select screen), faint diagonal
@@ -376,29 +394,72 @@ func dismiss_title() -> void:
 	if title_shown:
 		set_title(false)
 
-## "GOKART" like the MK64 logo: a slanted, chunky red word with a gold rim over a soft dark shadow.
+## Where a logo letter whose centre is `centre_x` from the word's middle sits on the arch: how far
+## it drops below the crown and the tilt that follows the arc (negative = leaning left). Pure.
+static func logo_letter_pose(centre_x: float, radius: float) -> Dictionary:
+	var dx := clampf(centre_x, -radius, radius)
+	return {"drop": radius - sqrt(radius * radius - dx * dx), "angle": asin(dx / radius)}
+
+## "GOKART" like the MK64 logo: chunky letters set on an arch, each shaded from light yellow through
+## orange to red with a dark red rim, standing out of a deep navy extrusion (MK64's letters are 3D
+## blocks with a bold shadow — here in navy rather than black) over a soft shadow.
 func _build_title() -> void:
 	title_box = Control.new()
 	title_box.position = MENU_LOGO_POS
-	title_box.size = Vector2(800, 150)
+	title_box.size = LOGO_BOX
 	title_box.pivot_offset = title_box.size * 0.5
-	title_box.rotation_degrees = -4.0
 	stage.add_child(title_box)
-	for layer in 2:
-		var l := Label.new()
-		l.text = "GOKART"
-		l.size = title_box.size
-		l.position = Vector2(8, 10) if layer == 0 else Vector2.ZERO
-		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		l.add_theme_font_override("font", font)
-		l.add_theme_font_size_override("font_size", 112)
-		if layer == 0:
-			l.add_theme_color_override("font_color", Color(0.02, 0.03, 0.1, 0.7))
-		else:
-			l.add_theme_color_override("font_color", LOGO_RED)
-			l.add_theme_color_override("font_outline_color", LOGO_RIM)
-			l.add_theme_constant_override("outline_size", 7)
-		title_box.add_child(l)
+	var widths: Array[float] = []
+	var total := -LOGO_GAP
+	for ch in LOGO_TEXT:
+		var w := font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, LOGO_FONT).x
+		widths.append(w)
+		total += w + LOGO_GAP
+	var ascent := font.get_ascent(LOGO_FONT)
+	var line_h := font.get_height(LOGO_FONT)
+	var x := (LOGO_BOX.x - total) * 0.5
+	for i in LOGO_TEXT.length():
+		var ch := LOGO_TEXT[i]
+		var w: float = widths[i]
+		var pose := logo_letter_pose(x + w * 0.5 - LOGO_BOX.x * 0.5, LOGO_ARC_RADIUS)
+		var letter := Control.new()
+		letter.name = "Letter%d" % i
+		letter.size = Vector2(w, line_h)
+		letter.position = Vector2(x, LOGO_CROWN_Y + pose.drop)
+		letter.pivot_offset = Vector2(w * 0.5, ascent)   # turn about the middle of the baseline
+		letter.rotation = pose.angle
+		title_box.add_child(letter)
+		var depth := LOGO_DEPTH_STEP * LOGO_DEPTH
+		letter.add_child(_logo_glyph(ch, depth + LOGO_SHADOW_OFF, LOGO_SHADOW, LOGO_SHADOW))
+		for d in range(LOGO_DEPTH, 0, -1):
+			letter.add_child(_logo_glyph(ch, LOGO_DEPTH_STEP * d, LOGO_EXTRUDE, LOGO_EXTRUDE))
+		letter.add_child(_logo_glyph(ch, Vector2.ZERO, UiStyle.SIGN_RIM, UiStyle.SIGN_RIM))
+		var fill := _logo_glyph(ch, Vector2.ZERO, LOGO_RED, Color.TRANSPARENT, false)
+		var mat := ShaderMaterial.new()
+		mat.shader = LogoShader
+		mat.set_shader_parameter("top_color", LOGO_TOP)
+		mat.set_shader_parameter("mid_color", LOGO_MID)
+		mat.set_shader_parameter("bottom_color", LOGO_RED)
+		mat.set_shader_parameter("top_y", ascent - LOGO_FONT * LOGO_CAP_HEIGHT)
+		mat.set_shader_parameter("bottom_y", ascent)
+		fill.material = mat
+		letter.add_child(fill)
+		x += w + LOGO_GAP
+
+## One layer of a logo letter: the glyph in `col` with a rim (outline) in `rim` — the extrusion and
+## shadow layers are solid, the rim layer gives the fill its edge — or, without a rim, the fill
+## layer the gradient shader paints. No drop shadow of its own (the extrusion is the shadow).
+func _logo_glyph(ch: String, offset: Vector2, col: Color, rim: Color, outlined := true) -> Label:
+	var l := Label.new()
+	l.text = ch
+	l.position = offset
+	l.size = Vector2(font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, LOGO_FONT).x, font.get_height(LOGO_FONT))
+	if outlined:
+		UiStyle.style_sign(l, font, LOGO_FONT, col, rim)
+	else:
+		UiStyle.style_label(l, font, LOGO_FONT, col)
+	l.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
+	return l
 
 ## Select-screen panel (hidden with the rest of select_box on the title screen).
 func _panel(rect: Rect2, fill: Color, rim: Color, radius: int) -> Panel:
