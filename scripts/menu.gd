@@ -125,6 +125,19 @@ static var title_seen := false
 const TITLE_LOGO_POS := Vector2(240, 150)   # logo position on the title screen (upper half)
 const MENU_LOGO_POS := Vector2(240, 4)      # logo position on the select screen (clears the banner at 162)
 const TITLE_LOGO_SCALE := 1.3
+# Screen motion like MK64's: the logo flies in from the distance and bounces to a stop on the title
+# screen, PRESS ENTER fades in once it has landed; leaving the title, the logo glides up to its
+# select-screen spot while the demo dims and the panels rise into place.
+const INTRO_TIME := 0.9          # logo zoom-in (overshoots and settles)
+const INTRO_FROM := 0.15         # the logo starts this share of its size
+const INTRO_FADE := 0.25         # ... and fades in over the first quarter second
+const PROMPT_IN := 0.3           # PRESS ENTER fades in after the logo lands
+const LEAVE_TIME := 0.5          # title -> select screen glide
+const LEAVE_FADE := 0.3          # the panels fade in over the first part of the glide
+const LEAVE_SLIDE := 48.0        # ... rising this far
+const MOTION_DONE := 100.0       # anim_t of a finished motion (snapped poses)
+var anim_t := MOTION_DONE        # seconds into the current motion
+var prompt_fade := 1.0           # title prompt's share of the blink alpha (0 until the logo lands)
 ## The logo: "GOKART" set on an arch like MK64's logo, each letter a stack of layers — a soft
 ## shadow, LOGO_DEPTH navy extrusion layers, a dark red rim and a yellow -> orange -> red gradient
 ## fill painted by shaders/logo_gradient.gdshader.
@@ -455,7 +468,11 @@ func _ready() -> void:
 	set_title(not title_seen)
 
 ## Title screen on (logo large over the race, PRESS ENTER, no panels) or the select screen.
+## In the tree the change is animated (the logo flies in; or glides up while the panels rise):
+## `anim_t` restarts and `_process` moves the poses along. A menu outside the tree (tests) or a
+## select screen that does not come from the title (back from a race) snaps to the final pose.
 func set_title(on: bool) -> void:
+	var was := title_shown
 	title_shown = on
 	if on:
 		title_seen = true
@@ -463,13 +480,20 @@ func set_title(on: bool) -> void:
 		select_box.visible = not on
 	if title_prompt != null:
 		title_prompt.visible = on
-	if title_box != null:
-		title_box.position = TITLE_LOGO_POS if on else MENU_LOGO_POS
-		title_box.scale = Vector2.ONE * (TITLE_LOGO_SCALE if on else 1.0)
-	if backdrop != null:
-		backdrop.set_dim(0.0 if on else 1.0)
+	if is_inside_tree() and (on or was):
+		start_motion()
+	else:
+		anim_t = MOTION_DONE
+		_apply_motion()
 	if audio != null:
 		audio.set_title(on)
+
+## Restart the current screen's motion (logo fly-in on the title, the glide to the select screen)
+## from its first frame; set_title does this for a menu in the tree.
+func start_motion() -> void:
+	anim_t = 0.0
+	_apply_motion()
+
 
 ## Leave the title screen for the select screen (any key).
 func dismiss_title() -> void:
@@ -481,6 +505,64 @@ func dismiss_title() -> void:
 func _sound(effect: String) -> void:
 	if audio != null:
 		audio.play(effect)
+
+## Overshoot-and-settle curve (0 -> 1, peaking ~1.1 on the way). Pure.
+static func ease_out_back(t: float) -> float:
+	var u := t - 1.0
+	return 1.0 + 2.70158 * u * u * u + 1.70158 * u * u
+
+static func ease_out_cubic(t: float) -> float:
+	var u := 1.0 - t
+	return 1.0 - u * u * u
+
+## The title screen t seconds in: the logo's scale (zooming in from INTRO_FROM with a bounce) and
+## alpha, and the prompt's alpha share (0 until the logo has landed). Pure.
+static func intro_pose(t: float) -> Dictionary:
+	var u := ease_out_back(clampf(t / INTRO_TIME, 0.0, 1.0))
+	return {
+		"scale": lerpf(INTRO_FROM, 1.0, u) * TITLE_LOGO_SCALE,
+		"alpha": clampf(t / INTRO_FADE, 0.0, 1.0),
+		"prompt": clampf((t - INTRO_TIME) / PROMPT_IN, 0.0, 1.0),
+	}
+
+## The title -> select glide t seconds in: the logo's position / scale between its two spots, the
+## backdrop's dim and the panels' rise (px still to go) and alpha. Pure.
+static func leave_pose(t: float) -> Dictionary:
+	var u := ease_out_cubic(clampf(t / LEAVE_TIME, 0.0, 1.0))
+	return {
+		"logo_pos": TITLE_LOGO_POS.lerp(MENU_LOGO_POS, u),
+		"scale": lerpf(TITLE_LOGO_SCALE, 1.0, u),
+		"dim": u,
+		"slide": LEAVE_SLIDE * (1.0 - u),
+		"alpha": clampf(t / LEAVE_FADE, 0.0, 1.0),
+	}
+
+## Put the logo, the prompt, the backdrop and the panels where the current motion has them.
+func _apply_motion() -> void:
+	if title_shown:
+		var p := intro_pose(anim_t)
+		if title_box != null:
+			title_box.position = TITLE_LOGO_POS
+			title_box.scale = Vector2.ONE * p.scale
+			title_box.modulate.a = p.alpha
+		prompt_fade = p.prompt
+		if backdrop != null:
+			backdrop.set_dim(0.0)
+		if select_box != null:
+			select_box.position = Vector2.ZERO
+			select_box.modulate.a = 1.0
+	else:
+		var p := leave_pose(anim_t)
+		if title_box != null:
+			title_box.position = p.logo_pos
+			title_box.scale = Vector2.ONE * p.scale
+			title_box.modulate.a = 1.0
+		prompt_fade = 1.0
+		if backdrop != null:
+			backdrop.set_dim(p.dim)
+		if select_box != null:
+			select_box.position = Vector2(0, p.slide)
+			select_box.modulate.a = p.alpha
 
 ## Where a logo letter whose centre is `centre_x` from the word's middle sits on the arch: how far
 ## it drops below the crown and the tilt that follows the arc (negative = leaning left). Pure.
@@ -568,12 +650,16 @@ func _label(pos: Vector2, font_size: int, w: float, col: Color, align := HORIZON
 	return l
 
 func _process(delta: float) -> void:
+	# the running motion (logo fly-in / glide), left alone once it has settled
+	if anim_t < (INTRO_TIME + PROMPT_IN if title_shown else LEAVE_TIME):
+		anim_t += delta
+		_apply_motion()
 	blink += delta
 	var a := 0.6 + 0.4 * sin(blink * 5.0)
 	if prompt != null:
 		prompt.modulate.a = a
 	if title_prompt != null:
-		title_prompt.modulate.a = a
+		title_prompt.modulate.a = a * prompt_fade
 
 ## Rebuild the left-hand list: one row per course / arena — a course picture (MK64's map-select
 ## thumbnails) beside the name — the highlighted one gold on a lit bar with its picture framed in

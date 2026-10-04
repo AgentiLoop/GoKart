@@ -1,6 +1,7 @@
 extends SceneTree
 ## Windowed: godot --path . -s tools/menu_shot.gd
-## -> /tmp/gokart_title.png (title screen: logo over the attract demo), /tmp/gokart_menu0.png and
+## -> /tmp/gokart_title.png (title screen: logo over the attract demo), /tmp/gokart_menu0.png (after the
+##    0.5 s glide to the select screen) and
 ##    _menu1.png (select screen on tracks 0 / 1), /tmp/gokart_race_track1.png
 var f := 0
 func _initialize() -> void:
@@ -13,7 +14,7 @@ func _process(_d: float) -> bool:
 		# five seconds in: the demo karts are up to speed and the chase camera has settled
 		_shot("title")
 		current_scene.dismiss_title()
-	elif f == 320:
+	elif f == 345:
 		_shot("menu0")
 		current_scene.move(1)
 	elif f == 420:
