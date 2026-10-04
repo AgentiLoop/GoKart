@@ -92,7 +92,7 @@ static func state_text(boosting: bool, drift_level: int, star := false, shrunk :
 	if shrunk:
 		return "SHRUNK!"
 	if drift_level > 0:
-		return ["", "MINI-TURBO", "SUPER MINI-TURBO", "ULTRA MINI-TURBO"][drift_level]
+		return ["", "MINI-TURBO...", "MINI-TURBO!"][mini(drift_level, 2)]
 	return ""
 
 static func place_text(rank: int, total: int) -> String:

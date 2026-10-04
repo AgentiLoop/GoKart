@@ -1,6 +1,6 @@
 extends RefCounted
 ## Pure arcade kart model (no scene dependencies) so it can be unit tested.
-## Handles speed, steering, Mario Kart style drifting and mini-turbo boosts.
+## Handles speed, steering, Mario Kart 64 style powerslides and the stick-toggle mini-turbo.
 
 signal drift_started(direction: int)
 signal drift_level_changed(level: int)
@@ -25,8 +25,13 @@ var friction := 8.0
 var turn_rate := 2.3            # rad/s at full steer (low speed)
 var high_speed_turn_scale := 0.75   # fraction of turn_rate left at top speed (stability)
 var min_drift_speed := 10.0
-var drift_charge_thresholds := [0.8, 1.6, 2.6]   # seconds for blue / orange / purple
-var boost_durations := [0.6, 1.0, 1.5]
+## MK64 mini-turbo: the charge is the number of steering toggles made during the slide (steer out of the
+## drift, then back in). One toggle turns the smoke yellow (level 1), a second turns it red (level 2);
+## only a red slide gives a boost when the drift is released.
+var drift_charge_thresholds := [1.0, 2.0]
+var boost_durations := [0.0, 1.3]
+## Stick deflection (|steer| against / with the drift) that counts as steering out / back in.
+const TOGGLE_STEER := 0.3
 var boost_speed_factor := 1.4
 var boost_acceleration := 45.0
 var surface_scale := 1.0        # <1 on grass/off-road: scales top speed (boost ignores it)
@@ -34,8 +39,9 @@ var surface_scale := 1.0        # <1 on grass/off-road: scales top speed (boost 
 var speed := 0.0
 var drifting := false
 var drift_direction := 0
-var drift_charge := 0.0
+var drift_charge := 0.0         # completed steering toggles in the current slide
 var drift_level := 0
+var drift_outward := false      # the stick has been pushed against the drift; back in completes a toggle
 var boost_time := 0.0
 var boost_level := 0
 var boost_from_drift := false   # true while the current boost is a drift mini-turbo
@@ -191,10 +197,11 @@ func _start_drift(steer: float) -> void:
 	drift_direction = 1 if steer > 0.0 else -1
 	drift_charge = 0.0
 	drift_level = 0
+	drift_outward = false
 	drift_started.emit(drift_direction)
 
 func _end_drift() -> void:
-	if drift_level > 0:
+	if drift_level > 0 and boost_durations[drift_level - 1] > 0.0:
 		apply_boost(boost_durations[drift_level - 1], drift_level, true)
 	drifting = false
 	drift_direction = 0
@@ -295,8 +302,15 @@ func step(delta: float, throttle: float, brake: float, steer: float, drift_held:
 		# Steering widens/tightens the arc but cannot reverse the drift direction.
 		var arc := 0.9 + 0.5 * steer * drift_direction   # 0.4 .. 1.4
 		yaw = -drift_direction * turn_rate * arc * delta   # right drift -> negative yaw (clockwise)
-		drift_charge += delta * (1.0 + 0.4 * maxf(steer * drift_direction, 0.0))
-		_update_level()
+		# MK64 mini-turbo: push the stick against the slide, then back into it, to charge a stage.
+		var inward := steer * drift_direction
+		if inward < -TOGGLE_STEER:
+			drift_outward = true
+		elif inward > TOGGLE_STEER and drift_outward:
+			drift_outward = false
+			if drift_charge < drift_charge_thresholds[-1]:
+				drift_charge += 1.0
+				_update_level()
 	else:
 		var grip := lerpf(1.0, high_speed_turn_scale, clampf(absf(speed) / max_speed, 0.0, 1.0))
 		yaw = -steer * turn_rate * grip * speed_factor * dir_sign * delta

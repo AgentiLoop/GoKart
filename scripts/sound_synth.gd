@@ -133,7 +133,7 @@ static func effect_library() -> Dictionary:
 		"beep": countdown_beep(3),
 		"go": countdown_beep(0),
 		"boost": noise_burst(0.7, 0.55, 0.7, 3),
-		"drift_start": noise_burst(0.15, 0.2, 0.4, 5),
+		"drift_start": sweep(260.0, 560.0, 0.12, 0.4),   # the hop that starts a powerslide
 		"mini_turbo": arpeggio([660.0, 880.0], 0.07, 0.45),
 		"pickup": arpeggio([523.0, 659.0, 784.0, 1047.0], 0.06, 0.45),
 		"item_ready": arpeggio([784.0, 1047.0], 0.09, 0.5),

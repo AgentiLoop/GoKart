@@ -1,7 +1,8 @@
 extends SceneTree
 ## Windowed visual check: godot --path . -s tools/screenshot.gd  -> /tmp/gokart_*.png
-## A pursuit bot drives the kart round the track; it starts a drift on the first
-## long right-hand bend (steering out of the drift for the widest arc), holds it for a while, then releases for a mini-turbo boost.
+## A pursuit bot drives the kart round the track; it hops into a drift on the first
+## long right-hand bend (steering out of the drift for the widest arc), toggles the stick left / right
+## until the smoke is red (MK64 mini-turbo), then releases for the boost.
 ## Saves screenshots of the drift, the charged drift and the boost.
 
 var main: Node
@@ -31,10 +32,22 @@ func _process(_d: float) -> bool:
 	var f := Engine.get_physics_frames()
 	var k = main.kart
 	if main.race_start.started or main.race_start.remaining <= 0.5:
-		Input.action_press("accelerate")   # rocket start, not a false start
+		if stage in [1, 11, 2]:
+			Input.action_release("accelerate")   # coast through the slide so the bend fits the drift radius
+		else:
+			Input.action_press("accelerate")   # rocket start, not a false start
 	if stage == 0 or (stage >= 3 and stage != 11 and stage != 8 and stage != 9 and stage != 10):
 		_steer()
 	if stage == 0 and k.global_position.z < -42.0:
+		# start the slide from the left side of the road at 16 m/s so the right-hand drift has room
+		var t = main.track.data
+		var i: int = (main.kart_index + 2) % t.count
+		var h: float = t.heading_at(i)
+		k.global_position = t.points[i] + Vector3(-cos(h), 0, sin(h)) * 5.0
+		k.heading = h
+		k.rotation.y = h
+		k.velocity = Vector3.ZERO
+		k.model.speed = 16.0
 		Input.action_release("steer_left")
 		Input.action_press("steer_right", 1.0)   # sets the drift direction
 		Input.action_press("drift")
@@ -47,7 +60,17 @@ func _process(_d: float) -> bool:
 	elif stage == 11 and f >= drift_start + 12:
 		_shot("drift")
 		stage = 2
-	elif stage == 2 and k.model.drift_level >= 2:
+	elif stage == 2 and k.model.drift_level < 2 and k.model.drifting:
+		# MK64 mini-turbo: toggle the stick against the slide and back every 8 frames until the smoke is red
+		Input.action_release("steer_left")
+		Input.action_release("steer_right")
+		if (f - drift_start) / 8 % 2 == 0:
+			Input.action_press("steer_right", 0.6)
+		else:
+			Input.action_press("steer_left", 1.0)
+	elif stage == 2:
+		Input.action_release("steer_left")
+		Input.action_press("steer_right", 1.0)
 		_shot("drift_charged")
 		Input.action_release("drift")
 		stage = 3

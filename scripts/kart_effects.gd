@@ -4,18 +4,17 @@ extends Node3D
 
 const TireTrail := preload("res://scripts/tire_trail.gd")
 
+## MK64 powerslide smoke: white while sliding, yellow after the first steering toggle, red after the second.
 const SPARK_COLORS := [
-	Color(1.0, 0.9, 0.5),    # level 0: warm white-yellow
-	Color(0.3, 0.6, 1.0),    # level 1: blue
-	Color(1.0, 0.55, 0.1),   # level 2: orange
-	Color(0.8, 0.3, 1.0),    # level 3: purple
+	Color(0.95, 0.95, 0.92),   # level 0: white smoke
+	Color(1.0, 0.85, 0.15),    # level 1: yellow
+	Color(1.0, 0.3, 0.08),     # level 2: orange-red
 ]
 
 const FLAME_COLORS := [
 	Color(1.0, 0.45, 0.05),  # mushroom / pad / start boost: orange-red
-	Color(0.3, 0.6, 1.0),    # mini-turbo 1: blue
-	Color(1.0, 0.55, 0.1),   # mini-turbo 2: orange
-	Color(0.8, 0.3, 1.0),    # mini-turbo 3: purple
+	Color(1.0, 0.85, 0.15),  # mini-turbo stage 1 (yellow; no boost in MK64, kept for the tint)
+	Color(1.0, 0.3, 0.08),   # mini-turbo stage 2: red
 ]
 const FLASH_DECAY := 4.0      # 1/s: mini-turbo flash fades in ~0.25 s
 const SMOKE_COLOR := Color(0.75, 0.75, 0.75, 0.6)   # false-start tire smoke
@@ -36,7 +35,7 @@ var star_glitter: GPUParticles3D
 
 ## Exhaust flame tint: drift mini-turbos use the spark colour of their level, other boosts are orange.
 static func flame_color(level: int, from_drift: bool) -> Color:
-	return FLAME_COLORS[clampi(level, 1, 3)] if from_drift else FLAME_COLORS[0]
+	return FLAME_COLORS[clampi(level, 1, FLAME_COLORS.size() - 1)] if from_drift else FLAME_COLORS[0]
 
 static func spark_color(level: int) -> Color:
 	return SPARK_COLORS[clampi(level, 0, SPARK_COLORS.size() - 1)]

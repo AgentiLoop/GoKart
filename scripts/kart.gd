@@ -10,6 +10,7 @@ const Lakitu := preload("res://scripts/lakitu.gd")
 const SHRUNK_SCALE := 0.5
 const GHOST_ALPHA := 0.35   # how see-through a Boo makes the kart
 const STALL_WHEEL_SPEED := 24.0   # m/s the wheels appear to spin at during a false-start burnout
+const DRIFT_HOP := 4.0            # m/s: the MK64 hop that starts a powerslide (light karts hop higher)
 
 ## A kart-to-kart bump happened (other kart, closing speed in m/s); battle mode pops balloons on hard shoves.
 signal bumped(other, closing: float)
@@ -120,6 +121,7 @@ func _ready() -> void:
 	effects.setup_star(body_mesh)
 	model.ghost_started.connect(func(): body_mesh.set_opacity(GHOST_ALPHA))
 	model.ghost_ended.connect(func(): body_mesh.set_opacity(1.0))
+	model.drift_started.connect(func(_d): if absf(velocity.y) < 0.5: hop = DRIFT_HOP / sqrt(mass))   # MK64: the slide starts with a hop
 
 func _physics_process(delta: float) -> void:
 	if _update_rescue(delta):

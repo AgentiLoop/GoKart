@@ -51,16 +51,57 @@ func test_drift_requires_speed_and_steer() -> void:
 	k.step(0.016, 1.0, 0.0, 1.0, true)
 	runner.check(k.drifting and k.drift_direction == 1, "should drift right")
 
+## One MK64 mini-turbo toggle: steer against the drift for a moment, then back into it.
+func _toggle(k, dir: int, secs := 0.1) -> void:
+	_run(k, secs, 1.0, 0.0, -dir, true)
+	_run(k, secs, 1.0, 0.0, dir, true)
+
 func test_drift_charges_levels_and_boosts_on_release() -> void:
 	var k = KartPhysics.new()
 	k.speed = 25.0
-	_run(k, 1.0, 1.0, 0.0, 1.0, true)
-	runner.check(k.drift_level == 1, "level=%d charge=%f" % [k.drift_level, k.drift_charge])
-	_run(k, 2.5, 1.0, 0.0, 1.0, true)
-	runner.check(k.drift_level == 3, "level=%d" % k.drift_level)
+	_run(k, 3.0, 1.0, 0.0, 1.0, true)   # a steady slide never charges (MK64: you have to toggle the stick)
+	runner.check(k.drifting and k.drift_level == 0, "level=%d charge=%f" % [k.drift_level, k.drift_charge])
+	_toggle(k, 1)
+	runner.check(k.drift_level == 1 and k.drift_charge == 1.0, "yellow after one toggle: level=%d" % k.drift_level)
+	_toggle(k, 1)
+	runner.check(k.drift_level == 2, "red after two: level=%d" % k.drift_level)
+	_toggle(k, 1)
+	runner.check(k.drift_level == 2 and k.drift_charge == 2.0, "red is the last stage: level=%d" % k.drift_level)
 	k.step(0.016, 1.0, 0.0, 1.0, false)
-	runner.check(not k.drifting and k.is_boosting() and k.boost_level == 3, "boost after release")
-	runner.check(is_equal_approx(k.boost_time, k.boost_durations[2] - 0.0) or k.boost_time > 1.4)
+	runner.check(not k.drifting and k.is_boosting() and k.boost_level == 2 and k.boost_from_drift, "boost after release")
+	runner.check(k.boost_time > 1.0, "boost_time=%f" % k.boost_time)
+
+func test_yellow_smoke_gives_no_boost() -> void:
+	var k = KartPhysics.new()
+	k.speed = 25.0
+	_run(k, 0.3, 1.0, 0.0, -1.0, true)
+	_toggle(k, -1)
+	runner.check(k.drifting and k.drift_level == 1)
+	k.step(0.016, 1.0, 0.0, -1.0, false)
+	runner.check(not k.drifting and not k.is_boosting(), "MK64: releasing on yellow smoke is no mini-turbo")
+	runner.check(k.drift_level == 0 and k.drift_charge == 0.0)
+
+func test_toggle_needs_out_then_in() -> void:
+	var k = KartPhysics.new()
+	k.speed = 25.0
+	_run(k, 0.3, 1.0, 0.0, 1.0, true)
+	_run(k, 0.5, 1.0, 0.0, -1.0, true)   # out only
+	runner.check(k.drifting and k.drift_level == 0 and k.drift_outward, "steering out alone is half a toggle")
+	_run(k, 0.5, 1.0, 0.0, 0.2, true)    # a weak push back does not count
+	runner.check(k.drift_level == 0 and k.drift_outward)
+	_run(k, 0.1, 1.0, 0.0, 1.0, true)
+	runner.check(k.drift_level == 1 and not k.drift_outward, "back in completes it")
+	_run(k, 1.0, 1.0, 0.0, 1.0, true)
+	_run(k, 0.1, 1.0, 0.0, -1.0, true)
+	_run(k, 0.1, 1.0, 0.0, 0.0, true)    # centre, then in: still a toggle
+	_run(k, 0.1, 1.0, 0.0, 0.6, true)
+	runner.check(k.drift_level == 2, "level=%d" % k.drift_level)
+	# a new drift starts from white smoke again
+	k.step(0.016, 1.0, 0.0, 1.0, false)
+	k.speed = 25.0
+	_run(k, 1.5, 1.0, 0.0, 0.0, false)   # let the boost run out
+	k.step(0.016, 1.0, 0.0, -1.0, true)
+	runner.check(k.drifting and k.drift_level == 0 and k.drift_charge == 0.0 and not k.drift_outward)
 
 func test_short_drift_gives_no_boost() -> void:
 	var k = KartPhysics.new()

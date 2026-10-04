@@ -21,8 +21,8 @@ func _make_fx():
 
 func test_spark_colors_per_level() -> void:
 	runner.check(KartEffects.spark_color(1) != KartEffects.spark_color(2))
-	runner.check(KartEffects.spark_color(2) != KartEffects.spark_color(3))
-	runner.check(KartEffects.spark_color(99) == KartEffects.spark_color(3))
+	runner.check(KartEffects.spark_color(0) != KartEffects.spark_color(1))
+	runner.check(KartEffects.spark_color(99) == KartEffects.spark_color(2), "MK64 smoke stops at red")
 	runner.check(KartEffects.spark_color(-1) == KartEffects.spark_color(0))
 
 func test_effect_nodes_created() -> void:
@@ -43,9 +43,8 @@ func test_drift_emits_sparks_and_boost_emits_flames() -> void:
 	runner.check(m.drifting)
 	runner.check(fx.sparks[0].emitting, "sparks should emit while drifting")
 	runner.check(not fx.flames[0].emitting)
-	for i in 120:
-		m.step(1.0 / 60.0, 1.0, 0.0, 1.0, true)
-	runner.check(m.drift_level >= 1)
+	_drift_to_level(m, 2)
+	runner.check(m.drift_level == 2)
 	var pm: ParticleProcessMaterial = fx.sparks[0].process_material
 	runner.check(pm.color == KartEffects.spark_color(m.drift_level), "spark color tracks level")
 	m.step(1.0 / 60.0, 1.0, 0.0, 1.0, false)   # release -> mini-turbo
@@ -122,15 +121,45 @@ func test_speed_fx_shader_params() -> void:
 
 func test_flame_color_by_boost_source() -> void:
 	runner.check(KartEffects.flame_color(2, false) == KartEffects.FLAME_COLORS[0])
-	runner.check(KartEffects.flame_color(1, true) != KartEffects.flame_color(3, true))
-	runner.check(KartEffects.flame_color(3, true) == KartEffects.spark_color(3))
+	runner.check(KartEffects.flame_color(1, true) != KartEffects.flame_color(2, true))
+	runner.check(KartEffects.flame_color(2, true) == KartEffects.spark_color(2))
+	runner.check(KartEffects.spark_color(1) == Color(1.0, 0.85, 0.15) and KartEffects.spark_color(2) == Color(1.0, 0.3, 0.08), "MK64 smoke: yellow then red")
 
+func test_drift_starts_with_a_hop() -> void:
+	var Kart = load("res://scripts/kart.gd")
+	var W = load("res://scripts/kart_weight.gd")
+	var k = Kart.new()
+	k._ready()   # the runner's root is not in the tree during _initialize: wire the kart by hand
+	k.model.speed = 25.0
+	k.model.step(1.0 / 60.0, 1.0, 0.0, 1.0, true)
+	runner.check(k.model.drifting and is_equal_approx(k.hop, Kart.DRIFT_HOP), "medium kart hops %f m/s" % k.hop)
+	k.hop = 0.0
+	k.velocity.y = 2.0   # already in the air: no second hop
+	k.model.step(1.0 / 60.0, 1.0, 0.0, 1.0, false)
+	k.model.step(1.0 / 60.0, 1.0, 0.0, 1.0, true)
+	runner.check(k.model.drifting and k.hop == 0.0, "no hop in mid-air")
+	k.free()
+	var light = Kart.new()
+	light.apply_weight_class(W.LIGHT)
+	light._ready()
+	light.model.speed = 25.0
+	light.model.step(1.0 / 60.0, 1.0, 0.0, -1.0, true)
+	runner.check(light.hop > Kart.DRIFT_HOP, "light karts hop higher: %f" % light.hop)
+	runner.check(light.launches == 0, "a hop is not a hit")
+	light.free()
+
+## MK64 mini-turbo: a right-hand slide charged by steering left, then right again, per stage.
 func _drift_to_level(m, level: int) -> void:
 	m.speed = 25.0
-	for i in 600:
+	for i in 20:
 		m.step(1.0 / 60.0, 1.0, 0.0, 1.0, true)
+	for i in 4:
 		if m.drift_level >= level:
 			break
+		for j in 6:
+			m.step(1.0 / 60.0, 1.0, 0.0, -1.0, true)
+		for j in 6:
+			m.step(1.0 / 60.0, 1.0, 0.0, 1.0, true)
 
 func test_level_up_pops_and_mini_turbo_flash() -> void:
 	var r = _make_fx()

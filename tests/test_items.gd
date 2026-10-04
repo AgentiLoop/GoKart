@@ -91,9 +91,14 @@ func test_spin_out_ends_with_immunity() -> void:
 func test_spin_out_cancels_drift_without_boost() -> void:
 	var k := KartPhysics.new()
 	k.speed = 25.0
-	for i in 200:
+	for i in 20:
 		k.step(DT, 1.0, 0.0, 1.0, true)
-	runner.check(k.drifting and k.drift_level >= 1)
+	for j in 2:   # two MK64 stick toggles: red smoke
+		for i in 6:
+			k.step(DT, 1.0, 0.0, -1.0, true)
+		for i in 6:
+			k.step(DT, 1.0, 0.0, 1.0, true)
+	runner.check(k.drifting and k.drift_level == 2)
 	k.spin_out()
 	runner.check(not k.drifting and k.drift_level == 0)
 	runner.check(not k.is_boosting(), "being hit must not award the mini-turbo")
@@ -1019,7 +1024,7 @@ func test_hud_shows_boo_state() -> void:
 	runner.check(Hud.state_text(true, 0, true, false, true) == "STAR!", "star outranks ghost")
 	runner.check(Hud.state_text(true, 0) == "BOOST!")
 	runner.check(Hud.state_text(false, 0, false, true) == "SHRUNK!")
-	runner.check(Hud.state_text(false, 3) == "ULTRA MINI-TURBO")
+	runner.check(Hud.state_text(false, 1) == "MINI-TURBO..." and Hud.state_text(false, 2) == "MINI-TURBO!")
 	runner.check(Hud.state_text(false, 0) == "")
 
 func test_mk64_shield_items_and_blockable_shells() -> void:
