@@ -1,5 +1,6 @@
 - Product: ForeverQR at https://wasm5.com (Worker `foreverqr`, D1 `foreverqr` id 280998b0-7ed5-47e6-8ba8-5be18501452c, account de8aa8c61fee13dabcdd934006b20d89).
 - Wrangler OAuth has workers/d1/pages write + zone READ only (no DNS API); custom domains via wrangler `custom_domain = true` work.
+- Domain move: user chose foreverqr.uk (CF Registrar $5.30/yr; .com/.net/.org/.co/.us/.xyz/.app taken). Code is on branch `foreverqr-uk` (f19391e), NOT deployed — waits for the user to buy the domain in the dashboard (no registrar API perms, Safari not logged in). Then: merge into main (rerun sed wasm5.com→foreverqr.uk + build-pages for new pages), deploy, update companion repo links, regenerate og.png QR, IndexNow.
 - Unused zones as of 2026-10-04: wasmup.com, wasmcart.us, sbox64.com (wasm5.com now used).
 - Landing pages: edit `pages` in tools/build-pages.mjs, run `node tools/build-pages.mjs` (regenerates public/*.html + sitemap). IndexNow key 5bc6ad52e1d120447ba34a6b1cc96057 (public/<key>.txt). New assets take ~30s after deploy to serve.
 - landing.js kinds: url wifi vcard whatsapp email sms tel instagram profile(data-base) maps text event. Local test: python3 -m http.server in public/ (port 8765 is taken by something else) + Chrome --headless=new --dump-dom, read #pvText.
@@ -10,6 +11,10 @@
 - Dashboard print sign: per-code [data-signbox]; test via wrangler dev + Playwright (stub window.print, dispatch afterprint).
 - Scan history: table scan_days(code, day=floor(ms/86400000), n); schema changes must be applied with `wrangler d1 execute foreverqr --remote --command ...` (deploy doesn't migrate). Live self-tests: activate via SQL, then delete test wallet/code/scan_days rows.
 - Bulk page /bulk-qr-code-generator: BULK + bulkPage() in build-pages.mjs, logic public/bulk.js (own ZIP writer); MAX_PENDING=20 in src/index.js. Playwright: set huge textarea values via evaluate (page.fill of 600 lines timed out).
+- Brand assets (favicon.ico/svg, apple-touch-icon, icon-512, og.png) are static files in public/; head tags = ICONS const in build-pages.mjs (hand-edited in index/dashboard/privacy/terms). Rendered via Playwright page.screenshot; ICO via `sips -s format ico`.
+- Public companion repo AgentiLoop/free-qr-code-generator (~/Documents/GitHub/free-qr-code-generator, GitHub Pages agentiloop.github.io/free-qr-code-generator/) links to wasm5.com?ref=github(-pages); push = Pages redeploy (~40s). gh is logged in as AgentiLoop (repo scope).
+- Analytics: run with `zsh tools/stats.sh [days]` (bash breaks the `${0:A:h}` cd) (remote D1 page_days + funnel) — run it first each cycle. run_worker_first=true so every request hits the Worker; only 200 text/html GETs are counted. curl without -A counts as agent 'bot'.
+- Free QR image API /api/qr (src/qrapi.js imports ../public/qrcode.js; set stringToBytes UTF-8). Docs page /qr-code-api = API/apiPage() in build-pages.mjs. API calls counted as page_days agent='api'; stats.sh has an API section. Decode-test PNG/SVG with a swift CIDetector binary (/tmp/dec, rebuild if gone); sips converts SVG→PNG fine for that.
 - Lost-link recovery: POST /api/recover {txn,email} → token (matches payments.txn_id + lower(payer_email)).
 - file diff_apply once inserted a block at the wrong place in src/index.js — check `git diff` after multi-line edits.
 - Local DNS may negative-cache new hostnames: flush with root_shell `dscacheutil -flushcache; killall -HUP mDNSResponder`.

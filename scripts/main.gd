@@ -33,6 +33,8 @@ const Moles := preload("res://scripts/moles.gd")
 const Molehills := preload("res://scripts/molehills.gd")
 const Snowmen := preload("res://scripts/snowmen.gd")
 const Snowfield := preload("res://scripts/snowfield.gd")
+const Penguins := preload("res://scripts/penguins.gd")
+const Rookery := preload("res://scripts/rookery.gd")
 const CourseIntro := preload("res://scripts/course_intro.gd")
 const PauseMenu := preload("res://scripts/pause_menu.gd")
 
@@ -105,6 +107,13 @@ var snowmen
 var snowfield = null
 ## Minimap colour of a snowman.
 const SNOWMAN_COLOR := Color(0.92, 0.95, 1.0)
+## MK64 Sherbet Land penguins: the model (inactive on courses without penguins) and its node.
+var penguins
+var rookery = null
+## The hazard models that are active on this course, in the order the AI asks them for a clear lane.
+var dodgers: Array = []
+## Minimap colour of a penguin (its beak).
+const PENGUIN_COLOR := Color(0.95, 0.6, 0.15)
 ## Time trial only: the run being recorded, the ghost of the best run (if any) and the filed result.
 var recording = null
 var ghost = null
@@ -182,6 +191,14 @@ func _ready() -> void:
 	if snowmen.active():
 		snowfield = Snowfield.new(snowmen)
 		add_child(snowfield)
+	# MK64 Sherbet Land: penguins slide back and forth across the icy stretches
+	penguins = Penguins.new(data)
+	if penguins.active():
+		rookery = Rookery.new(penguins)
+		add_child(rookery)
+	for h in [traffic, moles, snowmen, penguins]:
+		if h.active():
+			dodgers.append(h)
 	kart = Kart.new()
 	kart.model.apply_engine_class(engine.speed, engine.accel)
 	# MK64 weight class picked on the menu: light / medium / heavy
@@ -350,6 +367,8 @@ func _physics_process(delta: float) -> void:
 		molehills.update_moles(delta)
 	if snowfield != null:
 		snowfield.update_snowmen(delta)
+	if rookery != null:
+		rookery.update_penguins(delta)
 	var progresses: Array = []
 	var finish_times: Array = []
 	for k in karts:
@@ -372,6 +391,9 @@ func _physics_process(delta: float) -> void:
 			k.start_rescue(data.rescue_point(k.track_index), data.heading_at(k.track_index))
 			if k == kart:
 				audio.play("splash")
+		if k.driver != null and not dodgers.is_empty():
+			# MK64: CPU karts steer round the traffic, the moles, the snowmen and the penguin runs ahead
+			_dodge(k.driver, dodgers, k.track_index)
 		if train.active():
 			# MK64: CPU karts stop at a crossing while the train is there; anyone it meets is thrown into the air
 			if k.driver != null:
@@ -380,17 +402,13 @@ func _physics_process(delta: float) -> void:
 			if strike != Vector3.ZERO and not k.is_rescued() and k.launch(Train.LAUNCH_SPEED, strike * Train.SHOVE) and k == kart:
 				audio.play("crash")
 		if traffic.active():
-			# MK64 Toad's Turnpike: CPU karts steer round the vehicles ahead; touch one and you are thrown into the air
-			if k.driver != null:
-				_dodge(k.driver, traffic, k.track_index)
+			# MK64 Toad's Turnpike: touch a vehicle and you are thrown into the air
 			var bump: Vector3 = traffic.hit_dir(kp)
 			if bump != Vector3.ZERO and not k.is_rescued() and k.launch(Traffic.LAUNCH_SPEED, bump * Traffic.SHOVE) and k == kart:
 				audio.play("crash")
 		if moles.active():
-			# MK64 Moo Moo Farm: CPU karts steer round the holes; a mole that is out throws anyone who runs
-			# into it into the air, a Star kart bowls the mole over instead
-			if k.driver != null:
-				_dodge(k.driver, moles, k.track_index)
+			# MK64 Moo Moo Farm: a mole that is out throws anyone who runs into it into the air, a Star
+			# kart bowls the mole over instead
 			var mi: int = moles.mole_at(kp)
 			if mi >= 0 and not k.is_rescued():
 				if k.model.is_star():
@@ -400,10 +418,8 @@ func _physics_process(delta: float) -> void:
 				elif k.launch(Moles.LAUNCH_SPEED, moles.shove_dir(mi, kp) * Moles.SHOVE) and k == kart:
 					audio.play("crash")
 		if snowmen.active():
-			# MK64 Frappe Snowland: CPU karts weave through the snowmen; run into one and you are thrown
-			# into the air and it bursts into snow, a Star kart bursts it and drives on
-			if k.driver != null:
-				_dodge(k.driver, snowmen, k.track_index)
+			# MK64 Frappe Snowland: run into a snowman and you are thrown into the air and it bursts into
+			# snow, a Star kart bursts it and drives on
 			var si: int = snowmen.snowman_at(kp)
 			if si >= 0 and not k.is_rescued():
 				if k.model.is_star():
@@ -414,6 +430,17 @@ func _physics_process(delta: float) -> void:
 					snowmen.smash(si)
 					if k == kart:
 						audio.play("crash")
+		if penguins.active():
+			# MK64 Sherbet Land: run into a penguin and you are pushed away and spin out, a Star kart
+			# bowls it over and drives on
+			var pg: int = penguins.penguin_at(kp)
+			if pg >= 0 and not k.is_rescued():
+				if k.model.is_star():
+					penguins.knock(pg)
+					if k == kart:
+						audio.play("pop")
+				elif k.launch(Penguins.LAUNCH_SPEED, penguins.shove_dir(pg, kp) * Penguins.SHOVE) and k == kart:
+					audio.play("crash")
 		var frac: float = (kp - data.points[k.track_index]).dot(data.tangents[k.track_index]) / data.spacing
 		progresses.append(RaceRanking.progress(k.tracker.lap, k.track_index, data.count, frac))
 		finish_times.append(k.tracker.race_time if k.tracker.is_finished else -1.0)
@@ -429,6 +456,13 @@ func _physics_process(delta: float) -> void:
 		# MK64: a green or red shell smashes a snowman (and is spent on it)
 		for p in items.projectiles.duplicate():
 			if p.alive and Items.is_blockable_shell(p.kind) and snowmen.smash_at(p.position, p.radius + Snowmen.HIT_RADIUS) >= 0:
+				p.alive = false
+				items._remove_projectile(p)
+				audio.play("pop", -6.0)
+	if penguins.active():
+		# MK64: a green or red shell bowls a penguin over (and is spent on it)
+		for p in items.projectiles.duplicate():
+			if p.alive and Items.is_blockable_shell(p.kind) and penguins.knock_at(p.position, p.radius + Penguins.HIT_RADIUS) >= 0:
 				p.alive = false
 				items._remove_projectile(p)
 				audio.play("pop", -6.0)
@@ -502,12 +536,21 @@ func _physics_process(delta: float) -> void:
 	for sm in snowmen.snowmen:
 		marker_pos.append(sm.pos)
 		marker_col.append(SNOWMAN_COLOR)
+	for i in penguins.penguins.size():
+		marker_pos.append(penguins.position(i))
+		marker_col.append(PENGUIN_COLOR)
 	hud.update_minimap(marker_pos, marker_col)
 
-## Points an AI driver at the lane `hazards` (the traffic, the moles or the snowmen) says is clear ahead of it:
-## its own lane when free, otherwise a dodge lane it keeps until the way is clear.
-func _dodge(driver, hazards, idx: int) -> void:
-	var lane: float = hazards.clear_lane(idx, driver.lane_offset, driver.dodge_lane if driver.dodging else driver.lane_offset)
+## Points an AI driver at the lane the course's `hazards` (the traffic, the moles, the snowmen, the
+## penguins — the active ones, in that order) say is clear ahead of it: its own lane when free,
+## otherwise a dodge lane it keeps until the way is clear. Each hazard is asked in turn about the
+## lane the one before settled on, so the last one (the penguins, whose runs sit just before the
+## snowman gate on Frosty Peaks) has the final say while its hazard is ahead.
+func _dodge(driver, hazards: Array, idx: int) -> void:
+	var current: float = driver.dodge_lane if driver.dodging else driver.lane_offset
+	var lane: float = driver.lane_offset
+	for h in hazards:
+		lane = h.clear_lane(idx, lane, current)
 	driver.dodging = lane != driver.lane_offset
 	driver.dodge_lane = lane
 

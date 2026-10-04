@@ -61,6 +61,10 @@ var mole_specs: Array = []
 ## Snowmen (layout "snowmen", Mario Kart 64 Frappe Snowland): [fraction of lap, lateral offset] per
 ## snowman (see scripts/snowmen.gd); empty = no snowmen on this course.
 var snowman_specs: Array = []
+## Penguins (layout "penguins", Mario Kart 64 Sherbet Land): [fraction of lap, lateral offset the
+## penguin sets out from] per penguin that slides back and forth across the road there (see
+## scripts/penguins.gd); empty = no penguins on this course.
+var penguin_specs: Array = []
 ## Roadside scenery set (layout "scenery", Mario Kart 64 course dressing: "farm" / "highway" / "snow" /
 ## "desert", see scripts/scenery.gd); "" = a bare course.
 var scenery := ""
@@ -82,7 +86,7 @@ const JUMP_HEIGHT := 2.4
 
 ## layout (optional) may override "pads", "box_rows", "hazards" and "water" (same formats as the
 ## DEFAULT_ constants), add a "rail" loop (Array of Vector2 control points), "traffic" vehicles,
-## "moles", "snowmen", "ice" or "jumps", name a "scenery" set and set "mirror": true to flip the course left-to-right (MK64 Extra mode).
+## "moles", "snowmen", "penguins", "ice" or "jumps", name a "scenery" set and set "mirror": true to flip the course left-to-right (MK64 Extra mode).
 func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout := {}) -> void:
 	control = ctrl
 	width = road_width
@@ -93,6 +97,7 @@ func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout :=
 	traffic_specs = layout.get("traffic", [])
 	mole_specs = layout.get("moles", [])
 	snowman_specs = layout.get("snowmen", [])
+	penguin_specs = layout.get("penguins", [])
 	ice_specs = layout.get("ice", [])
 	jump_specs = layout.get("jumps", [])
 	scenery = layout.get("scenery", "")
@@ -108,6 +113,7 @@ func _init(ctrl: Array[Vector2] = DEFAULT_CONTROL, road_width := 16.0, layout :=
 		traffic_specs = mirror_specs(traffic_specs)
 		mole_specs = mirror_specs(mole_specs)
 		snowman_specs = mirror_specs(snowman_specs)
+		penguin_specs = mirror_specs(penguin_specs)
 	_build()
 
 ## Control points flipped left-to-right (x negated); the start line stays on x = 0.

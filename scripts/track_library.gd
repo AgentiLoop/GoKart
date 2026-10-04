@@ -132,6 +132,12 @@ const TRACKS := [
 		# Sherbet Land style sheet ice: [start fraction, end fraction] per stretch — the bend before the
 		# second pad and the long sweeper before the last snowmen (see TrackData.ice / KartPhysics.grip)
 		"ice": [[0.3, 0.355], [0.84, 0.895]],
+		# Sherbet Land style penguins: [fraction of lap, lateral offset it sets out from] per penguin —
+		# one on the icy bend, two on the icy sweeper, each sliding from one edge of the road to the
+		# other and back (see scripts/penguins.gd); clear of the pads, the item box rows and the
+		# snowmen, the last run ending some 25 m before the snowman gate so CPU karts can come in off
+		# the edge for it
+		"penguins": [[0.325, -4.0], [0.845, 4.0], [0.868, -4.0]],
 		# Frappe Snowland dressing: fir trees, igloos and snowy mountains
 		"scenery": "snow",
 		"ground": Color(0.9, 0.93, 0.98),
