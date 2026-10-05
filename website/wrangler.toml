@@ -1,0 +1,29 @@
+name = "gokart-games"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+routes = [
+  { pattern = "gokart.games", custom_domain = true },
+  { pattern = "www.gokart.games", custom_domain = true },
+]
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+html_handling = "drop-trailing-slash"
+run_worker_first = true
+
+[vars]
+FROM = "gokart@gokart.games"
+TO = "starplayr@icloud.com"
+
+[[kv_namespaces]]
+binding = "FEEDBACK"
+id = "58510610063c4a0eaa2d3095f857f9be"
+
+[[send_email]]
+name = "EMAIL"
+destination_address = "starplayr@icloud.com"
+
+[observability]
+enabled = true

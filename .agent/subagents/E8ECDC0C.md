@@ -1,0 +1,3 @@
+# Sub-agent 'tr-zh' — completed after 3/8 iterations
+
+Simplified Chinese (zh) — wrote 166 lines to blog/src/zh/2026-10-02-gokart-built-on-auto-pilot.md, matching the 166-line English source section by section; the four author goal blockquotes ("create a Mario Kart clone...", "the UI needs to scale...", "keep building GoKart...", "the menus are not Mario Kart Quality...") stayed in English verbatim.
