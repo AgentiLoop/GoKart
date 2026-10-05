@@ -26,7 +26,7 @@ h3{margin:0 0 6px;font-size:21px}
 .hero-in{position:relative;z-index:1;max-width:860px}
 .kicker{text-transform:uppercase;letter-spacing:.22em;font-size:13px;font-weight:700;color:var(--gold);margin:0}
 .logo{margin:8px 0 12px;font-size:clamp(76px,17vw,196px);line-height:1;font-weight:900;font-style:italic;letter-spacing:-.02em;display:flex;justify-content:center;gap:.02em}
-.logo span{display:inline-block;padding:.25em .4em .2em;margin:-.25em -.4em -.2em;background:linear-gradient(180deg,#fff6a8 0,#ffc928 38%,#ff7a1a 72%,#e8352e 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 .05em 0 #2b1260) drop-shadow(0 .09em 0 #1a0b3d) drop-shadow(0 .14em .12em rgba(0,0,0,.5));animation:bob 2.6s ease-in-out infinite}
+.logo span{flex:none;display:inline-block;padding:.3em .4em;margin:-.3em -.4em;background:linear-gradient(180deg,#fff6a8 0,#ffc928 38%,#ff7a1a 72%,#e8352e 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 .05em 0 #2b1260) drop-shadow(0 .09em 0 #1a0b3d) drop-shadow(0 .14em .12em rgba(0,0,0,.5));animation:bob 2.6s ease-in-out infinite}
 .logo span:nth-child(1){transform:rotate(-5deg);animation-delay:0s}
 .logo span:nth-child(2){transform:rotate(-3deg);animation-delay:.12s}
 .logo span:nth-child(3){transform:rotate(-1deg);animation-delay:.24s}
