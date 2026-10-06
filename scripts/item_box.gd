@@ -43,7 +43,7 @@ func _ready() -> void:
 	add_child(cube)
 	_refresh()
 
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if cube != null:
 		cube.rotation.y += 1.6 * delta
 		cube.rotation.x += 0.9 * delta

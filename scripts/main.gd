@@ -253,6 +253,7 @@ func _ready() -> void:
 			add_child(ghost)
 
 	cam = Camera3D.new()
+	cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF   # moved every drawn frame
 	cam.current = true
 	cam.fov = 70.0
 	add_child(cam)
@@ -593,9 +594,10 @@ func _process(delta: float) -> void:
 		var card := CourseIntro.card_pose(intro_t)
 		hud.intro_pose(card.alpha, card.y)
 		return
-	var target := kart.global_position + _back() * 6.0 + Vector3(0, 3.0, 0)
+	var kart_pos := kart.get_global_transform_interpolated().origin
+	var target := kart_pos + _back() * 6.0 + Vector3(0, 3.0, 0)
 	cam.global_position = cam.global_position.lerp(target, clampf(6.0 * delta, 0.0, 1.0))
-	cam.look_at(kart.global_position + Vector3(0, 1.0, 0))
+	cam.look_at(kart_pos + Vector3(0, 1.0, 0))
 	var ratio: float = absf(kart.model.speed) / kart.model.max_speed
 	speed_fx.update_fx(delta, ratio, kart.model.is_boosting())
 	cam.fov = lerpf(cam.fov, 70.0 + 10.0 * speed_fx.speed_amount + 12.0 * speed_fx.boost_amount, clampf(5.0 * delta, 0.0, 1.0))

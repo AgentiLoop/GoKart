@@ -134,7 +134,7 @@ func visible_balloons() -> int:
 			n += 1
 	return n
 
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	time += delta
 	for i in _balloons.size():
 		var a := TAU * i / _balloons.size()

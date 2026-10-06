@@ -80,6 +80,7 @@ func _init() -> void:
 	disc.name = "Disc"
 	viewport.add_child(disc)
 	turntable = Node3D.new()
+	turntable.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF   # turned every drawn frame
 	turntable.name = "Turntable"
 	viewport.add_child(turntable)
 	kart = KartModel.new()

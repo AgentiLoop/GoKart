@@ -119,6 +119,7 @@ func _init() -> void:
 	picture.msaa_3d = Viewport.MSAA_4X
 	picture_box.add_child(picture)
 	picture_cam = Camera3D.new()
+	picture_cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF   # moved every drawn frame
 	picture_cam.fov = 60.0
 	picture.add_child(picture_cam)
 	picture_cam.current = true
@@ -218,6 +219,7 @@ func _new_world() -> void:
 ## may not be in the tree yet).
 func _place_camera() -> void:
 	cam = Camera3D.new()
+	cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF   # moved every drawn frame
 	cam.fov = 70.0
 	world.add_child(cam)
 	cam.current = true
@@ -346,8 +348,9 @@ func _process(delta: float) -> void:
 	if cam == null or karts.is_empty():
 		return
 	var k = karts[cam_target]
-	cam.global_position = cam.global_position.lerp(chase_pose(k.global_position, k.heading), clampf(CAM_LERP * delta, 0.0, 1.0))
-	cam.look_at(k.global_position + Vector3(0, 1.0, 0))
+	var kart_pos: Vector3 = k.get_global_transform_interpolated().origin
+	cam.global_position = cam.global_position.lerp(chase_pose(kart_pos, k.heading), clampf(CAM_LERP * delta, 0.0, 1.0))
+	cam.look_at(kart_pos + Vector3(0, 1.0, 0))
 	if picture_box.is_visible_in_tree():
 		if arena != null:
 			_orbit(delta)
