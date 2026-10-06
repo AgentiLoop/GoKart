@@ -37,6 +37,7 @@ const Penguins := preload("res://scripts/penguins.gd")
 const Rookery := preload("res://scripts/rookery.gd")
 const CourseIntro := preload("res://scripts/course_intro.gd")
 const PauseMenu := preload("res://scripts/pause_menu.gd")
+const RaceWarmup := preload("res://scripts/race_warmup.gd")
 
 ## Seconds after the player crosses the line before the results panel appears.
 const RESULTS_DELAY := 2.0
@@ -276,6 +277,9 @@ func _ready() -> void:
 		intro_t = 0.0
 		hud.show_intro(_track_name(), CourseIntro.caption(GrandPrix.race_label() if GrandPrix.active else "", time_trial, engine.name, laps))
 		_fly_camera()
+		var warmup := RaceWarmup.new()   # draws every effect once off-screen so the race does not hitch
+		add_child(warmup)
+		warmup.setup(kart.global_position + _back() * 6.0 + Vector3(0, 3.0, 0), kart.global_position + Vector3(0, 1.0, 0), items, hud)
 	audio = GameAudio.new()
 	add_child(audio)
 	audio.setup(kart, items)
