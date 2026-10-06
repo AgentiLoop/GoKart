@@ -16,13 +16,9 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 
 ![The pause screen: Esc freezes the race under a navy / gold panel — CONTINUE, RETRY, COURSE CHANGE, QUIT](assets/screenshots/pause.png)
 
-![Chasing the pack on Green Hills, 4th of 4 on lap 1](assets/screenshots/green-hills-chase.png)
-
 ![Waiting at the level crossing on Dusty Canyon as the train rolls through](assets/screenshots/dusty-canyon-train.png)
 
 ![Stuck behind a bus and a truck in the traffic on Sunset Speedway](assets/screenshots/sunset-speedway-traffic.png)
-
-![Monty Moles popping out of their holes on Green Hills](assets/screenshots/green-hills-moles.png)
 
 ![The snowman field on Frosty Peaks](assets/screenshots/frosty-peaks-snowmen.png)
 
@@ -34,13 +30,7 @@ A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Ever
 
 ![Battle mode: four karts on their start pads with three balloons each and Lakitu's start signal overhead](assets/screenshots/battle.png)
 
-![A green shell in the MK64 style item window during the countdown](assets/screenshots/item-window.png)
-
 ![Every item icon: mushrooms, bananas, shells, star, lightning, fake box, Boo](assets/screenshots/items.png)
-
-![The START banner on the start gate: rounded font, a thin rim in the banner's shade](assets/screenshots/start-gate.png)
-
-![Lakitu holding up the REVERSE sign: white text printed on the red board, no black outline](assets/screenshots/lakitu-sign.png)
 
 Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the road, drifts and fires items at random), `tools/train_shot.gd`, `tools/traffic_shot.gd`, `tools/mole_shot.gd`, `tools/snowman_shot.gd`, `tools/penguin_shot.gd`, `tools/menu_shot.gd`, `tools/intro_shot.gd`, `tools/pause_shot.gd`, `tools/hud_shot.gd`, `tools/item_shot.gd` and `tools/sign_shot.gd`.
 
