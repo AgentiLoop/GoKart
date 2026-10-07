@@ -48,6 +48,8 @@ const RACER_COUNT := 8
 
 const OFFROAD_SCALE := 0.5
 const PAD_BOOST_TIME := 1.2
+## A kart this far below the road has fallen through the ground (nothing on any course is this low).
+const FELL_THROUGH_Y := -20.0
 ## Rocket-start boost durations the AI karts get at GO (by AI_SPECS order; 0 = a bad start).
 const AI_START_BOOSTS := [0.9, 0.5, 0.0, 0.7, 0.0, 0.3, 0.6]
 ## Half the lane spacing of the two-column MK64 grid.
@@ -588,8 +590,9 @@ func _physics_process(delta: float) -> void:
 			continue
 		if data.pad_at(kp) != null:
 			k.model.apply_boost(PAD_BOOST_TIME, 1)
-		# fell in the water: Lakitu fishes the kart out and sets it down on the road
-		if not k.is_rescued() and data.in_water(kp, k.track_index):
+		# fell in the water (or was squeezed through the ground, e.g. by an online kart that jumped onto
+		# it): Lakitu fishes the kart out and sets it down on the road
+		if not k.is_rescued() and (data.in_water(kp, k.track_index) or kp.y < FELL_THROUGH_Y):
 			k.start_rescue(data.rescue_point(k.track_index), data.heading_at(k.track_index))
 			if k == kart:
 				audio.play("splash")
