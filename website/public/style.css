@@ -100,16 +100,16 @@ footer{border-top:1px solid var(--line);background:#070a1a}
 #lb img{max-height:92vh;border-radius:12px}
 @media(max-width:800px){.split{grid-template-columns:1fr;gap:28px}.split.rev figure{order:0}.row{grid-template-columns:1fr}.nav nav a:not(.btn){display:none}.wrap{padding-block:52px}}
 @media(prefers-reduced-motion:reduce){.logo span{animation:none}html{scroll-behavior:auto}.card,.btn{transition:none}}
-.mk-banner{position:relative;flex:0 0 calc(100% + 44px);margin:10px -22px -10px;height:44px;display:flex;align-items:center;justify-content:center;gap:18px;overflow:hidden;color:#fff;text-decoration:none;border-top:1px solid var(--line);background:linear-gradient(90deg,#e8352e,#ff7a1a,#ffc928,#33d6ff,#a64dff,#e8352e);background-size:200% 100%;animation:mkpan 6s linear infinite}
+.mk-banner{position:relative;flex:0 0 calc(100% + 44px);margin:10px -22px -10px;height:52px;display:flex;align-items:center;justify-content:center;gap:16px;overflow:hidden;color:#fff;text-decoration:none;border-top:1px solid var(--line);background:linear-gradient(180deg,transparent 46%,#e8352e 46%,#ff7a1a 48%,#ffc928 50%,#33d6ff 52%,#a64dff 54%,transparent 54%),linear-gradient(180deg,#02031a,#120533)}
 .mk-banner canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-.mk-banner::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.35) 50%,transparent 60%);background-size:250% 100%;animation:mkshine 3.5s ease-in-out infinite;pointer-events:none}
-.mk-txt,.mk-go{position:relative;z-index:1;white-space:nowrap;text-shadow:0 1px 0 #000,0 0 12px rgba(0,0,0,.9),0 0 22px rgba(10,14,36,.9)}
-.mk-txt b{font-weight:900;letter-spacing:.02em;background:linear-gradient(180deg,#fff,#ffd84d);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 1px 0 #000) drop-shadow(0 0 6px rgba(0,0,0,.9))}
-.mk-sub{color:#e9ecff;font-weight:600;font-size:15px}
-.mk-go{font-weight:800;font-size:14px;padding:4px 12px;border-radius:999px;background:rgba(10,14,36,.6);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);transition:background .15s,transform .15s}
-.mk-banner:hover .mk-go{background:var(--gold);color:#2a0f00;text-shadow:none;transform:translateX(3px)}
+.mk-banner::after{content:"";position:absolute;left:50%;top:-20%;width:min(980px,100%);height:140%;transform:translateX(-50%);background:radial-gradient(closest-side,rgba(3,4,20,.82) 55%,rgba(3,4,20,.5) 78%,transparent);pointer-events:none}
+.mk-txt,.mk-go{position:relative;z-index:1;white-space:nowrap}
+.mk-txt{text-shadow:0 1px 2px #000}
+.mk-txt b{font-weight:900;font-size:17px;letter-spacing:.01em;color:#ffd84d;text-shadow:0 0 14px rgba(255,201,40,.55),0 1px 2px #000}
+.mk-sub{color:#dfe3ff;font-weight:600;font-size:15px;margin-left:6px}
+.mk-go{font-weight:800;font-size:14px;padding:5px 14px;border-radius:999px;background:linear-gradient(90deg,#e8352e,#ff7a1a,#ffc928,#33d6ff,#a64dff,#e8352e);background-size:200% 100%;animation:mkpan 3s linear infinite;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.7);box-shadow:0 0 16px rgba(166,77,255,.45),inset 0 0 0 1px rgba(255,255,255,.4);transition:transform .15s,box-shadow .15s}
+.mk-banner:hover .mk-go{transform:translateX(4px) scale(1.05);box-shadow:0 0 26px rgba(255,201,40,.8),inset 0 0 0 1px #fff}
 @keyframes mkpan{to{background-position:200% 0}}
-@keyframes mkshine{0%{background-position:150% 0}60%,100%{background-position:-50% 0}}
 @media(max-width:800px){.mk-sub{display:none}.mk-banner{gap:10px;font-size:15px}.mk-go{font-size:13px;padding:3px 9px}}
 @media(max-width:430px){.mk-go{display:none}}
-@media(prefers-reduced-motion:reduce){.mk-banner,.mk-banner::after{animation:none}}
+@media(prefers-reduced-motion:reduce){.mk-go{animation:none}}
