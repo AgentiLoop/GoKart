@@ -22,6 +22,7 @@
   <nav>
     <a href="#courses">Courses</a>
     <a href="#modes">Modes</a>
+    <a href="#online">Online</a>
     <a href="#platforms">Platforms</a>
     <a href="#feedback">Feedback</a>
     <a class="btn small" href="#download">Download</a>
@@ -102,14 +103,41 @@
   <figure><img loading="lazy" src="/img/items.jpg" alt="Every item icon: mushrooms, bananas, shells, star, lightning, fake box, Boo"></figure>
 </section>
 
+<section id="online" class="wrap">
+  <h2>Race your friends online</h2>
+  <p class="sub">Up to 4 players over the internet, on any mix of macOS, Windows and Linux. Everyone needs the same GoKart version.</p>
+  <div class="modes">
+    <article><h3>1. Open the ONLINE screen</h3><p>Press <kbd>O</kbd> on the select screen and type your name. It's saved, and it floats above your kart in everyone else's game.</p></article>
+    <article><h3>2. Quick Match</h3><p>Drops you into any open public room. The race starts 20 seconds after a second player joins, or right away once 4 are in.</p></article>
+    <article><h3>3. Or a private room</h3><p><b>Create</b> a room to get a 4-letter code on the course you picked, and send it to your friends to <b>Join</b>. The host presses START NOW when 2 or more players are in.</p></article>
+    <article><h3>4. Race</h3><p>3 laps with item boxes on. Shells, bananas and fake boxes show up in every game, the results board updates live, and you'll see a notice if someone leaves.</p></article>
+  </div>
+  <div class="split" style="margin-top:48px">
+    <div>
+      <h3>How it works</h3>
+      <ul class="ticks">
+        <li><b>Peer-to-peer.</b> gokart.games only runs a small lobby that groups players into rooms and passes along the connection handshake. The race itself goes straight between the games over WebRTC, with no game server in the middle.</li>
+        <li><b>Your kart, your call.</b> Each game drives its own kart and sends its position about 30 times a second. Other karts are shown 0.1 s behind so they move smoothly, and the host syncs the 3-2-1 start.</li>
+        <li><b>Fair hits.</b> Your game rolls and fires your own items. When something hits you, your game decides it, so you never get spun by a shell that missed on your screen.</li>
+        <li><b>Finish order</b> comes from each player's own race time.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>If you can't connect</h3>
+      <p class="muted">Players find each other through public STUN servers (Google and Cloudflare). There is no relay server yet, so a very strict firewall or router (symmetric NAT, some office and mobile networks) can stop two players from connecting. Trying a different network usually helps.</p>
+      <p class="muted">On Windows and Linux, keep the <code>libwebrtc_native</code> file next to the game: online play needs it. On macOS it's inside the app.</p>
+    </div>
+  </div>
+</section>
+
 <section id="platforms" class="plat">
   <div class="wrap">
     <h2>One game, every desktop</h2>
-    <p class="sub">The same code runs on all of them. Each download is a single self-contained binary: no Godot install, no extra files.</p>
+    <p class="sub">The same code runs on all of them, and players on different systems race each other online. No Godot install needed: macOS is one app, and Windows and Linux are the game plus the small online-play library that sits next to it.</p>
     <div class="plats">
       <div><div class="ic">mac</div><h3>macOS</h3><p>Universal: Apple silicon and Intel. Developer ID signed and notarized.</p></div>
       <div><div class="ic">win</div><h3>Windows</h3><p>x86_64. Unsigned, so expect a SmartScreen prompt the first time.</p></div>
-      <div><div class="ic">nix</div><h3>Linux x86_64</h3><p>A tar.gz with one binary. Untar and run.</p></div>
+      <div><div class="ic">nix</div><h3>Linux x86_64</h3><p>A tar.gz with the game and its online-play library. Untar and run.</p></div>
       <div><div class="ic">arm</div><h3>Linux arm64</h3><p>For Raspberry Pi 4/5 class boards and other arm64 desktops.</p></div>
     </div>
   </div>
@@ -133,6 +161,7 @@
     <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>or arrow keys: drive and steer</span></div>
     <div><kbd>Space</kbd><span>hop into a powerslide</span></div>
     <div><kbd>E</kbd><span>use your item (<kbd>Q</kbd> to use it backwards)</span></div>
+    <div><kbd>O</kbd><span>on the select screen: play online</span></div>
     <div><kbd>Esc</kbd><span>pause</span></div>
   </div>
 </section>
