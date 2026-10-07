@@ -7,6 +7,7 @@ const KartModel := preload("res://scripts/kart_model.gd")
 const KartWeight := preload("res://scripts/kart_weight.gd")
 const Lakitu := preload("res://scripts/lakitu.gd")
 const TrackData := preload("res://scripts/track_data.gd")
+const OnlineRace := preload("res://scripts/online_race.gd")
 
 const SHRUNK_SCALE := 0.5
 const GHOST_ALPHA := 0.35   # how see-through a Boo makes the kart
@@ -61,6 +62,9 @@ var on_ramp := false
 var airborne := false
 var jumps := 0
 var pitch := 0.0              # body pitch in radians (nose up on a ramp and on the way up, down on the way down)
+## Online: another player's kart. Its pose comes from their packets (OnlineRace.Puppet) instead of
+## input and physics; null for every kart driven on this machine.
+var puppet = null
 
 ## Body pitch to aim for: up the ramp's slope while on one, following the flight path in the air
 ## (scaled by AIR_PITCH), level otherwise. vy is the vertical speed, speed the speed over the ground.
@@ -148,6 +152,9 @@ func _ready() -> void:
 	model.drift_started.connect(func(_d): if absf(velocity.y) < 0.5: hop = DRIFT_HOP / sqrt(mass))   # MK64: the slide starts with a hop
 
 func _physics_process(delta: float) -> void:
+	if puppet != null:
+		_play_puppet(delta)
+		return
 	if _update_rescue(delta):
 		body_mesh.update_wheels(delta, 0.0, 0.0)
 		effects.update_fx(delta, false)
@@ -245,3 +252,43 @@ func _bump(other, n: Vector3, forward: Vector3) -> void:
 	bumps += 1
 	other.bumps += 1
 	bumped.emit(other, closing)
+
+## Online: this kart's pose for a state packet (OnlineRace.pack_state); t is the sender's clock in ms.
+func net_state(t: int) -> Dictionary:
+	var flags := 0
+	if body_mesh.visible:
+		flags |= OnlineRace.F_VISIBLE
+	if is_on_floor() or on_ramp:
+		flags |= OnlineRace.F_ON_FLOOR
+	if model.drifting:
+		flags |= OnlineRace.F_DRIFTING
+	if model.is_boosting():
+		flags |= OnlineRace.F_BOOSTING
+	if model.drift_direction > 0:
+		flags |= OnlineRace.F_DRIFT_RIGHT
+	return {"t": t, "pos": global_position, "heading": heading, "speed": model.speed, "yaw": body_mesh.rotation.y,
+		"pitch": body_mesh.rotation.x, "scale": body_mesh.scale.x, "flags": flags, "drift_level": model.drift_level,
+		"weight": weight_class}
+
+## Online: shows another player's kart where their packets say it is (no input, no physics of its own).
+func _play_puppet(delta: float) -> void:
+	var s: Dictionary = puppet.sample(delta)
+	if s.is_empty():
+		return
+	if int(s.weight) != weight_class:
+		apply_weight_class(int(s.weight))
+	var moved: Vector3 = s.pos - global_position
+	global_position = s.pos
+	velocity = moved / delta if moved.length() < 20.0 else Vector3.ZERO   # what a bump into it sees
+	heading = s.heading
+	rotation.y = heading
+	model.speed = s.speed
+	model.drifting = int(s.flags) & OnlineRace.F_DRIFTING != 0
+	model.drift_direction = (1 if int(s.flags) & OnlineRace.F_DRIFT_RIGHT != 0 else -1) if model.drifting else 0
+	model.drift_level = s.drift_level
+	body_mesh.rotation.y = s.yaw
+	body_mesh.rotation.x = s.pitch
+	body_mesh.scale = Vector3.ONE * float(s.scale)
+	body_mesh.visible = int(s.flags) & OnlineRace.F_VISIBLE != 0
+	body_mesh.update_wheels(delta, model.speed, 0.0)
+	effects.update_fx(delta, int(s.flags) & OnlineRace.F_ON_FLOOR != 0)

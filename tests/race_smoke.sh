@@ -1,0 +1,21 @@
+#!/bin/zsh
+# Runs N (2-4) headless GoKart instances against a lobby and checks they all reach each other
+# peer-to-peer and race: every kart sees the others drive. Usage: tests/race_smoke.sh [players=3] [lobby=ws://localhost:8787/api/mp]
+# (start a local lobby with: cd website && npx wrangler dev --port 8787)
+cd "$(dirname "$0")/.."
+n=${1:-3}
+export GOKART_LOBBY=${2:-ws://localhost:8787/api/mp}
+names=(Alice Bob Carol Dave)
+pids=()
+for i in $(seq 1 $n); do
+  perl -e 'alarm 100; exec @ARGV' -- godot --headless --path . -s tests/race_smoke.gd -- --name=${names[$i]} --players=$n > /tmp/gokart_race_$i.log 2>&1 &
+  pids+=$!
+  sleep 0.5
+done
+fail=0
+for i in $(seq 1 $n); do
+  wait ${pids[$i]} || fail=1
+  grep -E ": (race|GO|sees|OK|FAILED|TIMEOUT)" /tmp/gokart_race_$i.log
+done
+[[ $fail == 0 ]] && echo "RACE SMOKE: $n players OK" || echo "RACE SMOKE: FAILED"
+exit $fail

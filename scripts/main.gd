@@ -38,6 +38,7 @@ const Rookery := preload("res://scripts/rookery.gd")
 const CourseIntro := preload("res://scripts/course_intro.gd")
 const PauseMenu := preload("res://scripts/pause_menu.gd")
 const RaceWarmup := preload("res://scripts/race_warmup.gd")
+const OnlineRace := preload("res://scripts/online_race.gd")
 
 ## Seconds after the player crosses the line before the results panel appears.
 const RESULTS_DELAY := 2.0
@@ -122,8 +123,28 @@ var tt_result := {}
 ## MK64 course intro: seconds into the fly-over (-1 once the countdown is running); the countdown
 ## waits for it, Enter / the throttle skip it.
 var intro_t := -1.0
+## Online race (OnlineRace.active with a connected Net mesh): the other players' karts are puppets
+## keyed by peer id; the countdown waits for the host's GO (waiting_go); racer_names by kart index.
+var online := false
+var net: Node = null
+var peer_karts := {}
+var ready_peers := {}
+var waiting_go := false
+var ready_clock := 0.0
+var ready_resend := 0.0
+var send_clock := 0.0
+var racer_names: Array = []
 
 func _ready() -> void:
+	net = get_node_or_null("/root/Net")
+	online = OnlineRace.active and net != null and net.is_online()
+	if online:
+		# every peer builds the same race: the room's course, fixed laps and engine class, no intro
+		TrackLibrary.selected = OnlineRace.course_index(net.match_info)
+		CourseIntro.pending = false
+		waiting_go = true
+		multiplayer.peer_packet.connect(_on_packet)
+		net.peer_left.connect(_on_peer_left)
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_SKY
@@ -163,8 +184,8 @@ func _ready() -> void:
 
 	# MK64 time trials: solo, 3 laps, 100cc, a triple mushroom and no items on the course
 	var time_trial: bool = TimeTrial.active
-	var laps: int = TimeTrial.LAPS if time_trial else TrackLibrary.laps
-	var engine_index: int = TimeTrial.ENGINE_CLASS if time_trial else TrackLibrary.engine_class
+	var laps: int = TimeTrial.LAPS if time_trial else (OnlineRace.LAPS if online else TrackLibrary.laps)
+	var engine_index: int = TimeTrial.ENGINE_CLASS if time_trial else (OnlineRace.ENGINE_CLASS if online else TrackLibrary.engine_class)
 	# MK64 Extra class: the course is raced flipped left-to-right
 	track = Track.new(TrackLibrary.make_data(TrackLibrary.selected, TrackLibrary.is_mirrored(engine_index)))
 	add_child(track)
@@ -209,6 +230,13 @@ func _ready() -> void:
 	# alone on the front row's centre in a time trial
 	var back_idx := data.count - 10
 	var player_slot: Array = GRID_SLOTS[GrandPrix.grid_slot_for(0, PLAYER_SLOT)]
+	var order: Array = OnlineRace.grid_order(net.names.keys()) if online else []
+	if online:
+		# online grid: everyone in peer-id order from pole, the same on every machine
+		var r := order.find(net.my_id)
+		player_slot = GRID_SLOTS[r]
+		kart.body_color = OnlineRace.COLORS[r]
+		racer_names.append(net.names[net.my_id])
 	var start_idx := data.count - 1 if time_trial else back_idx + int(player_slot[0])
 	var start_pos: Vector3 = data.points[start_idx] + data.right_of(start_idx) * (0.0 if time_trial else player_slot[1]) + Vector3(0, 0.1, 0)
 	kart.position = start_pos
@@ -218,7 +246,7 @@ func _ready() -> void:
 	add_child(kart)
 	kart_index = start_idx
 	karts.append(kart)
-	for spec in (AI_SPECS if not time_trial else []):
+	for spec in (AI_SPECS if not time_trial and not online else []):
 		var ai := Kart.new()
 		var slot: Array = GRID_SLOTS[GrandPrix.grid_slot_for(karts.size(), karts.size() - 1)]
 		var gi: int = back_idx + int(slot[0])
@@ -239,10 +267,13 @@ func _ready() -> void:
 		engine_sfx.kart = ai
 		ai.add_child(engine_sfx)
 		karts.append(ai)
+	for r in order.size():
+		if order[r] != net.my_id:
+			_add_peer_kart(order[r], r, data, back_idx, laps, engine)
 
 	items = ItemManager.new()
 	add_child(items)
-	items.setup(data, karts, 0, not time_trial)
+	items.setup(data, karts, 0, not time_trial and not online)
 	if time_trial:
 		TimeTrial.ensure_loaded()
 		items.holder.receive(Items.Type.TRIPLE_MUSHROOM, Items.charges_for(Items.Type.TRIPLE_MUSHROOM))
@@ -299,6 +330,84 @@ func _ready() -> void:
 	kart.jumped.connect(func(): audio.play("jump"))
 	kart.landed.connect(func(): audio.play("thud", -4.0))
 
+## Online: another player's kart on grid slot r, moved only by their packets, with their name over it.
+func _add_peer_kart(id: int, r: int, data: TrackData, back_idx: int, laps: int, engine: Dictionary) -> void:
+	var slot: Array = GRID_SLOTS[r]
+	var gi: int = back_idx + int(slot[0])
+	var k := Kart.new()
+	k.body_color = OnlineRace.COLORS[r]
+	k.position = data.points[gi] + data.right_of(gi) * float(slot[1]) + Vector3(0, 0.1, 0)
+	k.heading = data.heading_at(gi)
+	k.rotation.y = k.heading
+	k.tracker = LapTracker.new(data.count, 8, laps)
+	k.track_index = gi
+	k.kart_id = karts.size()
+	k.puppet = OnlineRace.Puppet.new()
+	add_child(k)
+	k.model.apply_engine_class(engine.speed, engine.accel)
+	k.add_child(OnlineRace.make_tag(net.names[id], k.body_color))
+	var engine_sfx := AiEngineAudio.new()
+	engine_sfx.kart = k
+	k.add_child(engine_sfx)
+	karts.append(k)
+	peer_karts[id] = k
+	racer_names.append(net.names[id])
+
+func _on_packet(id: int, data: PackedByteArray) -> void:
+	match OnlineRace.kind(data):
+		OnlineRace.Packet.STATE:
+			if peer_karts.has(id):
+				var s := OnlineRace.unpack_state(data)
+				if not s.is_empty():
+					peer_karts[id].puppet.push(s)
+		OnlineRace.Packet.READY:
+			ready_peers[id] = true
+			if not waiting_go and net.host_id == net.my_id:
+				# a latecomer the host started without: it still needs its GO
+				multiplayer.send_bytes(OnlineRace.pack_go(), id, MultiplayerPeer.TRANSFER_MODE_RELIABLE)
+		OnlineRace.Packet.GO:
+			waiting_go = false
+
+## A player dropped out: their kart vanishes from the course (it keeps its place in the standings).
+func _on_peer_left(id: int) -> void:
+	var k = peer_karts.get(id)
+	if k == null:
+		return
+	k.puppet.left = true
+	k.visible = false
+	k.collision_layer = 0
+	k.process_mode = Node.PROCESS_MODE_DISABLED
+
+## Online: READY until the host says GO (the host sends GO once everyone is ready), then our pose
+## to every peer SEND_INTERVAL apart.
+func _net_tick(delta: float) -> void:
+	var peers := multiplayer.get_peers()
+	if waiting_go:
+		ready_clock += delta
+		ready_resend -= delta
+		if ready_resend <= 0.0 and not peers.is_empty():
+			ready_resend = OnlineRace.READY_RESEND
+			multiplayer.send_bytes(OnlineRace.pack_ready(), 0, MultiplayerPeer.TRANSFER_MODE_RELIABLE)
+		if net.host_id == net.my_id:
+			ready_peers[net.my_id] = true
+			var all := true
+			for id in net.names:
+				all = all and ready_peers.has(id)
+			if all or ready_clock > OnlineRace.READY_TIMEOUT:
+				if not peers.is_empty():
+					multiplayer.send_bytes(OnlineRace.pack_go(), 0, MultiplayerPeer.TRANSFER_MODE_RELIABLE)
+				waiting_go = false
+	send_clock += delta
+	if send_clock >= OnlineRace.SEND_INTERVAL and not peers.is_empty():
+		send_clock = 0.0
+		multiplayer.send_bytes(OnlineRace.pack_state(kart.net_state(Time.get_ticks_msec())), 0, MultiplayerPeer.TRANSFER_MODE_UNRELIABLE)
+
+## Online: back to the menu, closing the peer-to-peer connections.
+func _leave_online() -> void:
+	OnlineRace.active = false
+	net.leave()
+	get_tree().change_scene_to_file("res://scenes/menu.tscn")
+
 func _on_player_boost(level: int) -> void:
 	if kart.model.boost_from_drift:
 		speed_fx.trigger_flash(KartEffects.spark_color(level))
@@ -321,7 +430,10 @@ func _on_go() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_ESCAPE:
-		if results_shown:
+		if online:
+			# the others keep racing: an online race can't be paused, Esc leaves it
+			_leave_online()
+		elif results_shown:
 			# the results board is a screen of its own: Esc there goes back to the select screen
 			GrandPrix.stop()
 			get_tree().change_scene_to_file("res://scenes/menu.tscn")
@@ -332,6 +444,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if results_shown and event is InputEventKey and event.pressed and not event.echo \
 			and (event.physical_keycode == KEY_ENTER or event.physical_keycode == KEY_KP_ENTER):
+		if online:
+			_leave_online()
+			return
 		CourseIntro.pending = true   # the next race (same course again or the next cup race) opens with its intro
 		if GrandPrix.active:
 			if GrandPrix.retry:
@@ -356,12 +471,14 @@ func _back() -> Vector3:
 
 func _physics_process(delta: float) -> void:
 	var data: TrackData = track.data
+	if online:
+		_net_tick(delta)
 	if intro_t >= 0.0:
 		# the course intro: the countdown waits, the throttle skips the fly-over
 		intro_t += delta
 		if CourseIntro.finished(intro_t, Input.is_action_pressed("accelerate")):
 			_end_intro()
-	else:
+	elif not waiting_go:
 		race_start.update(delta, Input.is_action_pressed("accelerate"))
 	if railway != null:
 		railway.update_train(delta)
@@ -389,6 +506,12 @@ func _physics_process(delta: float) -> void:
 			k.driver.grip = KartPhysics.ICE_GRIP if data.ice_ahead(k.track_index, AiDriver.ICE_LOOKAHEAD) else 1.0
 		if race_start.started:
 			k.tracker.update(delta, k.track_index)
+		var frac: float = (kp - data.points[k.track_index]).dot(data.tangents[k.track_index]) / data.spacing
+		if k.puppet != null:
+			# another player's kart: their own machine runs its pads, water and hazards
+			progresses.append(RaceRanking.progress(k.tracker.lap, k.track_index, data.count, frac))
+			finish_times.append(k.tracker.race_time if k.tracker.is_finished else -1.0)
+			continue
 		if data.pad_at(kp) != null:
 			k.model.apply_boost(PAD_BOOST_TIME, 1)
 		# fell in the water: Lakitu fishes the kart out and sets it down on the road
@@ -446,7 +569,6 @@ func _physics_process(delta: float) -> void:
 						audio.play("pop")
 				elif k.launch(Penguins.LAUNCH_SPEED, penguins.shove_dir(pg, kp) * Penguins.SHOVE) and k == kart:
 					audio.play("crash")
-		var frac: float = (kp - data.points[k.track_index]).dot(data.tangents[k.track_index]) / data.spacing
 		progresses.append(RaceRanking.progress(k.tracker.lap, k.track_index, data.count, frac))
 		finish_times.append(k.tracker.race_time if k.tracker.is_finished else -1.0)
 	kart_index = kart.track_index
@@ -473,7 +595,7 @@ func _physics_process(delta: float) -> void:
 				audio.play("pop", -6.0)
 	# MK64 rubber-banding: AI karts behind the player get a top-speed bonus, karts far ahead ease off
 	var band: float = TrackLibrary.difficulty_info(TrackLibrary.difficulty).rubber_band
-	for i in range(1, karts.size()):
+	for i in range(1, 1 + ai_base_speed.size()):
 		var gap: float = (progresses[0] - progresses[i]) * data.spacing
 		karts[i].model.max_speed = ai_base_speed[i - 1] * AiDriver.rubber_band(gap, band)
 	# MK64 slipstream: a kart that trails close behind another for a couple of seconds gets a brief burst of speed
@@ -513,7 +635,7 @@ func _physics_process(delta: float) -> void:
 			results_shown = true
 			var names: Array = []
 			for i in karts.size():
-				names.append(RACER_NAMES[i % RACER_NAMES.size()])
+				names.append(racer_names[i] if online else RACER_NAMES[i % RACER_NAMES.size()])
 			var rows := RaceResults.rows(names, progresses, finish_times)
 			if recording != null:
 				hud.show_results(TimeTrial.results_text(_track_name(), tracker.race_time, tracker.lap_times, tt_result))
@@ -523,7 +645,7 @@ func _physics_process(delta: float) -> void:
 			else:
 				hud.show_results(RaceResults.table_text(rows, 0))
 	hud.update_hud(tracker, kart.model.speed, kart.model.is_boosting(), kart.model.drift_level, items.holder.display_item(items.time), Hud.place_text(place, karts.size()), kart.model.is_star(), kart.model.is_shrunk(), items.holder.charges, items.holder.golden_time, kart.model.is_ghost())
-	hud.show_countdown(race_start.label() if intro_t < 0.0 else "")
+	hud.show_countdown(race_start.label() if intro_t < 0.0 and not waiting_go else "")
 	var marker_pos: Array = []
 	var marker_col: Array = []
 	for k in karts:
