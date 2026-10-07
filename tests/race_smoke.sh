@@ -1,7 +1,8 @@
 #!/bin/zsh
 # Runs N (2-4) headless GoKart instances against a lobby and checks they all reach each other
 # peer-to-peer and race: every kart sees the others drive. Usage: tests/race_smoke.sh [players=3] [lobby=ws://localhost:8787/api/mp]
-# Add a third argument --finish to race all 3 laps and check every board has everyone's time.
+# Add a third argument --finish to race all 3 laps and check every board has everyone's time,
+# or --items to fire every item picked up and check each player's items reach the others.
 # (start a local lobby with: cd website && npx wrangler dev --port 8787)
 cd "$(dirname "$0")/.."
 n=${1:-3}
@@ -17,7 +18,7 @@ done
 fail=0
 for i in $(seq 1 $n); do
   wait ${pids[$i]} || fail=1
-  grep -E ": (race|GO|sees|OK|FAILED|TIMEOUT|board)" /tmp/gokart_race_$i.log
+  grep -E ": (race|GO|sees|items|OK|FAILED|TIMEOUT|board)" /tmp/gokart_race_$i.log
 done
 [[ $fail == 0 ]] && echo "RACE SMOKE: $n players OK" || echo "RACE SMOKE: FAILED"
 exit $fail

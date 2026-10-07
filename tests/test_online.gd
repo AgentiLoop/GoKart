@@ -81,3 +81,87 @@ func test_finish_and_results() -> void:
 	runner.check(text.contains("WAITING FOR 1"), "counts the ones still racing")
 	runner.check(text.contains("LEFT  +0"), "no points for leaving: %s" % text)
 	runner.check(not OnlineRace.results_text(["Me", "Bob"], [1.0, 2.0], [90.0, 95.0], [false, false]).contains("WAITING"), "no wait line once all are in")
+
+func test_item_packets() -> void:
+	var s := _state(1, Vector3.ONE)
+	s.held = 7
+	s.charges = 3
+	var u := OnlineRace.unpack_state(OnlineRace.pack_state(s))
+	runner.check(u.held == 7 and u.charges == 3, "held item rides in the state packet: %s" % str(u))
+	var it := {"item": 9, "flip": true, "pos": Vector3(4, 0.5, -12), "heading": 1.25, "speed": 22.0, "target": 123456789, "net_id": (3 << 24) + 17}
+	var data := OnlineRace.pack_item(it)
+	runner.check(OnlineRace.kind(data) == OnlineRace.Packet.ITEM, "tagged as an item packet")
+	var v := OnlineRace.unpack_item(data)
+	runner.check(v.item == 9 and v.flip and v.pos.is_equal_approx(it.pos) and is_equal_approx(v.heading, 1.25) and is_equal_approx(v.speed, 22.0) \
+		and v.target == 123456789 and v.net_id == it.net_id, "item use survives: %s" % str(v))
+	runner.check(OnlineRace.unpack_item(data.slice(0, 20)).is_empty(), "short item packet rejected")
+	runner.check(OnlineRace.unpack_hit(OnlineRace.pack_hit(-4)) == -4 and OnlineRace.unpack_hit(OnlineRace.pack_go()) == 0, "hit names the item")
+
+class NetKart extends RefCounted:
+	var model = load("res://scripts/kart_physics.gd").new()
+	var global_position := Vector3.ZERO
+	var heading := 0.0
+	var driver = null
+	var frozen := false
+	var puppet = null
+	var net_held := 0
+	var net_charges := 0
+
+## Online item rules: our throws are announced, the other player's throws replay here, their kart is
+## never spun on our machine (their machine does that), our hits are announced.
+func test_online_items() -> void:
+	var Items = load("res://scripts/items.gd")
+	var TrackData = load("res://scripts/track_data.gd")
+	var t = TrackData.new()
+	var me := NetKart.new()
+	var them := NetKart.new()
+	them.puppet = OnlineRace.Puppet.new()
+	me.global_position = t.points[5] + Vector3(0, 0.1, 0)
+	me.heading = t.heading_at(5)
+	them.global_position = t.points[40] + Vector3(0, 0.1, 0)
+	them.heading = t.heading_at(40)
+	var m = load("res://scripts/item_manager.gd").new()
+	m.setup(t, [me, them], 42)
+	m.online = true
+	m.net_base = 1 << 24
+	var used: Array = []
+	var hits: Array = []
+	m.item_used.connect(func(kind, flip, _p, _h, _s, target, nid): used.append([kind, flip, target, nid]))
+	m.net_hit.connect(func(nid): hits.append(nid))
+	m.holders[0].held = Items.Type.SHELL
+	m.holders[0].charges = 1
+	m.use_item(0)
+	runner.check(used.size() == 1 and used[0][0] == Items.Type.SHELL and used[0][3] == (1 << 24) + 1 and m.projectiles[-1].net_id == used[0][3], "our shell is announced with its id: %s" % [used])
+	# the puppet holds a banana (from its packets) and is struck by lightning from us: bolt only
+	them.net_held = Items.Type.BANANA
+	m._physics_process(1.0 / 60.0)
+	runner.check(m.holders[1].held == Items.Type.BANANA, "their slot mirrors their packets")
+	m.holders[0].held = Items.Type.LIGHTNING
+	m.use_item(0)
+	runner.check(not them.model.is_spinning() and not them.model.is_shrunk(), "their kart is not struck on our machine")
+	# their red shell replays here and hits our kart: we spin and say which item it was
+	var n: int = m.projectiles.size()
+	var p0: Vector3 = me.global_position + Vector3(-sin(me.heading), 0, -cos(me.heading)) * 6.0
+	m.remote_use(1, Items.Type.SHELL, false, p0, me.heading + PI, 30.0, -1, (2 << 24) + 5)
+	runner.check(m.projectiles.size() == n + 1 and m.projectiles[-1].net_id == (2 << 24) + 5 and m.projectiles[-1].owner_id == 1, "their shell replays on their kart")
+	for i in 30:
+		m._physics_process(1.0 / 60.0)
+	runner.check(me.model.is_spinning() and hits.has((2 << 24) + 5), "their shell hit us and we said so: %s" % [hits])
+	# a course banana (same id on every peer) taken out by someone else's hit packet
+	var course: Array = m.projectiles.filter(func(p): return p.net_id < 0)
+	if not course.is_empty():
+		var nid: int = course[0].net_id
+		m.remove_net(nid)
+		runner.check(m.projectiles.filter(func(p): return p.net_id == nid).is_empty(), "hit packet removes the item")
+	# our shell runs into their kart: spent here, but they are not spun (their machine decides)
+	them.net_held = Items.Type.NONE   # no banana dangling behind them to block the shell
+	them.global_position = me.global_position + Vector3(-sin(me.heading), 0, -cos(me.heading)) * 8.0
+	me.model = load("res://scripts/kart_physics.gd").new()
+	m.holders[0].held = Items.Type.SHELL
+	m.holders[0].charges = 1
+	m.use_item(0)
+	var mine = m.projectiles[-1]
+	for i in 30:
+		m._physics_process(1.0 / 60.0)
+	runner.check(not mine.alive and not m.projectiles.has(mine) and not them.model.is_spinning(), "our shell is spent on them without spinning them here")
+	m.free()

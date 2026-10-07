@@ -65,6 +65,9 @@ var pitch := 0.0              # body pitch in radians (nose up on a ramp and on 
 ## Online: another player's kart. Its pose comes from their packets (OnlineRace.Puppet) instead of
 ## input and physics; null for every kart driven on this machine.
 var puppet = null
+## Online puppet: the item the other player holds and its charges, from their packets.
+var net_held := 0
+var net_charges := 0
 
 ## Body pitch to aim for: up the ramp's slope while on one, following the flight path in the air
 ## (scaled by AIR_PITCH), level otherwise. vy is the vertical speed, speed the speed over the ground.
@@ -266,6 +269,10 @@ func net_state(t: int) -> Dictionary:
 		flags |= OnlineRace.F_BOOSTING
 	if model.drift_direction > 0:
 		flags |= OnlineRace.F_DRIFT_RIGHT
+	if model.is_star():
+		flags |= OnlineRace.F_STAR
+	if model.is_ghost():
+		flags |= OnlineRace.F_GHOST
 	return {"t": t, "pos": global_position, "heading": heading, "speed": model.speed, "yaw": body_mesh.rotation.y,
 		"pitch": body_mesh.rotation.x, "scale": body_mesh.scale.x, "flags": flags, "drift_level": model.drift_level,
 		"weight": weight_class}
@@ -286,6 +293,14 @@ func _play_puppet(delta: float) -> void:
 	model.drifting = int(s.flags) & OnlineRace.F_DRIFTING != 0
 	model.drift_direction = (1 if int(s.flags) & OnlineRace.F_DRIFT_RIGHT != 0 else -1) if model.drifting else 0
 	model.drift_level = s.drift_level
+	# a star or Boo ghost shields them from items here too (their machine runs the timers)
+	model.star_time = 1.0 if int(s.flags) & OnlineRace.F_STAR != 0 else 0.0
+	var ghost := int(s.flags) & OnlineRace.F_GHOST != 0
+	if ghost != model.is_ghost():
+		body_mesh.set_opacity(GHOST_ALPHA if ghost else 1.0)
+	model.ghost_time = 1.0 if ghost else 0.0
+	net_held = int(s.get("held", 0))
+	net_charges = int(s.get("charges", 0))
 	body_mesh.rotation.y = s.yaw
 	body_mesh.rotation.x = s.pitch
 	body_mesh.scale = Vector3.ONE * float(s.scale)

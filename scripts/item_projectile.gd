@@ -44,6 +44,7 @@ var target_pos = null   # Vector3 of the kart a red shell homes on (set by the i
 var homing := true   # red shells only: false when fired backwards (MK64: then it just flies straight)
 var rest_y := 0.0    # dropped items: the road height a tossed banana / fake box lands on
 var owner_grace := OWNER_GRACE   # seconds before the thrower can be hit by this item
+var net_id := 0   # online: names this item on every peer (0 = not shared)
 
 static func make_shell(pos: Vector3, heading: float, owner := -1) -> Object:
 	var p = load("res://scripts/item_projectile.gd").new()

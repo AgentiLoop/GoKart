@@ -279,7 +279,13 @@ func _ready() -> void:
 
 	items = ItemManager.new()
 	add_child(items)
-	items.setup(data, karts, 0, not time_trial and not online)
+	items.setup(data, karts, 0, not time_trial)
+	if online:
+		# item boxes online too: each player rolls and fires their own items and tells the others
+		items.online = true
+		items.net_base = (order.find(net.my_id) + 1) << 24
+		items.item_used.connect(_on_item_used)
+		items.net_hit.connect(func(nid): _send_reliable(OnlineRace.pack_hit(nid)))
 	if time_trial:
 		TimeTrial.ensure_loaded()
 		items.holder.receive(Items.Type.TRIPLE_MUSHROOM, Items.charges_for(Items.Type.TRIPLE_MUSHROOM))
@@ -377,6 +383,35 @@ func _on_packet(id: int, data: PackedByteArray) -> void:
 			var t := OnlineRace.unpack_finish(data)
 			if t >= 0.0:
 				peer_finish[id] = t
+		OnlineRace.Packet.ITEM:
+			var u := OnlineRace.unpack_item(data)
+			if not u.is_empty() and peer_karts.has(id):
+				items.remote_use(karts.find(peer_karts[id]), u.item, u.flip, u.pos, u.heading, u.speed, _kart_of_peer(u.target), u.net_id)
+		OnlineRace.Packet.HIT:
+			var nid := OnlineRace.unpack_hit(data)
+			if nid != 0:
+				items.remove_net(nid)
+
+## Online: the kart index of peer id (0 = our own kart), or -1 for nobody.
+func _kart_of_peer(id: int) -> int:
+	if id == net.my_id:
+		return 0
+	return karts.find(peer_karts[id]) if peer_karts.has(id) else -1
+
+## Online: the peer id driving kart index i, or 0 for nobody.
+func _peer_of_kart(i: int) -> int:
+	if i == 0:
+		return net.my_id
+	return peer_karts.find_key(karts[i]) if i > 0 and i < karts.size() and peer_karts.find_key(karts[i]) != null else 0
+
+func _send_reliable(data: PackedByteArray) -> void:
+	if not multiplayer.get_peers().is_empty():
+		multiplayer.send_bytes(data, 0, MultiplayerPeer.TRANSFER_MODE_RELIABLE)
+
+## Online: we fired / dropped an item: the others replay it on our kart.
+func _on_item_used(kind: int, flip: bool, pos: Vector3, heading: float, speed: float, target: int, net_id: int) -> void:
+	_send_reliable(OnlineRace.pack_item({"item": kind, "flip": flip, "pos": pos, "heading": heading, "speed": speed,
+		"target": _peer_of_kart(target) if target >= 0 else 0, "net_id": net_id}))
 
 ## A player dropped out: their kart vanishes from the course (it keeps its place in the standings,
 ## marked LEFT unless it had finished) and a notice says who left.
@@ -413,7 +448,10 @@ func _net_tick(delta: float) -> void:
 	send_clock += delta
 	if send_clock >= OnlineRace.SEND_INTERVAL and not peers.is_empty():
 		send_clock = 0.0
-		multiplayer.send_bytes(OnlineRace.pack_state(kart.net_state(Time.get_ticks_msec())), 0, MultiplayerPeer.TRANSFER_MODE_UNRELIABLE)
+		var s: Dictionary = kart.net_state(Time.get_ticks_msec())
+		s.held = items.holder.held
+		s.charges = items.holder.charges
+		multiplayer.send_bytes(OnlineRace.pack_state(s), 0, MultiplayerPeer.TRANSFER_MODE_UNRELIABLE)
 
 ## Online: back to the menu, closing the peer-to-peer connections.
 func _leave_online() -> void:

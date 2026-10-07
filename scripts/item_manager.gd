@@ -25,6 +25,11 @@ signal shell_blocked(shell: int, id: int, item: int)
 signal lightning_struck(user: int, victims: Array)
 ## A Boo came back: victim is -1 and item NONE when nobody had anything to take.
 signal item_stolen(thief: int, victim: int, item: int)
+## Online: our kart fired / dropped something (target: blue shell leader or Boo victim, else -1);
+## net_id names the projectile on every peer (0 when nothing was thrown).
+signal item_used(kind: int, flip: bool, pos: Vector3, heading: float, speed: float, target: int, net_id: int)
+## Online: projectile net_id hit our kart (the others take it off the road).
+signal net_hit(net_id: int)
 
 var track
 var karts: Array = []     # index in this array == kart_id; karts[0] is the player
@@ -42,6 +47,12 @@ var boos: Array = []   # live Boo flights: {thief, victim, t, item, charges, nod
 var time := 0.0
 ## Battle mode: places per kart (1 = best) used for the item roll instead of race progress.
 var ranks_override: Array = []
+## Online race: karts with a puppet are other players'. Their own machine rolls their items, decides
+## whether they were hit and announces what they fire (remote_use); here they only show it, mirroring
+## the item they hold from their packets. net_base + a counter names the projectiles we throw.
+var online := false
+var net_base := 0
+var net_seq := 0
 
 ## `course_items` false (time trials) leaves out the item boxes and the pre-placed hazards.
 ## `battle` true rolls only the Mario Kart 64 battle items.
@@ -61,8 +72,10 @@ func setup(track_data, all_karts, seed_value := 0, course_items := true, battle 
 		b.position = p
 		add_child(b)
 		boxes.append(b)
-	for p in track.hazard_positions:
-		_add_projectile(ItemProjectile.make_banana(p + Vector3(0, 0.3, 0)))
+	for i in track.hazard_positions.size():
+		var b = ItemProjectile.make_banana(track.hazard_positions[i] + Vector3(0, 0.3, 0))
+		b.net_id = -(i + 1)   # the same course banana on every peer
+		_add_projectile(b)
 
 ## Distances (ahead, behind) from racer i to the nearest rival roughly in its lane.
 ## positions/headings are per racer. INF when nobody qualifies.
@@ -84,6 +97,10 @@ static func rival_gaps(i: int, positions: Array, headings: Array) -> Vector2:
 			behind = minf(behind, -f)
 	return Vector2(ahead, behind)
 
+## Online: kart `id` is another player's (driven by their packets, see `online`).
+func _remote(id: int) -> bool:
+	return online and karts[id].puppet != null
+
 ## Fire / drop the item kart `id` holds. `other_way` (Mario Kart 64: the stick held the other way
 ## with Z) sends a single green or red shell straight behind the kart (a red shell then flies
 ## straight, no homing) and tosses a banana or fake item box ahead in an arc; anything else ignores it.
@@ -92,46 +109,81 @@ func use_item(id := 0, other_way := false) -> int:
 	if k.model.is_spinning():
 		return Items.Type.NONE
 	var t: int = holders[id].use()
-	var pos: Vector3 = k.global_position
-	var fwd := Vector3(-sin(k.heading), 0, -cos(k.heading))
 	var flip: bool = other_way and Items.can_reverse(t)
+	var target := -1
+	if t == Items.Type.BLUE_SHELL:
+		target = ItemProjectile.pick_leader(_progresses(), id)
+	elif t == Items.Type.BOO:
+		target = _boo_victim(id)
+	var before := projectiles.size()
+	_fire(id, t, flip, k.global_position, k.heading, k.model.speed, target)
+	if online and t != Items.Type.NONE:
+		var nid := 0
+		if projectiles.size() > before:
+			net_seq += 1
+			nid = net_base + net_seq
+			projectiles[-1].net_id = nid
+		item_used.emit(t, flip, k.global_position, k.heading, k.model.speed, target, nid)
+	return t
+
+## Online: another player's kart `id` fired item t from the pose their packet gives; net_id names the
+## projectile on every peer. Lightning and a Boo only reach our own kart here.
+func remote_use(id: int, t: int, flip: bool, pos: Vector3, heading: float, speed: float, target: int, net_id: int) -> void:
+	var before := projectiles.size()
+	_fire(id, t, flip, pos, heading, speed, target)
+	if projectiles.size() > before:
+		projectiles[-1].net_id = net_id
+
+## Online: projectile net_id hit someone on their own machine, so it is spent here too.
+func remove_net(net_id: int) -> void:
+	for p in projectiles.duplicate():
+		if p.net_id == net_id:
+			p.alive = false
+			_remove_projectile(p)
+
+## What item t does when kart `id` at pos / heading / speed uses it. target: the blue shell's
+## leader or the Boo's victim (-1 = none).
+func _fire(id: int, t: int, flip: bool, pos: Vector3, heading: float, speed: float, target: int) -> void:
+	var k = karts[id]
+	var own := not _remote(id)   # boosts, stars and ghosts of other players come with their packets
+	var fwd := Vector3(-sin(heading), 0, -cos(heading))
 	match t:
 		Items.Type.MUSHROOM, Items.Type.TRIPLE_MUSHROOM, Items.Type.GOLDEN_MUSHROOM:
-			k.model.apply_boost(MUSHROOM_BOOST_TIME, 2)
+			if own:
+				k.model.apply_boost(MUSHROOM_BOOST_TIME, 2)
 		Items.Type.BANANA, Items.Type.BANANA_BUNCH:
 			if flip:
 				var b = ItemProjectile.make_banana(pos + fwd * 1.5 + Vector3(0, 0.3, 0), id)
-				b.toss(k.heading, k.model.speed)
+				b.toss(heading, speed)
 				_add_projectile(b)
 			else:
 				_add_projectile(ItemProjectile.make_banana(pos - fwd * 2.4 + Vector3(0, 0.3, 0), id))
 		Items.Type.FAKE_ITEM_BOX:
 			if flip:
 				var b = ItemProjectile.make_fake_box(pos + fwd * 1.5, id)
-				b.toss(k.heading, k.model.speed)
+				b.toss(heading, speed)
 				_add_projectile(b)
 			else:
 				_add_projectile(ItemProjectile.make_fake_box(pos - fwd * 2.6, id))
 		Items.Type.SHELL, Items.Type.TRIPLE_SHELL:
 			if flip:
-				_add_projectile(ItemProjectile.make_shell(pos - fwd * 2.6 + Vector3(0, 0.6, 0), k.heading + PI, id))
+				_add_projectile(ItemProjectile.make_shell(pos - fwd * 2.6 + Vector3(0, 0.6, 0), heading + PI, id))
 			else:
-				_add_projectile(ItemProjectile.make_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), k.heading, id))
+				_add_projectile(ItemProjectile.make_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), heading, id))
 		Items.Type.RED_SHELL, Items.Type.TRIPLE_RED_SHELL:
 			if flip:
-				_add_projectile(ItemProjectile.make_red_shell(pos - fwd * 2.6 + Vector3(0, 0.6, 0), k.heading + PI, id, false))
+				_add_projectile(ItemProjectile.make_red_shell(pos - fwd * 2.6 + Vector3(0, 0.6, 0), heading + PI, id, false))
 			else:
-				_add_projectile(ItemProjectile.make_red_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), k.heading, id))
+				_add_projectile(ItemProjectile.make_red_shell(pos + fwd * 2.4 + Vector3(0, 0.6, 0), heading, id))
 		Items.Type.BLUE_SHELL:
-			var lead := ItemProjectile.pick_leader(_progresses(), id)
-			_add_projectile(ItemProjectile.make_blue_shell(pos + fwd * 2.4 + Vector3(0, ItemProjectile.BLUE_HEIGHT, 0), k.heading, id, lead))
+			_add_projectile(ItemProjectile.make_blue_shell(pos + fwd * 2.4 + Vector3(0, ItemProjectile.BLUE_HEIGHT, 0), heading, id, target))
 		Items.Type.STAR:
-			k.model.apply_star()
+			if own:
+				k.model.apply_star()
 		Items.Type.LIGHTNING:
 			_strike(id)
 		Items.Type.BOO:
-			_send_boo(id)
-	return t
+			_send_boo(id, target)
 
 func _no_finish_times() -> Array:
 	var out: Array = []
@@ -157,29 +209,35 @@ func _rank(id: int) -> int:
 
 ## 
 
-## Blue shell impact: spins out every kart (except stars) within the blast radius.
+## Blue shell impact: spins out every kart (except stars) within the blast radius (online: just ours,
+## the others' machines spin theirs).
 func _explode(p) -> void:
 	for j in karts.size():
-		if karts[j].global_position.distance_to(p.position) <= ItemProjectile.BLUE_BLAST_RADIUS and karts[j].model.spin_out():
+		if karts[j].global_position.distance_to(p.position) <= ItemProjectile.BLUE_BLAST_RADIUS and not _remote(j) and karts[j].model.spin_out():
 			kart_hit.emit(Items.Type.BLUE_SHELL, j)
 	var blast := BlueBlast.new()
 	add_child(blast)
 	blast.build(p.position, ItemProjectile.BLUE_BLAST_RADIUS)
 	blasts.append(blast)
 
-## Boo (Mario Kart 64): the user turns into a see-through, untouchable ghost while a Boo flies
-## off to a rival that holds an item, takes it and brings it back. Victim: a random rival with
-## something in its slot (drawn from the user's own rng so races stay seeded); none → the Boo
-## just hovers over the user and vanishes empty-handed.
-func _send_boo(user: int) -> void:
-	karts[user].model.apply_ghost()
+## The rival a Boo sent by `user` goes for: a random one with something in its slot (drawn from the
+## user's own rng so races stay seeded), or -1 when nobody has anything.
+func _boo_victim(user: int) -> int:
 	var candidates: Array = []
 	for j in karts.size():
 		if j != user and holders[j].held != Items.Type.NONE and not holders[j].is_rolling() and not karts[j].model.is_ghost():
 			candidates.append(j)
-	var victim := -1
-	if not candidates.is_empty():
-		victim = candidates[holders[user].rng.randi_range(0, candidates.size() - 1)]
+	if candidates.is_empty():
+		return -1
+	return candidates[holders[user].rng.randi_range(0, candidates.size() - 1)]
+
+## Boo (Mario Kart 64): the user turns into a see-through, untouchable ghost while a Boo flies
+## off to `victim` (see _boo_victim), takes its item and brings it back; victim -1 → the Boo
+## just hovers over the user and vanishes empty-handed.
+func _send_boo(user: int, victim: int) -> void:
+	if not _remote(user):
+		karts[user].model.apply_ghost()
+	if victim >= 0:
 		holders[user].locked = true
 	var node := _make_boo_node()
 	add_child(node)
@@ -221,17 +279,19 @@ func _finish_boo(b: Dictionary) -> void:
 	holders[b.thief].receive(b.item, b.charges)
 	item_stolen.emit(b.thief, b.victim, b.item)
 
-## Lightning: every rival that is not a star or ghost kart shrinks, spins out and drops its item.
+## Lightning: every rival that is not a star or ghost kart shrinks, spins out and drops its item
+## (online: the bolt shows on everyone, but only our own kart is struck here).
 func _strike(user: int) -> void:
 	var victims: Array = []
 	for j in karts.size():
 		if j == user or karts[j].model.is_star() or karts[j].model.is_ghost():
 			continue
-		karts[j].model.apply_shrink()
-		karts[j].model.spin_out()
-		holders[j].clear()
+		if not _remote(j):
+			karts[j].model.apply_shrink()
+			karts[j].model.spin_out()
+			holders[j].clear()
+			kart_hit.emit(Items.Type.LIGHTNING, j)
 		victims.append(j)
-		kart_hit.emit(Items.Type.LIGHTNING, j)
 		var bolt := LightningBolt.new()
 		add_child(bolt)
 		bolt.build(karts[j].global_position)
@@ -484,14 +544,20 @@ func _physics_process(delta: float) -> void:
 		positions.append(k.global_position)
 		headings.append(k.heading)
 	for id in karts.size():
-		holders[id].update(delta)
+		if _remote(id):
+			# another player's slot: what their packets say they hold (shown dangling / orbiting, and
+			# blocking shells); their own machine runs the roulette
+			holders[id].held = karts[id].net_held
+			holders[id].charges = karts[id].net_charges
+		else:
+			holders[id].update(delta)
 	_update_boos(delta)
 	_update_orbits()
 	_update_trails()
 	for b in boxes:
 		b.tick(delta)
 		for id in karts.size():
-			if b.try_take(positions[id]):
+			if b.try_take(positions[id]) and not _remote(id):
 				holders[id].pickup(_rank(id), karts.size())
 	if Input.is_action_just_pressed("use_item") and not karts[0].frozen:
 		use_item(0)
@@ -506,11 +572,11 @@ func _physics_process(delta: float) -> void:
 	var valid: Array = []
 	for k in karts:
 		valid.append(not k.model.is_star() and not k.model.is_ghost())
-	# a star kart bowls over anyone it touches
+	# a star kart bowls over anyone it touches (online: anyone driven on this machine)
 	for id in karts.size():
 		if karts[id].model.is_star():
 			for j in karts.size():
-				if j != id and positions[id].distance_to(positions[j]) <= STAR_HIT_RADIUS and karts[j].model.spin_out():
+				if j != id and not _remote(j) and positions[id].distance_to(positions[j]) <= STAR_HIT_RADIUS and karts[j].model.spin_out():
 					kart_hit.emit(Items.Type.STAR, j)
 	for p in projectiles.duplicate():
 		if p.kind == Items.Type.RED_SHELL and p.homing:
@@ -528,9 +594,17 @@ func _physics_process(delta: float) -> void:
 				p.alive = false
 				_explode(p)
 				break
+			if _remote(id):
+				# their machine spins them (and says so with a hit packet); here the item is just spent
+				if karts[id].puppet.left or karts[id].model.is_star() or karts[id].model.is_ghost():
+					continue
+				p.alive = false
+				break
 			if karts[id].model.spin_out():
 				p.alive = false
 				kart_hit.emit(p.kind, id)
+				if online and p.net_id != 0:
+					net_hit.emit(p.net_id)
 				break
 		if not p.alive:
 			_remove_projectile(p)

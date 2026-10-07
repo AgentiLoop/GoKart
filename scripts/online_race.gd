@@ -22,7 +22,7 @@ const READY_TIMEOUT := 15.0
 ## Karts by grid slot: red, blue, green, yellow.
 const COLORS := [Color(0.9, 0.1, 0.1), Color(0.15, 0.3, 0.95), Color(0.15, 0.75, 0.25), Color(0.95, 0.85, 0.15)]
 
-enum Packet { STATE = 1, READY = 2, GO = 3, FINISH = 4 }
+enum Packet { STATE = 1, READY = 2, GO = 3, FINISH = 4, ITEM = 5, HIT = 6 }
 
 ## How long a "X left the race" notice stays up.
 const NOTICE_TIME := 4.0
@@ -33,6 +33,8 @@ const F_ON_FLOOR := 2
 const F_DRIFTING := 4
 const F_BOOSTING := 8
 const F_DRIFT_RIGHT := 16
+const F_STAR := 32
+const F_GHOST := 64
 
 ## The course everyone races: the room's course by name, else one picked by the room's seed.
 static func course_index(info: Dictionary) -> int:
@@ -104,7 +106,8 @@ static func results_text(names: Array, progresses: Array, finish_times: Array, l
 			row.points = 0
 	return RaceResults.table_text(rows, 0, results_footer(racing))
 
-## A kart's pose: s = {t (ms), pos, heading, speed, yaw (body), pitch, scale, flags, drift_level, weight}.
+## A kart's pose: s = {t (ms), pos, heading, speed, yaw (body), pitch, scale, flags, drift_level, weight,
+## held (item in the slot), charges}.
 static func pack_state(s: Dictionary) -> PackedByteArray:
 	var b := StreamPeerBuffer.new()
 	b.put_u8(Packet.STATE)
@@ -121,6 +124,8 @@ static func pack_state(s: Dictionary) -> PackedByteArray:
 	b.put_u8(int(s.flags))
 	b.put_u8(int(s.drift_level))
 	b.put_u8(int(s.weight))
+	b.put_u8(int(s.get("held", 0)))
+	b.put_u8(int(s.get("charges", 0)))
 	return b.data_array
 
 ## The packet's type, or 0 for an empty packet.
@@ -129,7 +134,7 @@ static func kind(data: PackedByteArray) -> int:
 
 ## Reverses pack_state; {} for a short/garbled packet.
 static func unpack_state(data: PackedByteArray) -> Dictionary:
-	if data.size() < 40 or data[0] != Packet.STATE:
+	if data.size() < 42 or data[0] != Packet.STATE:
 		return {}
 	var b := StreamPeerBuffer.new()
 	b.data_array = data
@@ -145,7 +150,61 @@ static func unpack_state(data: PackedByteArray) -> Dictionary:
 	s.flags = b.get_u8()
 	s.drift_level = b.get_u8()
 	s.weight = b.get_u8()
+	s.held = b.get_u8()
+	s.charges = b.get_u8()
 	return s
+
+## Sent (reliable) when a player fires / drops an item: what it was, which way, the kart's pose at
+## that moment, the target (blue shell leader / Boo victim as a peer id, 0 = none) and the id that
+## names the thrown item on every peer (0 = nothing thrown).
+## u = {item, flip, pos, heading, speed, target, net_id}.
+static func pack_item(u: Dictionary) -> PackedByteArray:
+	var b := StreamPeerBuffer.new()
+	b.put_u8(Packet.ITEM)
+	b.put_u8(int(u.item))
+	b.put_u8(1 if u.flip else 0)
+	b.put_u32(int(u.target))
+	b.put_32(int(u.net_id))
+	var p: Vector3 = u.pos
+	b.put_float(p.x)
+	b.put_float(p.y)
+	b.put_float(p.z)
+	b.put_float(u.heading)
+	b.put_float(u.speed)
+	return b.data_array
+
+## Reverses pack_item; {} for a short/garbled packet.
+static func unpack_item(data: PackedByteArray) -> Dictionary:
+	if data.size() < 31 or data[0] != Packet.ITEM:
+		return {}
+	var b := StreamPeerBuffer.new()
+	b.data_array = data
+	b.seek(1)
+	var u := {}
+	u.item = b.get_u8()
+	u.flip = b.get_u8() != 0
+	u.target = b.get_u32()
+	u.net_id = b.get_32()
+	u.pos = Vector3(b.get_float(), b.get_float(), b.get_float())
+	u.heading = b.get_float()
+	u.speed = b.get_float()
+	return u
+
+## Sent (reliable) by a player whose kart was hit by thrown item net_id, so every peer removes it.
+static func pack_hit(net_id: int) -> PackedByteArray:
+	var b := StreamPeerBuffer.new()
+	b.put_u8(Packet.HIT)
+	b.put_32(net_id)
+	return b.data_array
+
+## The item id in a hit packet, or 0 for a short/garbled one.
+static func unpack_hit(data: PackedByteArray) -> int:
+	if data.size() < 5 or data[0] != Packet.HIT:
+		return 0
+	var b := StreamPeerBuffer.new()
+	b.data_array = data
+	b.seek(1)
+	return b.get_32()
 
 ## A name floating over a kart (billboard, always readable, shrinks with distance like the kart).
 static func make_tag(text: String, color: Color) -> Label3D:

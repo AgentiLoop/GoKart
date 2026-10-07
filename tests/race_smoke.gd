@@ -23,6 +23,12 @@ var fin_at := -1.0
 var leave_at := -1.0
 var go_at := -1.0
 var noticed := false
+## --items: fire every item as soon as it comes out of the roulette, and also wait until an item from
+## every other player has arrived (ITEM packets) before passing
+var want_items := false
+var items_from := {}   # peer id -> ITEM packets received
+var hits_from := {}    # peer id -> HIT packets received
+var fired := 0
 
 func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -32,6 +38,8 @@ func _initialize() -> void:
 			want = int(a.substr(10))
 		elif a == "--finish":
 			want_finish = true
+		elif a == "--items":
+			want_items = true
 		elif a.begins_with("--leave-at="):
 			leave_at = float(a.substr(11))
 	net = root.get_node_or_null("Net")
@@ -53,7 +61,7 @@ func _on_mesh_ready() -> void:
 
 func _process(delta: float) -> bool:
 	clock += delta
-	if clock > (360.0 if want_finish else 80.0):
+	if clock > (360.0 if want_finish else (150.0 if want_items else 80.0)):
 		print(player, ": TIMEOUT")
 		quit(2)
 	var scene := current_scene
@@ -61,6 +69,11 @@ func _process(delta: float) -> bool:
 		race = scene
 		names = net.names.duplicate()
 		print(player, ": race on ", race._track_name(), " with ", race.racer_names)
+		race.multiplayer.peer_packet.connect(func(id, data):
+			if data.size() > 0 and data[0] == OnlineRace.Packet.ITEM:
+				items_from[id] = items_from.get(id, 0) + 1
+			elif data.size() > 0 and data[0] == OnlineRace.Packet.HIT:
+				hits_from[id] = hits_from.get(id, 0) + 1)
 	if race != null and race.hud != null and race.hud.cup_label.text.contains("left") and not noticed:
 		noticed = true
 		print(player, ": notice '", race.hud.cup_label.text, "'")
@@ -84,8 +97,16 @@ func _process(delta: float) -> bool:
 		race.kart.driver = AiDriver.new(race.track.data, 0.0, 999.0)
 		for id in race.peer_karts:
 			starts[id] = race.peer_karts[id].global_position
-	var done := true
+	if want_items:
+		var h = race.items.holder
+		if h.held != 0 and not h.is_rolling() and not race.kart.model.is_spinning():
+			print(player, ": fires item ", h.held)
+			race.items.use_item(0)
+			fired += 1
+	var done := not want_items or fired > 0
 	for id in race.peer_karts:
+		if want_items and items_from.get(id, 0) == 0:
+			done = false
 		var k = race.peer_karts[id]
 		var tag_ok := false
 		for c in k.get_children():
@@ -94,6 +115,11 @@ func _process(delta: float) -> bool:
 	if done:
 		for id in race.peer_karts:
 			print(player, ": sees ", names[id], " at ", race.peer_karts[id].global_position.snapped(Vector3.ONE * 0.1), " moved ", snappedf(race.peer_karts[id].global_position.distance_to(starts[id]), 0.1), " m")
+		if want_items:
+			var remote := 0
+			for p in race.items.projectiles:
+				remote += 1 if p.owner_id > 0 else 0
+			print(player, ": items fired ", fired, ", received ", items_from, ", hit packets ", hits_from, ", their items on the road now ", remote, ", spun ", race.kart.model.is_spinning())
 		print(player, ": OK")
 		ok_at = clock
 	return false
