@@ -165,7 +165,9 @@ func _move(delta: float, forward: Vector3) -> void:
 		position = target
 	else:
 		position = position.lerp(target, clampf(FOLLOW_RATE * delta, 0.0, 1.0))
-	rotation.y = kart.heading + PI   # faces back towards the player / camera
+	# local +Z (face, rod tip and everything hanging from it) points back at the player / camera,
+	# so the signal, signs and flag hang in front of the cloud
+	rotation.y = kart.heading
 	visible = mode != Mode.HIDDEN
 	if mode == Mode.RESCUE:
 		var drop: float = position.y - kart.position.y - 1.0
@@ -198,11 +200,9 @@ func _build() -> void:
 	_rod_tip = Node3D.new()
 	_rod_tip.position = Vector3(0.3, 1.8, 1.8)
 	add_child(_rod_tip)
-	# start signal: a dark box with three lamps, red / red / blue. Lakitu's node faces away from the
-	# player (rotation.y = heading + PI), so the signal is turned 180° to point its lamps at the racer.
+	# start signal: a dark box with three lamps, red / red / blue, lamps on the +Z side facing the racer
 	_signal = Node3D.new()
 	_signal.position = Vector3(0, -1.6, 0)
-	_signal.rotation.y = PI
 	_rod_tip.add_child(_signal)
 	_box(_signal, Vector3(0.6, 1.7, 0.25), Vector3(0, 0, 0), Color(0.12, 0.12, 0.14))
 	for i in 3:

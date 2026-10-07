@@ -215,7 +215,14 @@ func test_lakitu_node_modes() -> void:
 	var fwd := Vector3(-sin(k.heading), 0, -cos(k.heading))
 	var rel: Vector3 = l.position - k.position
 	runner.check(rel.dot(fwd) > 2.0 and rel.y > 2.0, "ahead and above the kart: %s" % rel)
-	runner.check(is_equal_approx(wrapf(l.rotation.y - k.heading - PI, -PI, PI), 0.0), "faces the camera")
+	runner.check(is_equal_approx(wrapf(l.rotation.y - k.heading, -PI, PI), 0.0), "faces the camera")
+	# the rod tip (signal / signs / flag) hangs on the camera side of the cloud, in front of its puffs
+	var tip_rel: Vector3 = l.transform * l._rod_tip.position - l.position
+	runner.check(tip_rel.dot(fwd) < -1.0, "signal in front of the cloud: %s" % tip_rel)
+	var lamp_out: Vector3 = (l.transform * l._rod_tip.transform * l._signal.transform).basis.z
+	runner.check(lamp_out.dot(fwd) < -0.9, "lamps face the racer: %s" % lamp_out)
+	var board_out: Vector3 = (l.transform * l._rod_tip.transform * l._sign.transform).basis.z
+	runner.check(board_out.dot(fwd) < -0.9, "sign text faces the racer: %s" % board_out)
 	# after the signal is put away Lakitu leaves
 	l.update_lakitu(DT, 0.0, true, Lakitu.SIGNAL_HOLD + 0.1)
 	runner.check(l.mode == Lakitu.Mode.HIDDEN and not l.visible, "gone after GO")
