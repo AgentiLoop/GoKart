@@ -1,6 +1,6 @@
 # GoKart
 
-A Mario Kart–style arcade kart racer built with **Godot 4** and GDScript. Everything — track, karts, effects — is generated procedurally from code; there are no imported art assets.
+Arcade style go kart racer built with **Godot 4** and GDScript. Everything — track, karts, effects — is generated procedurally from code; there are no imported art assets.
 
 ## Screenshots
 
