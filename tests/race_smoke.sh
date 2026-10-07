@@ -3,6 +3,8 @@
 # peer-to-peer and race: every kart sees the others drive. Usage: tests/race_smoke.sh [players=3] [lobby=ws://localhost:8787/api/mp]
 # Add a third argument --finish to race all 3 laps and check every board has everyone's time,
 # or --items to fire every item picked up and check each player's items reach the others.
+# Set GOKART_SHOTS=DIR to run the games in small windows instead and save each player's view
+# (with the other players' name tags) as DIR/race_N.png once their check passes.
 # (start a local lobby with: cd website && npx wrangler dev --port 8787)
 cd "$(dirname "$0")/.."
 n=${1:-3}
@@ -11,14 +13,21 @@ names=(Alice Bob Carol Dave)
 limit=100; [[ -n $3 ]] && limit=400
 pids=()
 for i in $(seq 1 $n); do
-  perl -e "alarm $limit; exec @ARGV" -- godot --headless --path . -s tests/race_smoke.gd -- --name=${names[$i]} --players=$n $3 > /tmp/gokart_race_$i.log 2>&1 &
+  if [[ -n $GOKART_SHOTS ]]; then
+    mode=(--resolution 640x360 --position $(( (i - 1) * 660 )),60)
+    shot=(--shot=$GOKART_SHOTS/race_$i.png)
+  else
+    mode=(--headless)
+    shot=()
+  fi
+  perl -e "alarm $limit; exec @ARGV" -- godot $mode --path . -s tests/race_smoke.gd -- --name=${names[$i]} --players=$n $shot $3 > /tmp/gokart_race_$i.log 2>&1 &
   pids+=$!
   sleep 0.5
 done
 fail=0
 for i in $(seq 1 $n); do
   wait ${pids[$i]} || fail=1
-  grep -E ": (race|GO|sees|items|OK|FAILED|TIMEOUT|board)" /tmp/gokart_race_$i.log
+  grep -E ": (race|GO|sees|items|OK|FAILED|TIMEOUT|board|shot)" /tmp/gokart_race_$i.log
 done
 [[ $fail == 0 ]] && echo "RACE SMOKE: $n players OK" || echo "RACE SMOKE: FAILED"
 exit $fail

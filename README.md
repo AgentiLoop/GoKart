@@ -156,7 +156,7 @@ godot --headless --path . -s tools/tt_check.gd    # Time Trial flow check (menu 
 godot --headless --path . -s tools/intro_check.gd # Course intro check (menu -> Enter -> fly-over with the name card, HUD away, countdown waiting -> camera moves and cuts -> intro ends on its own, HUD back, countdown runs; the throttle skips it; a race scene loaded directly gets none)
 tests/net_smoke.sh 3 wss://gokart.games/api/mp     # online: 3 headless games quick-match on the lobby, build the WebRTC mesh and message each other (default lobby: a local wrangler dev on :8787)
 tests/lobby_smoke.sh 3 wss://gokart.games/api/mp   # online: 3 games go through the ONLINE screen (Quick Match, host START NOW) into the online race
-tests/race_smoke.sh 3 wss://gokart.games/api/mp    # online: 3 games race and see each other drive; add --finish (3 laps, every board has every time) or --items (every item reaches the other games)
+tests/race_smoke.sh 3 wss://gokart.games/api/mp    # online: 3 games race and see each other drive; add --finish (3 laps, every board has every time) or --items (every item reaches the other games); with GOKART_SHOTS=/tmp/shots the games run in small windows and save each player's view as race_N.png, counting the white letter pixels of every name tag on screen
 godot --path . -s tools/screenshot.gd           # visual check, writes /tmp/gokart_*.png
 godot --path . -s tools/tt_shot.gd              # Time Trial with a synthetic ghost on the course -> /tmp/gokart_tt_*.png
 godot --path . -s tools/mirror_shot.gd          # Extra class: mirrored menu preview + race -> /tmp/gokart_mirror_*.png

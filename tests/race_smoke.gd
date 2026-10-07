@@ -29,6 +29,9 @@ var want_items := false
 var items_from := {}   # peer id -> ITEM packets received
 var hits_from := {}    # peer id -> HIT packets received
 var fired := 0
+## --shot=PATH (windowed runs only): save what this player sees once the check passes, so the name
+## tags over the other karts can be looked at
+var shot := ""
 
 func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -42,6 +45,8 @@ func _initialize() -> void:
 			want_items = true
 		elif a.begins_with("--leave-at="):
 			leave_at = float(a.substr(11))
+		elif a.begins_with("--shot="):
+			shot = a.substr(7)
 	net = root.get_node_or_null("Net")
 	if net == null:
 		net = load("res://scripts/net.gd").new()
@@ -120,6 +125,32 @@ func _process(delta: float) -> bool:
 			for p in race.items.projectiles:
 				remote += 1 if p.owner_id > 0 else 0
 			print(player, ": items fired ", fired, ", received ", items_from, ", hit packets ", hits_from, ", their items on the road now ", remote, ", spun ", race.kart.model.is_spinning())
+		if shot != "":
+			var img := root.get_viewport().get_texture().get_image()
+			img.save_png(shot)
+			print(player, ": shot ", shot)
+			var cam := root.get_viewport().get_camera_3d()
+			for id in race.peer_karts:
+				for c in race.peer_karts[id].get_children():
+					if c is Label3D:
+						var p: Vector3 = c.global_position
+						var on := not cam.is_position_behind(p) and root.get_viewport().get_visible_rect().has_point(cam.unproject_position(p))
+						# white letter pixels inside the tag's on-screen box: > 0 means the name is drawn there
+						var box := Rect2(cam.unproject_position(p), Vector2.ZERO)
+						var aabb: AABB = c.get_aabb()
+						for i in 8:
+							var q: Vector3 = c.global_transform * aabb.get_endpoint(i)
+							if not cam.is_position_behind(q):
+								box = box.expand(cam.unproject_position(q))
+						var white := 0
+						# camera coords are in the viewport's size, the image in the window's pixels
+						var k := Vector2(img.get_size()) / root.get_viewport().get_visible_rect().size
+						box = Rect2(box.position * k, box.size * k)
+						for y in range(int(box.position.y), int(box.end.y) + 1):
+							for x in range(int(box.position.x), int(box.end.x) + 1):
+								if on and x >= 0 and y >= 0 and x < img.get_width() and y < img.get_height() and img.get_pixel(x, y).v > 0.9 and img.get_pixel(x, y).s < 0.15:
+									white += 1
+						print(player, ": shot tag '", c.text, "' box ", Rect2i(box), " in ", img.get_size(), " ", snappedf(cam.global_position.distance_to(p), 0.1), " m away, on screen ", on, ", white pixels ", white)
 		print(player, ": OK")
 		ok_at = clock
 	return false
