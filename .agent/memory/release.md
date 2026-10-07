@@ -1,3 +1,8 @@
+# MarioKart64JS (this repo) desktop release (worked for v0.0.1)
+- Name is MarioKart64JS (NOT TarioKart64). Release remote = `js` (AgentiLoop/MarioKart64JS); `origin` is the old TarioKart64 repo.
+- Electron shell in desktop/: version in desktop/package.json. `npm run game` (Vite build → desktop/game) then `npx electron-builder --mac --win --linux --publish never` (~4 min). Skip AppImage: its helper fails with spawn error -86 (no Rosetta).
+- Mac signing is done by electron-builder (identity "Todd Bruss (469UCUB275)", notarize:false). Then notarize manually the same way as GoKart (below), re-zip the stapled .app with ditto over release/MarioKart64JS-X-mac-universal.zip, write SHA256SUMS.txt, and run `gh release create --prerelease`.
+
 # GoKart release procedure (worked for v0.0.2)
 
 - Version lives in 3 places: project.godot `config/version`, export_presets.cfg preset.0 `short_version`/`version` (mac) and preset.1 `file_version`/`product_version` (win, 4-part). Commit "Release X.Y.Z: version bump", `git tag -a vX.Y.Z -m "GoKart X.Y.Z"`.

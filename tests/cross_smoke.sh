@@ -37,7 +37,7 @@ fi
 # the VM sees the Mac's home folder read-only: hand the tree over through it, import inside the VM
 tar=$HOME/.gokart_cross.tar
 git archive --format=tar HEAD > $tar
-limactl shell $vm -- bash -lc "rm -rf ~/gk ~/gkw && mkdir ~/gk && tar -xf $tar -C ~/gk && cd ~/gk && ~/$gd --headless --import --path . > /tmp/gk_import.log 2>&1 && cp -r ~/gk ~/gkw" || exit 1
+limactl shell $vm -- bash -lc "rm -rf ~/gk ~/gkw /tmp/gokart_cross_*.log && mkdir ~/gk && tar -xf $tar -C ~/gk && cd ~/gk && ~/$gd --headless --import --path . > /tmp/gk_import.log 2>&1 && cp -r ~/gk ~/gkw" || exit 1
 rm -f $tar
 names=(Linus Lena Lars Liv Macy Moe Mia Max Wendy Walt Wren Will)
 lin=(); mac=(); win=()
@@ -51,7 +51,8 @@ if (( nl > 0 )); then
 fi
 if (( nw > 0 )); then
   # Godot under Wine never exits after quit(): judge each Windows player by its log, then stop Wine
-  limactl shell $vm -- bash -lc "cd ~/gkw; export PATH=\$HOME/wine11/bin:\$PATH WINEDEBUG=-all GOKART_LOBBY=$lobby; for p in $win; do perl -e 'alarm $limit; exec @ARGV' -- wine ~/$gw --headless --path . -s tests/race_smoke.gd -- --name=\$p --players=$n $extra > /tmp/gokart_cross_\$p.log 2>&1 & sleep 0.5; done; fail=0; for p in $win; do s=0; until grep -qaE \"^\$p: (OK|FAILED|TIMEOUT)\" /tmp/gokart_cross_\$p.log || (( s >= $limit )); do sleep 1; s=\$(( s + 1 )); done; grep -qa \"^\$p: OK\" /tmp/gokart_cross_\$p.log || fail=1; done; sleep 3; wineserver -k; exit \$fail" &
+  ok=OK; [[ $extra == --finish ]] && ok="FINISH OK"
+  limactl shell $vm -- bash -lc "cd ~/gkw; export PATH=\$HOME/wine11/bin:\$PATH WINEDEBUG=-all GOKART_LOBBY=$lobby; for p in $win; do perl -e 'alarm $limit; exec @ARGV' -- wine ~/$gw --headless --path . -s tests/race_smoke.gd -- --name=\$p --players=$n $extra > /tmp/gokart_cross_\$p.log 2>&1 & sleep 0.5; done; fail=0; for p in $win; do s=0; until grep -qaE \"^\$p: ($ok|FAILED|TIMEOUT)\" /tmp/gokart_cross_\$p.log || (( s >= $limit )); do sleep 1; s=\$(( s + 1 )); done; grep -qa \"^\$p: $ok\" /tmp/gokart_cross_\$p.log || fail=1; done; sleep 4; wineserver -k; exit \$fail" &
   wpid=$!
 fi
 sleep 3
@@ -69,6 +70,11 @@ pat=": (race|sees|items|OK|FAILED|TIMEOUT|board|FINISH)"
 for p in $lin; do limactl shell $vm -- bash -lc "grep -E '^$p$pat' /tmp/gokart_cross_$p.log | sed 's/^/[linux] /'"; done
 for p in $win; do limactl shell $vm -- bash -lc "grep -aE '^$p$pat' /tmp/gokart_cross_$p.log | sed 's/^/[windows] /'"; done
 for p in $mac; do grep -E "^$p$pat" /tmp/gokart_cross_$p.log | sed 's/^/[macos] /'; done
+# a full race only counts if every player stayed to the end: no LEFT row on any board
+if [[ $extra == --finish ]]; then
+  limactl shell $vm -- bash -lc "! grep -aqE '^[A-Za-z]+: board .* LEFT' /tmp/gokart_cross_*.log" || fail=1
+  for p in $mac; do grep -qE "^$p: board .* LEFT" /tmp/gokart_cross_$p.log && fail=1; done
+fi
 [[ $fail == 0 ]] && echo "CROSS SMOKE: $nl Linux + $nw Windows + $nm macOS players OK" || echo "CROSS SMOKE: FAILED"
 exit $fail
 
