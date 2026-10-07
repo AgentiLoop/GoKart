@@ -43,7 +43,16 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--lobby="):
 			lobby_url = a.substr(8)
+		elif a.begins_with("--smoke=res://tests/"):
+			_run_smoke.call_deferred(a.substr(8))
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
+
+## Exported games ignore Godot's -s, so `GoKart -- --smoke=res://tests/race_smoke.gd ...` runs a
+## SceneTree smoke test shipped in the pack as the main loop (tests/export_smoke.sh).
+func _run_smoke(path: String) -> void:
+	var tree := get_tree()
+	tree.set_script(load(path))
+	tree.call("_initialize")
 
 static func clean_name(s: String) -> String:
 	var out := ""
