@@ -69,6 +69,18 @@ Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the roa
 - **Procedural audio**: synthesized engine loop (pitch follows speed), tire screech while drifting, countdown beeps, boost / mini-turbo / item / hit / explosion / lightning / star / Boo / splash / burnout / crossing-bell / train-crash sounds and finish fanfares, plus positional 3D engine hum on each AI kart, with no audio files (`scripts/ai_engine_audio.gd`, `scripts/sound_synth.gd`, `scripts/game_audio.gd`). **Course music** like Mario Kart 64's: every course has its own chiptune loop (a farm oom-pah on Green Hills, a walking-bass highway tune on Sunset Speedway, bell-like snow on Frosty Peaks, a galloping desert on Dusty Canyon) and the battle arenas share one, all three-voice lead / bass / drums patterns rendered from code at load (`scripts/music.gd`). The tune starts at GO; when you begin the **final lap** a "Final Lap!" jingle plays and the **music speeds up**, the **Star theme** takes over while you are invincible, and at the line the music stops for a finish fanfare that depends on your place (1st / 2nd–4th / 5th or worse), all MK64 rules
 - **HUD** with place, lap, a Mario Kart 64 style **item window** (a navy box with a gold rim at the top centre holding a drawn icon of the held item — the roulette cycles the icons — with the item's name and the use key under it; icons for all 14 items are built from a few polygons and circles in `scripts/item_icon.gd`, no textures) and a Mario Kart 64 style **course map** (one see-through cream route laid straight over the scene — no box behind it and no black rim, only the HUD's navy drop shadow — with a gold tick across the start line, a gold ring round your dot and the railway on Dusty Canyon; the same map sits over the course picture's corner on the select screen), styled like the menu (`scripts/ui_style.gd`): the same rounded font, gold / cream text with drop shadows and no black outlines; only the countdown and the FINISH! / YOU WIN! banners are gold "signs" with a dark red rim like the logo (`scripts/hud.gd`, `scripts/minimap.gd`). The 3D signs in the race share the look: Lakitu's LAP / REVERSE sign, the start gate's START / CONTINUE / FINISH banner and the train's "64" plate use the same rounded font with a thin rim in their board's own shade (`UiStyle.style_label3d` / `board_rim`) instead of the old thick black outlines
 - **Procedural kart model** with steering front wheels and spinning wheels (`scripts/kart_model.gd`)
+- **Online multiplayer** for 2–4 players, peer-to-peer, with each player's name above their kart (see [Online play](#online-play)) (`scripts/net.gd`, `scripts/online_lobby.gd`, `scripts/online_race.gd`)
+
+## Online play
+
+Press **O** on the select screen to open the ONLINE screen. Type your name (it is saved and shown above your kart in everyone's game), then pick **Quick Match** (joins any open public room) or **Create / Join** a private room by its code to play with friends. The lobby lists the players in the room with the host marked; a room starts on its own when its countdown runs out (a public room also as soon as 4 players are in), and the host can start early. Esc leaves the room.
+
+- **gokart.games only finds the players.** Its lobby (`website/src/lobby.js`, a Cloudflare Worker) puts players in a room and passes the WebRTC handshake between them (offer / answer and ICE candidates over a WebSocket). After that it is out of the loop: the race runs over a **WebRTC full mesh** (Godot's `WebRTCMultiplayerPeer.create_mesh`), every game talking directly to every other one.
+- **Each game drives only its own kart** and sends its position about 30 times a second; the other karts replay those positions 0.1 s in the past, so they move smoothly between packets. The lowest player id is the host and only decides the start: every game says READY, the host answers GO and all of them run the 3-2-1 countdown together.
+- **Items work online:** you roll and use your own items, and every shell, banana or fake box you throw appears in the other games; only the player who gets hit decides that they were hit, and tells the others. Lightning, a blue shell blast and a Boo's theft act on each player's own kart.
+- **Results** rank finishers by the finish time each player reports; the board updates as others finish or leave ("X left the race").
+- **Cross-platform:** macOS, Windows and Linux builds race each other. Desktop WebRTC comes from the [webrtc-native](https://github.com/godotengine/webrtc-native) GDExtension in `addons/webrtc_native/` (exported inside the app on macOS and as a library next to the game binary on Windows / Linux).
+- **Connection:** the games find each other through public STUN servers (`Net.ICE_SERVERS`); there is no TURN relay, so a player behind a very strict (symmetric) NAT or firewall may not be able to connect. Set `GOKART_LOBBY` to use another lobby, for example a local one (`cd website && npx wrangler dev --port 8787`, then `GOKART_LOBBY=ws://localhost:8787/api/mp`).
 
 ## Controls
 
@@ -88,6 +100,7 @@ Taken with `godot --path . -s tools/random_drive.gd` (a bot that wanders the roa
 | G or Tab (menu) | Mode: Single Race / Grand Prix / Time Trial / Battle |
 | Enter | Race / battle again (or your ghost) or next cup race (on the results screen) / start (menu) |
 | Esc | Pause (CONTINUE / RETRY / COURSE CHANGE / QUIT); Esc again resumes; on the results board, back to the track / arena menu |
+| O (select screen) | ONLINE: name entry, Quick Match or a private room code, lobby (Esc leaves) |
 
 ## Download
 
@@ -100,7 +113,7 @@ Prebuilt binaries are on the [releases page](https://github.com/AgentiLoop/GoKar
 | Linux (x86_64) | `GoKart-<version>-linux-x86_64.tar.gz` |
 | Linux (arm64) | `GoKart-<version>-linux-arm64.tar.gz` |
 
-Each download is a single self-contained binary with the game data embedded. `SHA256SUMS.txt` on the release page lists the checksums.
+Each download has the game data embedded in the binary; the Windows and Linux ones also carry the WebRTC library (`libwebrtc_native.*.dll` / `.so`) for online play, which must stay next to the binary. `SHA256SUMS.txt` on the release page lists the checksums.
 
 ## Running from source
 
@@ -141,6 +154,9 @@ godot --headless --path . -s tools/battle_smoke.gd -- 1  # headless battle smoke
 godot --headless --path . -s tools/gp_check.gd    # Grand Prix flow check (menu -> cup race 1 -> results -> race 2 from pole -> rank out 6th -> retry the same race -> Esc)
 godot --headless --path . -s tools/tt_check.gd    # Time Trial flow check (menu -> solo run -> record + ghost saved -> race the ghost -> Esc)
 godot --headless --path . -s tools/intro_check.gd # Course intro check (menu -> Enter -> fly-over with the name card, HUD away, countdown waiting -> camera moves and cuts -> intro ends on its own, HUD back, countdown runs; the throttle skips it; a race scene loaded directly gets none)
+tests/net_smoke.sh 3 wss://gokart.games/api/mp     # online: 3 headless games quick-match on the lobby, build the WebRTC mesh and message each other (default lobby: a local wrangler dev on :8787)
+tests/lobby_smoke.sh 3 wss://gokart.games/api/mp   # online: 3 games go through the ONLINE screen (Quick Match, host START NOW) into the online race
+tests/race_smoke.sh 3 wss://gokart.games/api/mp    # online: 3 games race and see each other drive; add --finish (3 laps, every board has every time) or --items (every item reaches the other games)
 godot --path . -s tools/screenshot.gd           # visual check, writes /tmp/gokart_*.png
 godot --path . -s tools/tt_shot.gd              # Time Trial with a synthetic ghost on the course -> /tmp/gokart_tt_*.png
 godot --path . -s tools/mirror_shot.gd          # Extra class: mirrored menu preview + race -> /tmp/gokart_mirror_*.png
