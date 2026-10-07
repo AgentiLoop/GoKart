@@ -33,6 +33,8 @@ const MenuAudio := preload("res://scripts/menu_audio.gd")
 const CourseIntro := preload("res://scripts/course_intro.gd")
 const RACE_SCENE := "res://scenes/main.tscn"
 const BATTLE_SCENE := "res://scenes/battle.tscn"
+## O: the ONLINE screen (name, quick match / room code, lobby) for a 2-4 player peer-to-peer race.
+const ONLINE_SCENE := "res://scenes/online.tscn"
 
 const MODE_SINGLE := 0
 const MODE_GP := 1
@@ -410,6 +412,18 @@ static func cup_order(first: int, track_count: int) -> Array:
 		out.append(posmod(first + i, track_count))
 	return out
 
+## O opens the ONLINE screen.
+static func is_online_key(keycode: int) -> bool:
+	return keycode == KEY_O
+
+## Leave for the ONLINE screen (the menu tune fades out like on Enter).
+func open_online() -> void:
+	if audio != null:
+		audio.leave()
+	KartWeight.selected = weight_class
+	TrackLibrary.selected = selected
+	get_tree().change_scene_to_file(ONLINE_SCENE)
+
 static func is_confirm_key(keycode: int) -> bool:
 	return keycode == KEY_ENTER or keycode == KEY_KP_ENTER
 
@@ -469,7 +483,7 @@ func _ready() -> void:
 	select_box.add_child(list_box)
 	# one line for the whole screen (MK64's screens carry no key hints; this menu has a keyboard)
 	var hint := _label(Vector2(80, 468), 13, 420, GREY)
-	hint.text = "Up / Down  pick a row     Left / Right  change it"
+	hint.text = "Up / Down  pick a row     Left / Right  change it     O  online"
 	# right panel: the course picture (MK64's course select shows a picture of the course beside
 	# the map) — the demo world seen from a camera flying along the road, in a framed window — with
 	# the map outline in the picture's corner, then the name and the blurb
@@ -1206,5 +1220,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		move_weight(wd)
 	elif ld != 0:
 		move_laps(ld)
+	elif is_online_key(event.physical_keycode):
+		open_online()
 	elif is_confirm_key(event.physical_keycode):
 		start_race()
