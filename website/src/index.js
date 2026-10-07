@@ -1,4 +1,5 @@
 import { EmailMessage } from "cloudflare:email";
+export { Lobby } from "./lobby.js";
 
 const json = (o, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -73,6 +74,9 @@ export default {
     if (url.pathname === "/api/feedback") {
       if (request.method !== "POST") return json({ error: "POST only." }, 405);
       return feedback(request, env, ctx);
+    }
+    if (url.pathname === "/api/mp" || url.pathname === "/api/mp/status") {
+      return env.LOBBY.get(env.LOBBY.idFromName("global")).fetch(request);
     }
     if (url.hostname === "www.gokart.games") { url.hostname = "gokart.games"; return Response.redirect(url.toString(), 301); }
     const res = await env.ASSETS.fetch(request);

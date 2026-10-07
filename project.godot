@@ -11,6 +11,7 @@ boot_splash/show_image=false
 [autoload]
 
 RenderScale="*res://scripts/render_scale.gd"
+Net="*res://scripts/net.gd"
 
 [display]
 window/size/viewport_width=1280
