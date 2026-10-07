@@ -134,6 +134,12 @@ var ready_clock := 0.0
 var ready_resend := 0.0
 var send_clock := 0.0
 var racer_names: Array = []
+## Online: each player's race time as they reported it (peer id -> s), whether ours went out, the
+## standings the results board last showed, and the "X left the race" notice's time left.
+var peer_finish := {}
+var finish_sent := false
+var shown_standings := ""
+var notice_t := 0.0
 
 func _ready() -> void:
 	net = get_node_or_null("/root/Net")
@@ -367,12 +373,19 @@ func _on_packet(id: int, data: PackedByteArray) -> void:
 				multiplayer.send_bytes(OnlineRace.pack_go(), id, MultiplayerPeer.TRANSFER_MODE_RELIABLE)
 		OnlineRace.Packet.GO:
 			waiting_go = false
+		OnlineRace.Packet.FINISH:
+			var t := OnlineRace.unpack_finish(data)
+			if t >= 0.0:
+				peer_finish[id] = t
 
-## A player dropped out: their kart vanishes from the course (it keeps its place in the standings).
+## A player dropped out: their kart vanishes from the course (it keeps its place in the standings,
+## marked LEFT unless it had finished) and a notice says who left.
 func _on_peer_left(id: int) -> void:
 	var k = peer_karts.get(id)
 	if k == null:
 		return
+	hud.show_cup("%s left the race" % racer_names[karts.find(k)])
+	notice_t = OnlineRace.NOTICE_TIME
 	k.puppet.left = true
 	k.visible = false
 	k.collision_layer = 0
@@ -407,6 +420,28 @@ func _leave_online() -> void:
 	OnlineRace.active = false
 	net.leave()
 	get_tree().change_scene_to_file("res://scenes/menu.tscn")
+
+## Online: tell the others our finish time once, keep the results board up to date as the others
+## finish or leave, and clear the "X left the race" notice when its time is up.
+func _online_update(delta: float, progresses: Array, finish_times: Array) -> void:
+	if tracker.is_finished and not finish_sent:
+		finish_sent = true
+		if not multiplayer.get_peers().is_empty():
+			multiplayer.send_bytes(OnlineRace.pack_finish(tracker.race_time), 0, MultiplayerPeer.TRANSFER_MODE_RELIABLE)
+	if notice_t > 0.0:
+		notice_t -= delta
+		if notice_t <= 0.0:
+			hud.show_cup("")
+	if not results_shown:
+		return
+	var left: Array = []
+	for k in karts:
+		left.append(k.puppet != null and k.puppet.left)
+	# redrawn only when someone finishes or leaves, so the board's slide-in doesn't replay every frame
+	var key := str(finish_times) + str(left)
+	if key != shown_standings:
+		shown_standings = key
+		hud.show_results(OnlineRace.results_text(racer_names, progresses, finish_times, left))
 
 func _on_player_boost(level: int) -> void:
 	if kart.model.boost_from_drift:
@@ -508,9 +543,10 @@ func _physics_process(delta: float) -> void:
 			k.tracker.update(delta, k.track_index)
 		var frac: float = (kp - data.points[k.track_index]).dot(data.tangents[k.track_index]) / data.spacing
 		if k.puppet != null:
-			# another player's kart: their own machine runs its pads, water and hazards
+			# another player's kart: their own machine runs its pads, water and hazards, and times
+			# their finish (the FINISH packet), so every peer ranks the finishers the same
 			progresses.append(RaceRanking.progress(k.tracker.lap, k.track_index, data.count, frac))
-			finish_times.append(k.tracker.race_time if k.tracker.is_finished else -1.0)
+			finish_times.append(peer_finish.get(peer_karts.find_key(k), -1.0))
 			continue
 		if data.pad_at(kp) != null:
 			k.model.apply_boost(PAD_BOOST_TIME, 1)
@@ -642,8 +678,10 @@ func _physics_process(delta: float) -> void:
 			elif GrandPrix.active:
 				GrandPrix.add_race(rows, 0)
 				hud.show_results(RaceResults.table_text(rows, 0, GrandPrix.standings_text(names, 0)))
-			else:
+			elif not online:
 				hud.show_results(RaceResults.table_text(rows, 0))
+	if online:
+		_online_update(delta, progresses, finish_times)
 	hud.update_hud(tracker, kart.model.speed, kart.model.is_boosting(), kart.model.drift_level, items.holder.display_item(items.time), Hud.place_text(place, karts.size()), kart.model.is_star(), kart.model.is_shrunk(), items.holder.charges, items.holder.golden_time, kart.model.is_ghost())
 	hud.show_countdown(race_start.label() if intro_t < 0.0 and not waiting_go else "")
 	var marker_pos: Array = []

@@ -16,6 +16,13 @@ var race: Node = null
 var starts := {}   # peer id -> puppet position when the race started
 var names := {}    # peer id -> name, kept after a peer leaves
 var ok_at := -1.0  # passed: linger so the others can finish their check too
+## --finish: also race to the flag and pass once the results board has every player's reported time
+var want_finish := false
+var fin_at := -1.0
+## --leave-at=S: this player quits S seconds after GO (the others must show it as LEFT)
+var leave_at := -1.0
+var go_at := -1.0
+var noticed := false
 
 func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -23,6 +30,10 @@ func _initialize() -> void:
 			player = a.substr(7)
 		elif a.begins_with("--players="):
 			want = int(a.substr(10))
+		elif a == "--finish":
+			want_finish = true
+		elif a.begins_with("--leave-at="):
+			leave_at = float(a.substr(11))
 	net = root.get_node_or_null("Net")
 	if net == null:
 		net = load("res://scripts/net.gd").new()
@@ -42,7 +53,7 @@ func _on_mesh_ready() -> void:
 
 func _process(delta: float) -> bool:
 	clock += delta
-	if clock > 80.0:
+	if clock > (360.0 if want_finish else 80.0):
 		print(player, ": TIMEOUT")
 		quit(2)
 	var scene := current_scene
@@ -50,13 +61,25 @@ func _process(delta: float) -> bool:
 		race = scene
 		names = net.names.duplicate()
 		print(player, ": race on ", race._track_name(), " with ", race.racer_names)
+	if race != null and race.hud != null and race.hud.cup_label.text.contains("left") and not noticed:
+		noticed = true
+		print(player, ": notice '", race.hud.cup_label.text, "'")
+	if leave_at >= 0.0 and go_at >= 0.0 and clock - go_at > leave_at:
+		print(player, ": LEAVING")
+		net.leave()
+		quit(0)
+		return false
 	if ok_at >= 0.0:
+		if want_finish:
+			_check_finish()
+			return false
 		if clock - ok_at > 4.0:
 			quit(0)
 		return false
 	if race == null or not race.race_start.started:
 		return false
 	if starts.is_empty():
+		go_at = clock
 		print(player, ": GO")
 		race.kart.driver = AiDriver.new(race.track.data, 0.0, 999.0)
 		for id in race.peer_karts:
@@ -74,3 +97,16 @@ func _process(delta: float) -> bool:
 		print(player, ": OK")
 		ok_at = clock
 	return false
+
+## The board is complete once nobody is still racing: every row has a finish time.
+func _check_finish() -> void:
+	if fin_at >= 0.0:
+		if clock - fin_at > 4.0:
+			quit(0)
+		return
+	if not race.results_shown or race.hud.results_text.contains("WAITING"):
+		return
+	for line in race.hud.results_text.split("\n"):
+		print(player, ": board ", line)
+	print(player, ": FINISH OK")
+	fin_at = clock

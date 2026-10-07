@@ -63,3 +63,21 @@ func test_lobby_screen() -> void:
 	var screen = load(menu.ONLINE_SCENE).instantiate()
 	runner.check(screen.get_script() == Lobby, "online scene runs the lobby script")
 	screen.free()
+
+func test_finish_and_results() -> void:
+	var data := OnlineRace.pack_finish(83.25)
+	runner.check(OnlineRace.kind(data) == OnlineRace.Packet.FINISH, "tagged as a finish packet")
+	runner.check(is_equal_approx(OnlineRace.unpack_finish(data), 83.25), "finish time survives")
+	runner.check(OnlineRace.unpack_finish(OnlineRace.pack_go()) < 0.0, "other packets aren't a finish")
+	runner.check(OnlineRace.board_name("Todd B.") == "TODD_B_" and OnlineRace.board_name("2fast") == "P2FAST", "board names: %s / %s" % [OnlineRace.board_name("Todd B."), OnlineRace.board_name("2fast")])
+	var Hud = load("res://scripts/hud.gd")
+	# me (finished 2nd by time), Bob (finished first), Cy (still racing), Di (left mid-race)
+	var text: String = OnlineRace.results_text(["Me", "Bob", "Cy", "Di"], [300.0, 290.0, 200.0, 250.0], [90.0, 85.5, -1.0, -1.0], [false, false, false, true])
+	var ranks: Array = []
+	for item in Hud.parse_results(text):
+		if item.kind == "rank":
+			ranks.append([item.name, item.value, item.player])
+	runner.check(ranks == [["BOB", "1:25.500", false], ["ME", "1:30.000", true], ["DI", "LEFT", false], ["CY", "--:--.---", false]], "board by reported times, LEFT marked: %s" % [ranks])
+	runner.check(text.contains("WAITING FOR 1"), "counts the ones still racing")
+	runner.check(text.contains("LEFT  +0"), "no points for leaving: %s" % text)
+	runner.check(not OnlineRace.results_text(["Me", "Bob"], [1.0, 2.0], [90.0, 95.0], [false, false]).contains("WAITING"), "no wait line once all are in")

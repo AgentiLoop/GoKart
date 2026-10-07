@@ -8,6 +8,7 @@ extends RefCounted
 
 const TrackLibrary := preload("res://scripts/track_library.gd")
 const UiStyle := preload("res://scripts/ui_style.gd")
+const RaceResults := preload("res://scripts/race_results.gd")
 
 ## Set by whoever starts an online race (menu / smoke test) before switching to the race scene.
 static var active := false
@@ -21,7 +22,10 @@ const READY_TIMEOUT := 15.0
 ## Karts by grid slot: red, blue, green, yellow.
 const COLORS := [Color(0.9, 0.1, 0.1), Color(0.15, 0.3, 0.95), Color(0.15, 0.75, 0.25), Color(0.95, 0.85, 0.15)]
 
-enum Packet { STATE = 1, READY = 2, GO = 3 }
+enum Packet { STATE = 1, READY = 2, GO = 3, FINISH = 4 }
+
+## How long a "X left the race" notice stays up.
+const NOTICE_TIME := 4.0
 
 ## Flags in a state packet.
 const F_VISIBLE := 1
@@ -49,6 +53,56 @@ static func pack_ready() -> PackedByteArray:
 
 static func pack_go() -> PackedByteArray:
 	return PackedByteArray([Packet.GO])
+
+## Sent (reliable) once when a player crosses the line: their race time as their own machine
+## measured it, so every peer ranks the finishers by the same times.
+static func pack_finish(race_time: float) -> PackedByteArray:
+	var b := StreamPeerBuffer.new()
+	b.put_u8(Packet.FINISH)
+	b.put_double(race_time)
+	return b.data_array
+
+## The race time in a finish packet, or -1 for a short/garbled one.
+static func unpack_finish(data: PackedByteArray) -> float:
+	if data.size() < 9 or data[0] != Packet.FINISH:
+		return -1.0
+	var b := StreamPeerBuffer.new()
+	b.data_array = data
+	b.seek(1)
+	return maxf(b.get_double(), 0.0)
+
+## A player's name as the results board shows it: the board reads a racer's name as one upper-case
+## word, so spaces and other symbols become "_" (and a leading digit gets a "P").
+static func board_name(s: String) -> String:
+	var out := ""
+	for ch in s.to_upper():
+		var c := ch.unicode_at(0)
+		out += ch if (c >= 65 and c <= 90) or (c >= 48 and c <= 57) or c == 95 else "_"
+	if out == "" or (out.unicode_at(0) >= 48 and out.unicode_at(0) <= 57):
+		out = "P" + out
+	return out
+
+## The line under the online results: how many are still racing, and Enter for the menu.
+static func results_footer(still_racing: int) -> String:
+	if still_racing > 0:
+		return "WAITING FOR %d  Press ENTER for the menu" % still_racing
+	return "Press ENTER for the menu"
+
+## The online results board (racer 0 is this player): finishers by the times they reported, the
+## rest by progress; a player who left before finishing shows LEFT instead of a time.
+static func results_text(names: Array, progresses: Array, finish_times: Array, left: Array) -> String:
+	var board: Array = []
+	var racing := 0
+	for i in names.size():
+		board.append(board_name(names[i]))
+		if finish_times[i] < 0.0 and not left[i]:
+			racing += 1
+	var rows := RaceResults.rows(board, progresses, finish_times)
+	for row in rows:
+		if left[row.id] and not row.finished:
+			row.time = "LEFT"
+			row.points = 0
+	return RaceResults.table_text(rows, 0, results_footer(racing))
 
 ## A kart's pose: s = {t (ms), pos, heading, speed, yaw (body), pitch, scale, flags, drift_level, weight}.
 static func pack_state(s: Dictionary) -> PackedByteArray:
