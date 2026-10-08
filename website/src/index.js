@@ -68,9 +68,13 @@ async function feedback(request, env, ctx) {
   return json({ ok: true });
 }
 
+const HSTS = "max-age=31536000; includeSubDomains";
+const CSP = "default-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src 'self' wss:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'";
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (url.protocol === "http:") { url.protocol = "https:"; return Response.redirect(url.toString(), 301); }
     if (url.pathname === "/api/feedback") {
       if (request.method !== "POST") return json({ error: "POST only." }, 405);
       return feedback(request, env, ctx);
@@ -83,6 +87,9 @@ export default {
     const h = new Headers(res.headers);
     h.set("x-content-type-options", "nosniff");
     h.set("referrer-policy", "strict-origin-when-cross-origin");
+    h.set("strict-transport-security", HSTS);
+    h.set("content-security-policy", CSP);
+    h.set("x-frame-options", "SAMEORIGIN");
     return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h });
   },
 };
