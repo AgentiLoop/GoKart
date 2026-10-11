@@ -69,7 +69,7 @@ async function feedback(request, env, ctx) {
 }
 
 const HSTS = "max-age=31536000; includeSubDomains";
-const CSP = "default-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src 'self' wss:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'";
+const CSP = "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src 'self' wss: https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self'";
 
 export default {
   async fetch(request, env, ctx) {
