@@ -13,4 +13,10 @@
     <image:image><image:loc>https://gokart.games/img/dusty-canyon.jpg</image:loc><image:title>Dusty Canyon</image:title></image:image>
     <image:image><image:loc>https://gokart.games/img/battle.jpg</image:loc><image:title>Battle mode</image:title></image:image>
   </url>
+  <url>
+    <loc>https://gokart.games/architecture</loc>
+    <lastmod>2026-10-12</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
 </urlset>
