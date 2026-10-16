@@ -6,3 +6,5 @@ build/
 .agent/plans/
 .agent/toolcache/
 .agent/tool_outcomes.json
+.agent/worktrees/
+.wrangler/
