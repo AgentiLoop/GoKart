@@ -1,5 +1,8 @@
 # GoKart
 
+🤖 **Built by the makers of [Agent!](https://github.com/AgentiLoop/Agent)**, an autonomous macOS agent.
+
+
 Arcade style go kart racer built with **Godot 4** and GDScript. Everything — track, karts, effects — is generated procedurally from code; there are no imported art assets.
 
 ## Screenshots
