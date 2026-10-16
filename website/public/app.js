@@ -41,9 +41,9 @@
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return [r.ok, j]; }); })
       .then(function (x) {
         if (x[0]) { st.className = 'ok'; st.textContent = 'Thanks! Your feedback was sent.'; f.reset(); }
-        else { st.className = 'err'; st.textContent = x[1].error || 'Could not send. Please email gokart@gokart.games.'; }
+        else { st.className = 'err'; st.textContent = x[1].error || 'Could not send. Please email agent@agentiloop.ai.'; }
       })
-      .catch(function () { st.className = 'err'; st.textContent = 'Network error. Please email gokart@gokart.games.'; })
+      .catch(function () { st.className = 'err'; st.textContent = 'Network error. Please email agent@agentiloop.ai.'; })
       .then(function () { b.disabled = false; });
   });
 })();
