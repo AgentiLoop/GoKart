@@ -23,6 +23,14 @@
     setOs();
   }).catch(function () {});
 
+  function openHash() {
+    var t = location.hash.length > 1 && document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    var d = t && t.closest('details');
+    if (d) { d.open = true; t.scrollIntoView(); }
+  }
+  openHash();
+  window.addEventListener('hashchange', openHash);
+
   var lb = document.getElementById('lb'), lbi = lb.querySelector('img');
   document.addEventListener('click', function (e) {
     var t = e.target;
