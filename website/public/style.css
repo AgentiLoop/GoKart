@@ -135,3 +135,24 @@ footer{border-top:1px solid var(--line);background:#070a1a}
 @keyframes f1adKerb{to{background-position:56px 0}}
 @media (max-width:760px){.f1ad{grid-template-columns:1fr;padding:28px 22px 44px}.f1ad-cta{justify-self:start}}
 @media (prefers-reduced-motion:reduce){.f1ad::after{animation:none}}
+
+/* Four-game showcase */
+.sc .kicker{margin-bottom:6px}
+.sc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:22px}
+.sc-card{display:flex;flex-direction:column;background:var(--bg2);border:1px solid var(--line);border-radius:20px;overflow:hidden;color:var(--ink);text-decoration:none;transition:transform .2s,border-color .2s,box-shadow .2s}
+.sc-card:hover{transform:translateY(-6px);box-shadow:0 20px 40px rgba(0,0,0,.45)}
+.sc-gk:hover{border-color:var(--gold)}.sc-f1:hover{border-color:#e10600}.sc-mk:hover{border-color:#a64dff}.sc-ct:hover{border-color:#ffd400}
+.sc-art{display:block;aspect-ratio:16/9;background:center/cover no-repeat}
+.sc-mk .sc-art{background:linear-gradient(180deg,transparent 40%,#e8352e 40% 44%,#ff7a1a 44% 48%,#ffc928 48% 52%,#33d6ff 52% 56%,#a64dff 56% 60%,transparent 60%),radial-gradient(circle at 20% 25%,#fff 0 1px,transparent 2px),radial-gradient(circle at 70% 15%,#fff 0 1px,transparent 2px),radial-gradient(circle at 85% 70%,#fff 0 1px,transparent 2px),radial-gradient(circle at 35% 80%,#fff 0 1px,transparent 2px),linear-gradient(180deg,#02031a,#2a0b5c)}
+.sc-ct .sc-art{background:linear-gradient(180deg,transparent 62%,#111 62% 66%,transparent 66%),repeating-linear-gradient(90deg,#111 0 18px,#ffd400 18px 36px) 0 66%/100% 10% no-repeat,linear-gradient(180deg,#5fc8ff 0,#a7e3ff 55%,#ffcf6b 62%,#3b3f4a 62%)}
+.sc-body{display:flex;flex-direction:column;gap:8px;padding:16px 18px 20px;flex:1}
+.sc-badge{align-self:flex-start;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 10px;border-radius:999px}
+.sc-badge.orig{background:#1fb37a;color:#04170f}
+.sc-badge.fan{background:#6a7bff;color:#0a0e24}
+.sc-title{font-size:22px;font-weight:900}
+.sc-text{color:var(--mut);font-size:15px;flex:1}
+.sc-url{font-weight:800;color:var(--cyan)}
+.sc-note{margin-top:28px;padding:20px 24px;border:1px dashed var(--line);border-radius:16px;color:var(--mut);font-size:15px}
+.sc-note p{margin:0 0 8px}.sc-note p:last-child{margin:0}
+.sc-note b{color:var(--ink)}
+@media(prefers-reduced-motion:reduce){.sc-card{transition:none}}
